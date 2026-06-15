@@ -37,6 +37,29 @@ export interface AccountInput {
   is_active?: boolean;
 }
 
+export const CATEGORY_TYPES = ['income', 'expense'] as const;
+
+export type CategoryType = (typeof CATEGORY_TYPES)[number];
+
+export interface Category {
+  id: string;
+  name: string;
+  type: CategoryType;
+  parent_id: string | null;
+  budget_monthly: number;
+  is_active: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CategoryInput {
+  name: string;
+  type: CategoryType;
+  parent_id?: string | null;
+  budget_monthly?: number;
+  is_active?: boolean;
+}
+
 export interface Config {
   id: number;
   version: string;

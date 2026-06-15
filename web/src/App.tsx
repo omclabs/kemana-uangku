@@ -4,8 +4,11 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Transaction from './pages/Transaction';
 import Config from './pages/Config';
+import ChangePassword from './pages/ChangePassword';
 import AccountList from './pages/account/AccountList';
 import AccountForm from './pages/account/AccountForm';
+import CategoryList from './pages/category/CategoryList';
+import CategoryForm from './pages/category/CategoryForm';
 
 export default function App() {
   return (
@@ -54,10 +57,42 @@ export default function App() {
           }
         />
         <Route
+          path="/categories"
+          element={
+            <AuthGuard>
+              <CategoryList />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/categories/new"
+          element={
+            <AuthGuard>
+              <CategoryForm />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/categories/:id/edit"
+          element={
+            <AuthGuard>
+              <CategoryForm />
+            </AuthGuard>
+          }
+        />
+        <Route
           path="/config"
           element={
             <AuthGuard>
               <Config />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/config/change-password"
+          element={
+            <AuthGuard>
+              <ChangePassword />
             </AuthGuard>
           }
         />

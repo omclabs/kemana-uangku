@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ApiError, apiFetch } from '../../lib/api';
 import { ACCOUNT_TYPES, type Account } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
+import { PlusIcon } from '../../components/icons';
 
 const formatter = new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -50,17 +51,45 @@ export default function AccountList() {
     accounts: topLevel.filter((a) => a.type === type),
   })).filter((group) => group.accounts.length > 0);
 
+  const included = topLevel.filter((a) => a.include_in_total === 1);
+  const totalAssets = included
+    .filter((a) => a.type !== 'credit_card' && a.type !== 'loan')
+    .reduce((sum, a) => sum + a.computed_balance, 0);
+  const totalLiabilities = included.reduce((sum, a) => {
+    if (a.type === 'credit_card') return sum + ((a.credit_limit ?? 0) - a.computed_balance);
+    if (a.type === 'loan') return sum + Math.abs(a.computed_balance);
+    return sum;
+  }, 0);
+
   return (
     <PageContainer>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Accounts</h1>
         <Link
           to="/accounts/new"
-          className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white"
+          aria-label="Add account"
+          className="rounded-md bg-blue-600 p-2 text-white"
         >
-          + Add Account
+          <PlusIcon className="h-5 w-5" />
         </Link>
       </div>
+
+      {!loading && !error && (
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-900/5">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Total Assets</p>
+            <p className="text-lg font-semibold text-emerald-600">
+              {formatter.format(totalAssets)}
+            </p>
+          </div>
+          <div className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-900/5">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Total Liabilities</p>
+            <p className="text-lg font-semibold text-rose-600">
+              {formatter.format(totalLiabilities)}
+            </p>
+          </div>
+        </div>
+      )}
 
       {loading && <p className="text-center text-gray-500">Loading...</p>}
       {error && <p className="text-center text-red-600">{error}</p>}

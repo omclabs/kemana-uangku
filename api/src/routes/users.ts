@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import bcrypt from 'bcryptjs';
 import type { Bindings } from '../middleware/auth';
-import { userCreate, userUpdate } from '../lib/validation';
+import { changePassword, userCreate, userUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -125,6 +125,37 @@ app.put('/:id', async (c) => {
       .bind(id)
       .run();
   }
+
+  const row = await c.env.DB.prepare(`SELECT ${SAFE_COLUMNS} FROM users WHERE id = ?`)
+    .bind(id)
+    .first();
+
+  return c.json(row, 200);
+});
+
+app.post('/:id/change-password', async (c) => {
+  const id = c.req.param('id');
+  const existing = await c.env.DB.prepare('SELECT password_hash FROM users WHERE id = ?')
+    .bind(id)
+    .first<{ password_hash: string }>();
+
+  if (!existing) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  const body = changePassword.parse(await c.req.json());
+
+  const valid = await bcrypt.compare(body.current_password, existing.password_hash);
+
+  if (!valid) {
+    return c.json({ error: 'Current password is incorrect' }, 401);
+  }
+
+  const passwordHash = await bcrypt.hash(body.new_password, 10);
+
+  await c.env.DB.prepare('UPDATE users SET password_hash = ?, updated_at = unixepoch() WHERE id = ?')
+    .bind(passwordHash, id)
+    .run();
 
   const row = await c.env.DB.prepare(`SELECT ${SAFE_COLUMNS} FROM users WHERE id = ?`)
     .bind(id)

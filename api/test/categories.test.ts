@@ -145,6 +145,42 @@ describe('/categories', () => {
     expect(selfParentRes.status).toBe(400);
   });
 
+  it('POST /categories with a seeded non-UUID parent_id returns 201', async () => {
+    const res = await SELF.fetch('https://example.com/categories', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Snacks', type: 'expense', parent_id: 'cat-food' }),
+    });
+    expect(res.status).toBe(201);
+    const row = (await res.json()) as { parent_id: string | null };
+    expect(row.parent_id).toBe('cat-food');
+  });
+
+  it('PUT /categories/:id with parent_id: null un-parents a category', async () => {
+    const parentRes = await SELF.fetch('https://example.com/categories', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Bills', type: 'expense' }),
+    });
+    const parent = (await parentRes.json()) as { id: string };
+
+    const childRes = await SELF.fetch('https://example.com/categories', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Electricity', type: 'expense', parent_id: parent.id }),
+    });
+    const child = (await childRes.json()) as { id: string };
+
+    const unparentRes = await SELF.fetch(`https://example.com/categories/${child.id}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ parent_id: null }),
+    });
+    expect(unparentRes.status).toBe(200);
+    const updated = (await unparentRes.json()) as { parent_id: string | null };
+    expect(updated.parent_id).toBeNull();
+  });
+
   it('PUT /categories/:id re-parenting a row that has children returns 400', async () => {
     const parentRes = await SELF.fetch('https://example.com/categories', {
       method: 'POST',

@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const categoryCreate = z.object({
   name: z.string().min(1),
   type: z.enum(['income', 'expense']),
-  parent_id: z.string().uuid().optional(),
+  parent_id: z.string().min(1).nullable().optional(),
   budget_monthly: z.number().nonnegative().optional(),
 });
 
@@ -55,6 +55,11 @@ export const authLogin = z.object({
   password: z.string().min(1),
 });
 
+export const changePassword = z.object({
+  current_password: z.string().min(1),
+  new_password: z.string().min(8),
+});
+
 export type CategoryCreate = z.infer<typeof categoryCreate>;
 export type CategoryUpdate = z.infer<typeof categoryUpdate>;
 export type AccountCreate = z.infer<typeof accountCreate>;
@@ -63,3 +68,4 @@ export type ConfigUpdate = z.infer<typeof configUpdate>;
 export type UserCreate = z.infer<typeof userCreate>;
 export type UserUpdate = z.infer<typeof userUpdate>;
 export type AuthLogin = z.infer<typeof authLogin>;
+export type ChangePassword = z.infer<typeof changePassword>;

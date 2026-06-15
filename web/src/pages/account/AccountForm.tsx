@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApiError, apiFetch } from '../../lib/api';
 import { ACCOUNT_TYPES, type Account, type AccountInput, type AccountType } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
+import { CheckIcon, XMarkIcon } from '../../components/icons';
 
 const formatter = new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -280,16 +281,18 @@ export default function AccountForm() {
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white disabled:opacity-50"
+            aria-label={saving ? 'Saving...' : 'Save'}
+            className="flex flex-1 items-center justify-center rounded-md bg-blue-600 px-4 py-3 text-white disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save'}
+            <CheckIcon className="h-5 w-5" />
           </button>
           <button
             type="button"
             onClick={() => navigate('/accounts')}
-            className="flex-1 rounded-md border border-gray-300 px-4 py-3 text-base font-medium text-gray-700"
+            aria-label="Cancel"
+            className="flex flex-1 items-center justify-center rounded-md border border-gray-300 px-4 py-3 text-gray-700"
           >
-            Cancel
+            <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
       </form>

@@ -132,6 +132,69 @@ describe('/users', () => {
     expect(getAfterHardRes.status).toBe(404);
   });
 
+  it('POST /users/:id/change-password lifecycle', async () => {
+    const createRes = await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ username: 'dave', email: 'dave@example.com', password: 'password1' }),
+    });
+    const { id } = (await createRes.json()) as { id: string };
+
+    // Wrong current password -> 401
+    const wrongRes = await SELF.fetch(`https://example.com/users/${id}/change-password`, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ current_password: 'nope', new_password: 'newpassword1' }),
+    });
+    expect(wrongRes.status).toBe(401);
+
+    // New password shorter than 8 chars -> 400
+    const shortRes = await SELF.fetch(`https://example.com/users/${id}/change-password`, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ current_password: 'password1', new_password: 'short' }),
+    });
+    expect(shortRes.status).toBe(400);
+
+    // Correct current password -> 200, hash changes
+    const before = await env.DB.prepare('SELECT password_hash FROM users WHERE id = ?')
+      .bind(id)
+      .first<{ password_hash: string }>();
+
+    const okRes = await SELF.fetch(`https://example.com/users/${id}/change-password`, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ current_password: 'password1', new_password: 'newpassword1' }),
+    });
+    expect(okRes.status).toBe(200);
+    const updated = (await okRes.json()) as Record<string, unknown>;
+    expect(updated).not.toHaveProperty('password_hash');
+    expect(updated.id).toBe(id);
+
+    const after = await env.DB.prepare('SELECT password_hash FROM users WHERE id = ?')
+      .bind(id)
+      .first<{ password_hash: string }>();
+    expect(after?.password_hash).not.toBe(before?.password_hash);
+    expect(await bcrypt.compare('newpassword1', after!.password_hash)).toBe(true);
+
+    // Old password no longer works
+    const staleRes = await SELF.fetch(`https://example.com/users/${id}/change-password`, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ current_password: 'password1', new_password: 'anotherpassword' }),
+    });
+    expect(staleRes.status).toBe(401);
+  });
+
+  it('POST /users/:id/change-password for nonexistent user returns 404', async () => {
+    const res = await SELF.fetch('https://example.com/users/does-not-exist/change-password', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ current_password: 'whatever', new_password: 'newpassword1' }),
+    });
+    expect(res.status).toBe(404);
+  });
+
   it('PUT /users/:id with username taken by another user returns 409', async () => {
     const aRes = await SELF.fetch('https://example.com/users', {
       method: 'POST',

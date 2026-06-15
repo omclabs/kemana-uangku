@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { clearSession, getUser } from '../lib/api';
 import { NAV_ITEMS } from '../lib/nav';
+import { ArrowRightOnRectangleIcon } from './icons';
 
 export default function Topbar() {
   const location = useLocation();
@@ -20,8 +21,8 @@ export default function Topbar() {
       <span className="font-semibold text-gray-900">{title}</span>
       <div className="flex items-center gap-3">
         {user && <span className="text-sm text-gray-500">{user.username}</span>}
-        <button onClick={handleLogout} className="text-sm text-gray-500">
-          Logout
+        <button onClick={handleLogout} aria-label="Logout" className="text-gray-500">
+          <ArrowRightOnRectangleIcon className="h-5 w-5" />
         </button>
       </div>
     </header>

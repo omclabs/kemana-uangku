@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { ApiError, apiFetch } from '../lib/api';
 import type { Config as ConfigType } from '../lib/types';
 import PageContainer from '../components/PageContainer';
+import { ChevronRightIcon, LockClosedIcon } from '../components/icons';
 
 export default function Config() {
   const [currency, setCurrency] = useState('');
@@ -101,6 +103,15 @@ export default function Config() {
           {saving ? 'Saving...' : 'Save'}
         </button>
       </form>
+
+      <Link
+        to="/config/change-password"
+        className="mt-6 flex items-center gap-1.5 rounded-lg bg-white p-3 font-medium text-gray-900 shadow-sm"
+      >
+        <LockClosedIcon className="h-5 w-5 text-gray-400" />
+        <span className="flex-1">Change Password</span>
+        <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+      </Link>
     </PageContainer>
   );
 }
