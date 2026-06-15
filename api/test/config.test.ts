@@ -16,7 +16,7 @@ describe('/config', () => {
 
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.id).toBe(1);
-    expect(body.version).toBe('1.0.0');
+    expect(body.version).toBe('1.1.0');
     expect(body.default_timezone).toBe('Asia/Jakarta');
     expect(body.currency).toBe('IDR');
   });

@@ -60,6 +60,37 @@ export const changePassword = z.object({
   new_password: z.string().min(8),
 });
 
+export const transactionCreate = z
+  .object({
+    date: z.number().int(),
+    account_id: z.string().min(1),
+    category_id: z.string().min(1).nullable().optional(),
+    amount: z.number().positive(),
+    note: z.string().optional(),
+    type: z.enum(['income', 'expense', 'transfer']),
+    transfer_to: z.string().min(1).nullable().optional(),
+    fee: z.number().nonnegative().nullable().optional(),
+    recurring: z
+      .object({
+        mode: z.enum(['recurring', 'installment']),
+        total: z.number().int().min(2).max(60),
+      })
+      .optional(),
+  })
+  .refine((data) => data.recurring?.mode !== 'installment' || data.amount >= data.recurring.total, {
+    message: 'amount must be >= installment count',
+    path: ['recurring', 'total'],
+  });
+
+export const transactionUpdate = z.object({
+  date: z.number().int().optional(),
+  category_id: z.string().min(1).nullable().optional(),
+  amount: z.number().positive().optional(),
+  note: z.string().optional(),
+  is_active: z.boolean().optional(),
+  paid_status: z.enum(['paid', 'settle']).optional(),
+});
+
 export type CategoryCreate = z.infer<typeof categoryCreate>;
 export type CategoryUpdate = z.infer<typeof categoryUpdate>;
 export type AccountCreate = z.infer<typeof accountCreate>;
@@ -69,3 +100,5 @@ export type UserCreate = z.infer<typeof userCreate>;
 export type UserUpdate = z.infer<typeof userUpdate>;
 export type AuthLogin = z.infer<typeof authLogin>;
 export type ChangePassword = z.infer<typeof changePassword>;
+export type TransactionCreate = z.infer<typeof transactionCreate>;
+export type TransactionUpdate = z.infer<typeof transactionUpdate>;

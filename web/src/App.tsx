@@ -2,13 +2,14 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Transaction from './pages/Transaction';
 import Config from './pages/Config';
 import ChangePassword from './pages/ChangePassword';
 import AccountList from './pages/account/AccountList';
 import AccountForm from './pages/account/AccountForm';
 import CategoryList from './pages/category/CategoryList';
 import CategoryForm from './pages/category/CategoryForm';
+import TransactionList from './pages/transaction/TransactionList';
+import TransactionForm from './pages/transaction/TransactionForm';
 
 export default function App() {
   return (
@@ -28,7 +29,23 @@ export default function App() {
           path="/transactions"
           element={
             <AuthGuard>
-              <Transaction />
+              <TransactionList />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/transactions/new"
+          element={
+            <AuthGuard>
+              <TransactionForm />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/transactions/:id/edit"
+          element={
+            <AuthGuard>
+              <TransactionForm />
             </AuthGuard>
           }
         />

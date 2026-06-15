@@ -7,6 +7,7 @@ import configRoute from './routes/config';
 import categoriesRoute from './routes/categories';
 import accountsRoute from './routes/accounts';
 import usersRoute from './routes/users';
+import transactionsRoute from './routes/transactions';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -28,6 +29,7 @@ protectedApp.route('/config', configRoute);
 protectedApp.route('/categories', categoriesRoute);
 protectedApp.route('/accounts', accountsRoute);
 protectedApp.route('/users', usersRoute);
+protectedApp.route('/transactions', transactionsRoute);
 
 app.route('/auth', authRoute);
 app.route('/', protectedApp);
