@@ -256,7 +256,7 @@ export default function AccountList() {
                         boxShadow: '0 2px 12px rgba(0,0,0,.04)',
                       }}>
                         <Link
-                          to={`/accounts/${account.id}/edit`}
+                          to={`/account/${account.id}/transaction`}
                           style={{
                             display: 'flex', alignItems: 'center', gap: 12,
                             padding: '14px 16px', textDecoration: 'none',
@@ -324,7 +324,7 @@ export default function AccountList() {
                           return (
                             <Link
                               key={child.id}
-                              to={`/accounts/${child.id}/edit`}
+                              to={`/account/${child.id}/transaction`}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: 10,
                                 padding: '11px 16px 11px 20px',

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import PageContainer from '../components/PageContainer';
 import { ApiError, apiFetch, getUser } from '../lib/api';
-import { initial } from '../lib/categories';
+import { categoryVisual, initial } from '../lib/categories';
 import type { Account, Category, Transaction } from '../lib/types';
 
 const idr = new Intl.NumberFormat('id-ID', {
@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [error,        setError]        = useState<string | null>(null);
   const [selectedMonthKey, setSelectedMonthKey] = useState('');
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const [categoryTab, setCategoryTab] = useState<'income' | 'expense'>('expense');
 
   const user = getUser();
 
@@ -153,27 +154,48 @@ export default function Dashboard() {
   const categoryName = (id: string | null) =>
     categories.find((c) => c.id === id)?.name ?? 'Other';
 
-  const spendingByCategory = new Map<string, number>();
-  monthTx
-    .filter((t) => t.type === 'expense')
-    .forEach((t) => {
-      const n = categoryName(t.category_id);
-      spendingByCategory.set(n, (spendingByCategory.get(n) ?? 0) + t.amount);
-    });
+  const categoryTransactions = monthTx.filter(
+    (transaction): transaction is Transaction & { type: 'income' | 'expense' } =>
+      transaction.type === 'income' || transaction.type === 'expense',
+  );
+  const incomeByCategory = new Map<string, number>();
+  const expenseByCategory = new Map<string, number>();
+  categoryTransactions.forEach((transaction) => {
+    const name = categoryName(transaction.category_id);
+    const target = transaction.type === 'income' ? incomeByCategory : expenseByCategory;
+    target.set(name, (target.get(name) ?? 0) + transaction.amount);
+  });
 
-  const topCategories = [...spendingByCategory.entries()]
-    .sort(([, a], [, b]) => b - a)
+  const donutSource = categoryTab === 'income' ? incomeByCategory : expenseByCategory;
+  const donutTotal = categoryTab === 'income' ? income : expense;
+  const donutTitle = categoryTab === 'income' ? 'Incoming' : 'Spending';
+  const topCategories = [...donutSource.entries()]
+    .sort(([, left], [, right]) => right - left)
     .slice(0, 4)
-    .map(([name, amount], i) => ({
-      name, amount,
-      pct: expense > 0 ? Math.round((amount / expense) * 100) : 0,
-      color: DONUT_COLORS[i],
+    .map(([name, amount], index) => ({
+      name,
+      amount,
+      pct: donutTotal > 0 ? Math.round((amount / donutTotal) * 100) : 0,
+      color: DONUT_COLORS[index],
     }));
   const totalBudget = categories
     .filter((category) => category.type === 'expense' && category.is_active === 1)
     .reduce((sum, category) => sum + category.budget_monthly, 0);
   const budgetUsagePct = totalBudget > 0 ? Math.min((expense / totalBudget) * 100, 100) : 0;
   const budgetDelta = totalBudget - expense;
+  const categorySummaries = categoryTransactions
+    .reduce<Array<{ key: string; name: string; total: number; type: 'income' | 'expense' }>>((groups, transaction) => {
+      const groupName = categoryName(transaction.category_id);
+      const existing = groups.find((group) => group.key === groupName);
+      const delta = transaction.amount;
+      if (existing) {
+        existing.total += delta;
+        return groups;
+      }
+      return [...groups, { key: groupName, name: groupName, total: delta, type: transaction.type }];
+    }, [])
+    .sort((left, right) => right.total - left.total);
+  const visibleCategorySummaries = categorySummaries.filter((group) => group.type === categoryTab);
 
   const segments = topCategories.reduce<{
     offset: number;
@@ -336,13 +358,13 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {(topCategories.length > 0 || totalBudget > 0 || expense > 0) && (
+          {(topCategories.length > 0 || (categoryTab === 'expense' && (totalBudget > 0 || expense > 0))) && (
             <div style={{
               background: 'var(--surface)', border: '1px solid var(--line)',
               borderRadius: 22, padding: 18,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Spending</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>{donutTitle}</span>
                 <button
                   type="button"
                   onClick={() => setMonthPickerOpen(true)}
@@ -386,9 +408,11 @@ export default function Dashboard() {
                     display: 'flex', flexDirection: 'column',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' }}>Spent</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' }}>
+                      {categoryTab === 'income' ? 'Received' : 'Spent'}
+                    </span>
                     <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>
-                      {shortCurrency(expense)}
+                      {shortCurrency(donutTotal)}
                     </span>
                   </div>
                 </div>
@@ -407,23 +431,110 @@ export default function Dashboard() {
                 </div>
               )}
 
-              <div style={{ marginTop: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 6, gap: 12 }}>
-                  <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Monthly budget</span>
-                  <span style={{ color: 'var(--ink)', fontWeight: 700 }}>
-                    {totalBudget > 0 ? `${shortCurrency(expense)} / ${shortCurrency(totalBudget)}` : `${shortCurrency(expense)} / 0`}
-                  </span>
+              {categoryTab === 'expense' && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 6, gap: 12 }}>
+                    <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Monthly budget</span>
+                    <span style={{ color: 'var(--ink)', fontWeight: 700 }}>
+                      {totalBudget > 0 ? `${shortCurrency(expense)} / ${shortCurrency(totalBudget)}` : `${shortCurrency(expense)} / 0`}
+                    </span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${budgetUsagePct}%`,
+                      height: '100%',
+                      borderRadius: 999,
+                      background: budgetDelta >= 0
+                        ? 'linear-gradient(90deg, var(--accent), var(--accent-2))'
+                        : 'linear-gradient(90deg, var(--expense), #f97316)',
+                    }} />
+                  </div>
                 </div>
-                <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
-                  <div style={{
-                    width: `${budgetUsagePct}%`,
-                    height: '100%',
-                    borderRadius: 999,
-                    background: budgetDelta >= 0
-                      ? 'linear-gradient(90deg, var(--accent), var(--accent-2))'
-                      : 'linear-gradient(90deg, var(--expense), #f97316)',
-                  }} />
+              )}
+            </div>
+          )}
+
+          {categorySummaries.length > 0 && (
+            <div style={{
+              background: 'var(--surface)', border: '1px solid var(--line)',
+              borderRadius: 22, padding: 18,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                <div style={{
+                  display: 'inline-flex',
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 999,
+                  padding: 3,
+                  gap: 3,
+                }}>
+                  {(['income', 'expense'] as const).map((tab) => {
+                    const active = categoryTab === tab;
+                    return (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setCategoryTab(tab)}
+                        style={{
+                          border: 'none',
+                          background: active ? 'var(--accent)' : 'transparent',
+                          color: active ? '#fff' : 'var(--muted)',
+                          borderRadius: 999,
+                          padding: '6px 12px',
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          fontFamily: 'inherit',
+                          textTransform: 'capitalize',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {tab}
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
+
+              <div style={{ display: 'grid', gap: 10 }}>
+                {visibleCategorySummaries.map((group) => {
+                  const visual = categoryVisual(group.name);
+                  return (
+                    <div
+                      key={group.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        border: '1px solid var(--line)',
+                        borderRadius: 18,
+                        background: 'var(--surface-2)',
+                        padding: '12px 14px',
+                      }}
+                    >
+                      <span style={{
+                        width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                        background: visual.soft, color: visual.color,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 800,
+                      }}>
+                        {group.name.trim()[0]?.toUpperCase() ?? 'T'}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {group.name}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 13.5, fontWeight: 800, color: group.type === 'income' ? 'var(--income)' : 'var(--expense)', whiteSpace: 'nowrap' }}>
+                        {group.type === 'income' ? '+' : '−'}{idr.format(group.total)}
+                      </span>
+                    </div>
+                  );
+                })}
+                {visibleCategorySummaries.length === 0 && (
+                  <p style={{ margin: 0, padding: '12px 2px 2px', textAlign: 'center', color: 'var(--muted)', fontSize: 13.5 }}>
+                    No {categoryTab} categories this month.
+                  </p>
+                )}
               </div>
             </div>
           )}

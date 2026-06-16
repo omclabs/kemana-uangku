@@ -71,7 +71,7 @@ export default function CategoryForm() {
       } else {
         await apiFetch('/categories', { method: 'POST', body: JSON.stringify(body) });
       }
-      navigate('/categories');
+      navigate('/config/categories');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to save category');
     } finally {
@@ -205,7 +205,7 @@ export default function CategoryForm() {
             {children.map((child) => (
               <li key={child.id}>
                 <Link
-                  to={`/categories/${child.id}/edit`}
+                  to={`/config/categories/${child.id}/edit`}
                   className="block rounded-2xl bg-surface p-3 shadow-[0_4px_16px_-6px_rgba(60,45,110,.12)] hover:bg-surface-2"
                 >
                   <div className="flex items-center gap-3">

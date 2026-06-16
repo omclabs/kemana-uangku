@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ApiError, apiFetch } from '../../lib/api';
 import {
   INSTALLMENT_OPTIONS, RECURRING_MODES, TRANSACTION_TYPES,
@@ -76,6 +76,7 @@ export default function TransactionForm() {
   const { id }   = useParams<{ id: string }>();
   const isEdit   = Boolean(id);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [type,       setType]       = useState<TransactionType>('expense');
   const [date,       setDate]       = useState(() => toDatetimeLocal(Math.floor(Date.now() / 1000)));
@@ -119,6 +120,11 @@ export default function TransactionForm() {
           setCategoryId(tx.category_id ?? ''); setAmount(tx.amount);
           setNote(tx.note ?? ''); setFee(tx.fee);
           setParentTxId(tx.parent_transaction_id);
+        } else {
+          const presetAccountId = searchParams.get('account_id');
+          if (presetAccountId && accts.some((account) => account.id === presetAccountId)) {
+            setAccountId(presetAccountId);
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load');
@@ -128,7 +134,7 @@ export default function TransactionForm() {
     }
     load();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, searchParams]);
 
   function handleTypeChange(t: TransactionType) {
     setType(t); setCategoryId('');
@@ -424,7 +430,7 @@ export default function TransactionForm() {
                       <button key={n} type="button"
                         onClick={() => { setRecurringTotal(n); setCustomTotal(''); }}
                         style={{
-                          border: 'none', borderRadius: 12, padding: '9px 0',
+                          borderRadius: 12, padding: '9px 0',
                           fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
                           background: recurringTotal === n && !customTotal
                             ? 'linear-gradient(135deg, var(--accent), var(--accent-2))'

@@ -1,39 +1,20 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { categoryVisual, initial } from '../../lib/categories';
+import { categoryVisual } from '../../lib/categories';
 import { ApiError, apiFetch } from '../../lib/api';
 import type { Account, Category, Transaction } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
 
 // ── Inlined icons ──────────────────────────────────────────────────
 function PlusIcon()  { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>; }
-function TrashIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>; }
 function CheckIcon() { return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.75l6 6 9-13.5"/></svg>; }
 function ChevronLeft()  { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>; }
 function ChevronRight() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>; }
 
 // ── Formatters ─────────────────────────────────────────────────────
-const fmt = new Intl.NumberFormat('id-ID', {
-  style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
-});
-const headerFmt = new Intl.DateTimeFormat('id-ID', {
-  weekday: 'long', day: 'numeric', month: 'long',
-});
 const monthFmt = new Intl.DateTimeFormat('id-ID', {
   month: 'long', year: 'numeric',
 });
-
-function shortFmt(value: number): string {
-  const abs = Math.abs(value);
-  const sign = value < 0 ? '−' : '';
-  if (abs >= 1_000_000) return `${sign}Rp ${(abs / 1_000_000).toFixed(2).replace('.', ',')}jt`;
-  if (abs >= 1_000)     return `${sign}Rp ${Math.round(abs / 1_000)}rb`;
-  return fmt.format(value);
-}
-
-// ── Constants ──────────────────────────────────────────────────────
-const SWIPE_REVEAL  = 72;
-const TAP_THRESHOLD = 8;
 
 function dateKey(unix: number): string {
   const d = new Date(unix * 1000);
@@ -88,36 +69,29 @@ export default function TransactionList() {
     } catch (err) { setError(err instanceof ApiError ? err.message : 'Failed'); }
   }
 
-  async function deleteTransaction(id: string) {
-    if (!window.confirm('Delete this transaction? Account balances will be reversed.')) return;
-    try {
-      await apiFetch(`/transactions/${id}`, { method: 'DELETE' });
-      setTransactions((prev) => prev.filter((t) => t.id !== id && t.parent_transaction_id !== id));
-    } catch (err) { setError(err instanceof ApiError ? err.message : 'Failed'); }
-  }
-
   // ── Derived ──────────────────────────────────────────────────────
   const visible = transactions.filter((t) => {
     const d = new Date(t.date * 1000);
     return d.getMonth() === selectedMonth.getMonth() && d.getFullYear() === selectedMonth.getFullYear();
   });
-  const totalIncome  = visible.filter((t) => t.type === 'income') .reduce((s, t) => s + t.amount, 0);
-  const totalExpense = visible.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-
-  const topLevel = accounts.filter((a) => a.parent_id === null && a.include_in_total === 1);
-  const totalAssets = topLevel.filter((a) => a.type !== 'credit_card' && a.type !== 'loan')
-    .reduce((s, a) => s + a.computed_balance, 0);
-  const totalLiabilities = topLevel.reduce((s, a) => {
-    if (a.type === 'credit_card') return s + ((a.credit_limit ?? 0) - a.computed_balance);
-    if (a.type === 'loan') return s + Math.abs(a.computed_balance);
-    return s;
-  }, 0);
-  const netWorth = totalAssets - totalLiabilities;
-
   const groups       = groupByDate(visible);
+  const summary = visible.reduce(
+    (acc, transaction) => {
+      if (transaction.type === 'income') acc.income += transaction.amount;
+      else acc.expense += transaction.amount;
+      acc.total = acc.income - acc.expense;
+      return acc;
+    },
+    { income: 0, expense: 0, total: 0 },
+  );
   const now          = new Date();
   const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const canGoNext    = selectedMonth.getTime() < currentMonth;
+  const summaryItems = [
+    { label: 'Income', value: summary.income, color: 'var(--income)' },
+    { label: 'Expense', value: summary.expense, color: 'var(--expense)' },
+    { label: 'Total', value: summary.total, color: 'var(--ink)' },
+  ] as const;
 
   return (
     <PageContainer>
@@ -178,7 +152,36 @@ export default function TransactionList() {
         </button>
       </div>
 
-      {/* ── Summary cards removed ──────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', marginBottom: 20 }}>
+        {summaryItems.map((item, index) => (
+          <div
+            key={item.label}
+            style={{
+              padding: '13px 10px',
+              paddingLeft: index === 0 ? 16 : 10,
+              paddingRight: index === 2 ? 16 : 10,
+              borderRight: index < 2 ? '1px solid var(--line)' : 'none',
+              minWidth: 0,
+            }}
+          >
+            <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.label}</div>
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: 12,
+                fontWeight: 800,
+                color: item.color,
+                letterSpacing: '-.03em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              Rp {new Intl.NumberFormat('id-ID').format(Math.abs(item.value))}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {loading && <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>Loading…</p>}
       {error   && <p style={{ textAlign: 'center', color: 'var(--expense)', padding: '32px 0' }}>{error}</p>}
@@ -187,24 +190,41 @@ export default function TransactionList() {
       {!loading && !error && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {groups.map((group) => {
-            const dayNet = group.items.reduce((s, t) =>
-              t.type === 'income' ? s + t.amount : t.type === 'expense' ? s - t.amount : s, 0);
+            const groupDate = new Date(group.date * 1000);
+            const depositTotal = group.items.reduce((sum, transaction) => {
+              if (transaction.type === 'income') return sum + transaction.amount;
+              return sum;
+            }, 0);
+            const withdrawalTotal = group.items.reduce((sum, transaction) => {
+              if (transaction.type === 'expense' || transaction.type === 'transfer') {
+                return sum + transaction.amount;
+              }
+              return sum;
+            }, 0);
             return (
               <section key={group.key}>
-                {/* Date header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>
-                    {headerFmt.format(new Date(group.date * 1000))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 16px 9px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)', lineHeight: 1, minWidth: 30 }}>
+                    {String(groupDate.getDate()).padStart(2, '0')}
                   </span>
-                  <span style={{
-                    fontSize: 12, fontWeight: 700,
-                    color: dayNet >= 0 ? 'var(--income)' : 'var(--expense)',
-                  }}>
-                    {dayNet >= 0 ? '+' : '−'}{fmt.format(Math.abs(dayNet))}
+                  <span style={{ fontSize: 9.5, fontWeight: 700, background: 'var(--accent)', color: '#fff', padding: '2px 6px', borderRadius: 5, flexShrink: 0 }}>
+                    {groupDate.toLocaleString('en', { weekday: 'short' })}
                   </span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, flex: 1 }}>
+                    {`${String(groupDate.getMonth() + 1).padStart(2, '0')}.${groupDate.getFullYear()}`}
+                  </span>
+                  {depositTotal > 0 && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--income)', whiteSpace: 'nowrap' }}>
+                      Rp {new Intl.NumberFormat('id-ID').format(depositTotal)}
+                    </span>
+                  )}
+                  {withdrawalTotal > 0 && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--expense)', whiteSpace: 'nowrap', marginLeft: depositTotal > 0 ? 6 : 0 }}>
+                      Rp {new Intl.NumberFormat('id-ID').format(withdrawalTotal)}
+                    </span>
+                  )}
                 </div>
-                {/* Rows */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div>
                   {group.items.map((t) => (
                     <TransactionRow
                       key={t.id}
@@ -212,7 +232,6 @@ export default function TransactionList() {
                       accountName={accountName}
                       categoryName={categoryName}
                       onMarkPaid={markPaid}
-                      onDelete={deleteTransaction}
                     />
                   ))}
                 </div>
@@ -230,137 +249,100 @@ export default function TransactionList() {
   );
 }
 
-// ── Transaction row with swipe-to-delete ──────────────────────────
 function TransactionRow({
-  transaction: t, accountName, categoryName, onMarkPaid, onDelete,
+  transaction: t, accountName, categoryName, onMarkPaid,
 }: {
   transaction: Transaction;
   accountName: (id: string | null) => string;
   categoryName: (id: string | null) => string;
   onMarkPaid: (id: string) => void;
-  onDelete: (id: string) => void;
 }) {
-  const navigate    = useNavigate();
-  const [tx, setTx] = useState(0);
-  const drag        = useRef<{ startX: number; startTx: number; moved: boolean } | null>(null);
+  const navigate = useNavigate();
 
-  const isTransfer   = t.transfer_to !== null;
+  const isTransfer = t.transfer_to !== null;
+  const isDeposit = t.type === 'income';
   const categoryLabel = categoryName(t.category_id);
-  const catLabel     = isTransfer ? 'Transfer' : categoryLabel;
-  const visual       = categoryVisual(categoryLabel || catLabel);
-  const sign         = t.type === 'income' ? '+' : t.type === 'expense' ? '−' : '';
-  const amountColor  = t.type === 'income' ? 'var(--income)' : t.type === 'expense' ? 'var(--expense)' : 'var(--ink)';
-  const accountLabel = isTransfer
+  const visual = categoryVisual(isTransfer ? 'transfer' : categoryLabel);
+  const label = isTransfer
     ? `${accountName(t.account_id)} → ${accountName(t.transfer_to)}`
-    : `${categoryLabel} - ${accountName(t.account_id)}`;
-  const noteLabel = t.note?.trim() ?? '';
-
-  function onDown(e: PointerEvent<HTMLDivElement>) {
-    drag.current = { startX: e.clientX, startTx: tx, moved: false };
-  }
-  function onMove(e: PointerEvent<HTMLDivElement>) {
-    if (!drag.current) return;
-    const delta = e.clientX - drag.current.startX;
-    if (Math.abs(delta) > TAP_THRESHOLD) drag.current.moved = true;
-    setTx(Math.min(0, Math.max(drag.current.startTx + delta, -SWIPE_REVEAL)));
-  }
-  function onUp() {
-    const d = drag.current;
-    drag.current = null;
-    if (!d) return;
-    if (!d.moved) {
-      tx !== 0 ? setTx(0) : navigate(`/transactions/${t.id}/edit`);
-      return;
-    }
-    setTx(tx < -SWIPE_REVEAL / 2 ? -SWIPE_REVEAL : 0);
-  }
+    : t.note || categoryLabel || 'Transaction';
+  const sublabel = isTransfer ? 'Transfer' : `${categoryLabel} - ${accountName(t.account_id)}`;
 
   return (
-    <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden' }}>
-      {/* Delete reveal */}
-      <div style={{
-        position: 'absolute', inset: 0, display: 'flex',
-        alignItems: 'center', justifyContent: 'flex-end',
-        background: 'var(--expense)',
-      }}>
-        <button type="button" aria-label="Delete" onClick={() => onDelete(t.id)}
-          style={{ width: SWIPE_REVEAL, height: '100%', border: 'none', background: 'transparent', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <TrashIcon />
-        </button>
-      </div>
-
-      {/* Row */}
-      <div
-        onPointerDown={onDown} onPointerMove={onMove}
-        onPointerUp={onUp} onPointerCancel={onUp}
-        style={{
-          transform: `translateX(${tx}px)`,
-          transition: drag.current ? 'none' : 'transform .2s ease',
-          display: 'flex', alignItems: 'center', gap: 12,
-          background: 'var(--surface)', border: '1px solid var(--line)',
-          borderRadius: 16, padding: '12px 14px',
-          boxShadow: '0 2px 8px rgba(0,0,0,.04)',
-          touchAction: 'pan-y', cursor: 'pointer', overflow: 'hidden',
-        }}
-      >
-        {/* Icon */}
-        <span style={{
-          width: 42, height: 42, borderRadius: 13, flexShrink: 0,
-          background: visual.soft, color: visual.color,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 15, fontWeight: 800,
-        }}>
-          {initial(categoryLabel || catLabel)}
+    <div
+      style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 16px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}
+      onClick={() => navigate(`/transactions/${t.id}/edit`)}
+    >
+        <span
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 11,
+            flexShrink: 0,
+            background: visual.soft,
+            color: visual.color,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 15,
+            fontWeight: 700,
+          }}
+        >
+          {isTransfer ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d={isDeposit ? 'M5 12h14M15 6l6 6-6 6' : 'M19 12H5M9 6l-6 6 6 6'} />
+            </svg>
+          ) : (
+            (categoryLabel || 'T').trim()[0].toUpperCase()
+          )}
         </span>
 
-        {/* Label */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 700,
-            color: 'var(--ink)',
-            overflowWrap: 'anywhere',
-            wordBreak: 'break-word',
-            lineHeight: 1.35,
-          }}>
-            {noteLabel}
-          </p>
-          <p style={{
-            margin: 0,
-            fontSize: 12,
-            color: 'var(--muted)',
-            overflowWrap: 'anywhere',
-            wordBreak: 'break-word',
-            lineHeight: 1.35,
-          }}>
-            {accountLabel}
-          </p>
+          {sublabel && <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{sublabel}</div>}
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--ink)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {label}
+          </div>
         </div>
 
-        {/* Amount + settle */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: amountColor, whiteSpace: 'nowrap' }}>
-            {sign}{fmt.format(Math.abs(t.amount))}
-          </span>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: isDeposit ? 'var(--income)' : t.type === 'expense' ? 'var(--expense)' : 'var(--ink)' }}>
+            {isDeposit ? '+' : t.type === 'expense' ? '−' : ''}Rp {new Intl.NumberFormat('id-ID').format(Math.abs(t.amount))}
+          </div>
           {t.paid_status === 'settle' && (
             <button
               type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onPointerUp={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); onMarkPaid(t.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkPaid(t.id);
+              }}
               style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                background: 'rgba(245,158,11,.12)', border: '1px solid rgba(245,158,11,.3)',
-                borderRadius: 999, padding: '3px 8px',
-                fontSize: 11, fontWeight: 700, color: '#B45309', cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                marginTop: 4,
+                background: 'rgba(245,158,11,.12)',
+                border: '1px solid rgba(245,158,11,.3)',
+                borderRadius: 999,
+                padding: '3px 8px',
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#B45309',
+                cursor: 'pointer',
               }}
             >
               <CheckIcon /> Settle
             </button>
           )}
         </div>
-      </div>
     </div>
   );
 }

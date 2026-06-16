@@ -76,7 +76,7 @@ export default function CategoryList() {
           Categories
         </h1>
         <Link
-          to="/categories/new"
+          to="/config/categories/new"
           aria-label="Add category"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -133,7 +133,7 @@ export default function CategoryList() {
                         }}
                       >
                         <Link
-                          to={`/categories/${category.id}/edit`}
+                          to={`/config/categories/${category.id}/edit`}
                           style={{
                             display: 'flex', alignItems: 'center', gap: 12,
                             padding: '14px 16px', textDecoration: 'none',
@@ -182,7 +182,7 @@ export default function CategoryList() {
                           return (
                             <Link
                               key={child.id}
-                              to={`/categories/${child.id}/edit`}
+                              to={`/config/categories/${child.id}/edit`}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: 10,
                                 padding: '11px 16px 11px 20px',

@@ -11,6 +11,9 @@ function WalletIcon() {
 function LockIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
 }
+function TagIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3z"/><path d="M7.25 6h.008v.008H7.25V6z"/></svg>;
+}
 function LogoutIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
 }
@@ -66,63 +69,80 @@ export default function Config() {
         <p style={{ padding: '32px 0', textAlign: 'center', color: 'var(--muted)' }}>Loading…</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <Link to="/config/preferences" style={cardStyle}>
-          <span style={{
-            width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-            background: 'var(--income-soft)', color: 'var(--accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <WalletIcon />
-          </span>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>General Settings</span>
+          <Link to="/config/preferences" style={cardStyle}>
             <span style={{
-              display: 'block', fontSize: 12.5, color: 'var(--muted)',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+              background: 'var(--income-soft)', color: 'var(--accent)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {currency} · {timezone}
+              <WalletIcon />
             </span>
-          </span>
-          <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
-        </Link>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>General Settings</span>
+              <span style={{
+                display: 'block', fontSize: 12.5, color: 'var(--muted)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {currency} · {timezone}
+              </span>
+            </span>
+            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+          </Link>
 
-        <Link to="/config/change-password" style={cardStyle}>
-          <span style={{
-            width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-            background: 'var(--expense-soft)', color: 'var(--expense)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <LockIcon />
-          </span>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Change Password</span>
-            <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-              Update your login credentials
+          <Link to="/config/categories" style={cardStyle}>
+            <span style={{
+              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+              background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <TagIcon />
             </span>
-          </span>
-          <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
-        </Link>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Categories</span>
+              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                Manage income and expense categories
+              </span>
+            </span>
+            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+          </Link>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          style={{ ...cardStyle, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
-        >
-          <span style={{
-            width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-            background: 'var(--expense-soft)', color: 'var(--expense)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <LogoutIcon />
-          </span>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Log Out</span>
-            <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-              End this session on the device
+          <Link to="/config/change-password" style={cardStyle}>
+            <span style={{
+              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+              background: 'var(--expense-soft)', color: 'var(--expense)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <LockIcon />
             </span>
-          </span>
-          <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
-        </button>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Change Password</span>
+              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                Update your login credentials
+              </span>
+            </span>
+            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{ ...cardStyle, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            <span style={{
+              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+              background: 'var(--expense-soft)', color: 'var(--expense)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <LogoutIcon />
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Log Out</span>
+              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                End this session on the device
+              </span>
+            </span>
+            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+          </button>
         </div>
       )}
 

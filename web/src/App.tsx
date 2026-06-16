@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -10,6 +10,7 @@ import ChangePassword from './pages/ChangePassword';
 import ConfigPreferences from './pages/ConfigPreferences';
 import AccountList from './pages/account/AccountList';
 import AccountForm from './pages/account/AccountForm';
+import AccountTransactions from './pages/account/AccountTransactions';
 import CategoryList from './pages/category/CategoryList';
 import CategoryForm from './pages/category/CategoryForm';
 import TransactionList from './pages/transaction/TransactionList';
@@ -26,6 +27,11 @@ function AuthLayout({ children }: { children: ReactNode }) {
       </div>
     </div>
   );
+}
+
+function LegacyCategoryEditRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={id ? `/config/categories/${id}/edit` : '/config/categories'} replace />;
 }
 
 export default function App() {
@@ -115,7 +121,27 @@ export default function App() {
           }
         />
         <Route
-          path="/categories"
+          path="/account/:id/transaction"
+          element={
+            <AuthGuard>
+              <AuthLayout>
+                <AccountTransactions />
+              </AuthLayout>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/account/:id/transactions"
+          element={
+            <AuthGuard>
+              <AuthLayout>
+                <AccountTransactions />
+              </AuthLayout>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/config/categories"
           element={
             <AuthGuard>
               <AuthLayout>
@@ -125,7 +151,7 @@ export default function App() {
           }
         />
         <Route
-          path="/categories/new"
+          path="/config/categories/new"
           element={
             <AuthGuard>
               <AuthLayout>
@@ -135,7 +161,7 @@ export default function App() {
           }
         />
         <Route
-          path="/categories/:id/edit"
+          path="/config/categories/:id/edit"
           element={
             <AuthGuard>
               <AuthLayout>
@@ -144,6 +170,9 @@ export default function App() {
             </AuthGuard>
           }
         />
+        <Route path="/categories" element={<Navigate to="/config/categories" replace />} />
+        <Route path="/categories/new" element={<Navigate to="/config/categories/new" replace />} />
+        <Route path="/categories/:id/edit" element={<LegacyCategoryEditRedirect />} />
         <Route
           path="/config"
           element={
