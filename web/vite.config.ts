@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['icon.svg'],
       manifest: {
         name: 'Kemana Uangku',
         short_name: 'Uangku',
@@ -22,7 +22,7 @@ export default defineConfig({
         scope: '/',
         icons: [
           {
-            src: 'favicon.svg',
+            src: 'icon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any maskable',
