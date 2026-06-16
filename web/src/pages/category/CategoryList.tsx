@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, apiFetch } from '../../lib/api';
+import { categoryVisual, initial } from '../../lib/categories';
 import { CATEGORY_TYPES, type Category } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
-import { PencilIcon, PlusIcon } from '../../components/icons';
+import { PlusIcon } from '../../components/icons';
 
 function formatTypeLabel(type: string): string {
   return type
@@ -61,24 +62,24 @@ export default function CategoryList() {
   return (
     <PageContainer>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Categories</h1>
+        <h1 className="text-xl font-semibold text-ink">Categories</h1>
         <Link
           to="/categories/new"
           aria-label="Add category"
-          className="rounded-md bg-blue-600 p-2 text-white"
+          className="rounded-2xl bg-gradient-to-br from-accent to-accent-2 p-2.5 text-white shadow-[0_8px_16px_-6px_var(--accent)]"
         >
           <PlusIcon className="h-5 w-5" />
         </Link>
       </div>
 
-      {loading && <p className="text-center text-gray-500">Loading...</p>}
-      {error && <p className="text-center text-red-600">{error}</p>}
+      {loading && <p className="text-center text-muted">Loading...</p>}
+      {error && <p className="text-center text-expense">{error}</p>}
 
       {!loading && !error && (
         <div className="space-y-6">
           {groups.map((group) => (
             <section key={group.type}>
-              <h2 className="mb-2 border-b border-gray-200 pb-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              <h2 className="mb-2 border-b border-line pb-1 text-sm font-semibold uppercase tracking-wide text-muted">
                 {formatTypeLabel(group.type)}
               </h2>
               <ul className="space-y-2">
@@ -95,7 +96,7 @@ export default function CategoryList() {
             </section>
           ))}
           {groups.length === 0 && (
-            <p className="text-center text-gray-500">No categories yet.</p>
+            <p className="text-center text-muted">No categories yet.</p>
           )}
         </div>
       )}
@@ -115,47 +116,45 @@ function CategoryRow({
   onToggle: () => void;
 }) {
   const hasChildren = subCategories.length > 0;
+  const visual = categoryVisual(category.name);
 
   return (
-    <li className="rounded-lg bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-2 p-3">
+    <li className="rounded-2xl border border-line bg-surface shadow-[0_4px_16px_-6px_rgba(60,45,110,.12)]">
+      <div className="flex items-center justify-between gap-3 p-3">
         <button
           type="button"
           onClick={hasChildren ? onToggle : undefined}
           aria-expanded={hasChildren ? expanded : undefined}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left font-medium text-gray-900"
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
-          {hasChildren ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
-          ) : (
-            <span className="h-4 w-4 shrink-0" />
-          )}
-          <span className="truncate">{category.name}</span>
+          <span
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[13px] text-[15px] font-bold"
+            style={{ background: visual.soft, color: visual.color }}
+          >
+            {initial(category.name)}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-medium text-ink">{category.name}</span>
+            <span className="block text-xs text-muted">
+              {hasChildren ? `${subCategories.length} sub-categories` : 'No sub-categories'}
+            </span>
+          </span>
         </button>
         <Link
           to={`/categories/${category.id}/edit`}
           aria-label="Edit category"
-          className="shrink-0 p-1 text-blue-600"
+          className="shrink-0 rounded-2xl border border-line px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-surface-2"
         >
-          <PencilIcon className="h-5 w-5" />
+          Edit
         </Link>
       </div>
       {expanded && hasChildren && (
-        <ul className="space-y-1 border-t border-gray-100 px-3 py-2 pl-9">
+        <ul className="space-y-2 border-t border-line px-3 py-3 pl-[70px]">
           {subCategories.map((child) => (
             <li key={child.id}>
               <Link
                 to={`/categories/${child.id}/edit`}
-                className="block rounded-md px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                className="block rounded-2xl border border-line bg-surface-2 px-3 py-2 text-sm font-medium text-ink"
               >
                 {child.name}
               </Link>

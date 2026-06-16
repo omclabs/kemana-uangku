@@ -1,9 +1,14 @@
+import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
+import Sidebar from './components/Sidebar';
+import Topbar from './components/Topbar';
+import BottomNav from './components/BottomNav';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Config from './pages/Config';
 import ChangePassword from './pages/ChangePassword';
+import ConfigPreferences from './pages/ConfigPreferences';
 import AccountList from './pages/account/AccountList';
 import AccountForm from './pages/account/AccountForm';
 import CategoryList from './pages/category/CategoryList';
@@ -11,17 +16,32 @@ import CategoryForm from './pages/category/CategoryForm';
 import TransactionList from './pages/transaction/TransactionList';
 import TransactionForm from './pages/transaction/TransactionForm';
 
+function AuthLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-screen bg-canvas">
+      <Sidebar />
+      <div className="flex min-h-screen flex-1 flex-col bg-bg">
+        <Topbar />
+        <main className="flex-1 pb-16 md:pb-0">{children}</main>
+        <BottomNav />
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Navigate to="/accounts" replace />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route
           path="/dashboard"
           element={
             <AuthGuard>
-              <Dashboard />
+              <AuthLayout>
+                <Dashboard />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -29,7 +49,9 @@ export default function App() {
           path="/transactions"
           element={
             <AuthGuard>
-              <TransactionList />
+              <AuthLayout>
+                <TransactionList />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -37,7 +59,9 @@ export default function App() {
           path="/transactions/new"
           element={
             <AuthGuard>
-              <TransactionForm />
+              <AuthLayout>
+                <TransactionForm />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -45,7 +69,9 @@ export default function App() {
           path="/transactions/:id/edit"
           element={
             <AuthGuard>
-              <TransactionForm />
+              <AuthLayout>
+                <TransactionForm />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -53,7 +79,9 @@ export default function App() {
           path="/accounts"
           element={
             <AuthGuard>
-              <AccountList />
+              <AuthLayout>
+                <AccountList />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -61,7 +89,9 @@ export default function App() {
           path="/accounts/new"
           element={
             <AuthGuard>
-              <AccountForm />
+              <AuthLayout>
+                <AccountForm />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -69,7 +99,9 @@ export default function App() {
           path="/accounts/:id/edit"
           element={
             <AuthGuard>
-              <AccountForm />
+              <AuthLayout>
+                <AccountForm />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -77,7 +109,9 @@ export default function App() {
           path="/categories"
           element={
             <AuthGuard>
-              <CategoryList />
+              <AuthLayout>
+                <CategoryList />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -85,7 +119,9 @@ export default function App() {
           path="/categories/new"
           element={
             <AuthGuard>
-              <CategoryForm />
+              <AuthLayout>
+                <CategoryForm />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -93,7 +129,9 @@ export default function App() {
           path="/categories/:id/edit"
           element={
             <AuthGuard>
-              <CategoryForm />
+              <AuthLayout>
+                <CategoryForm />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -101,7 +139,19 @@ export default function App() {
           path="/config"
           element={
             <AuthGuard>
-              <Config />
+              <AuthLayout>
+                <Config />
+              </AuthLayout>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/config/preferences"
+          element={
+            <AuthGuard>
+              <AuthLayout>
+                <ConfigPreferences />
+              </AuthLayout>
             </AuthGuard>
           }
         />
@@ -109,11 +159,13 @@ export default function App() {
           path="/config/change-password"
           element={
             <AuthGuard>
-              <ChangePassword />
+              <AuthLayout>
+                <ChangePassword />
+              </AuthLayout>
             </AuthGuard>
           }
         />
-        <Route path="*" element={<Navigate to="/accounts" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );

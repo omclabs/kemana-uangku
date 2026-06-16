@@ -47,7 +47,7 @@ export default function TileLookup<T extends TileLookupItem>({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
-        className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-4"
+        className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-[28px] border border-line bg-surface p-4 shadow-[0_-12px_30px_-18px_rgba(43,39,51,.35)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center gap-2">
@@ -56,15 +56,20 @@ export default function TileLookup<T extends TileLookupItem>({
               type="button"
               aria-label="Back"
               onClick={() => setDrilled(null)}
-              className="p-1 text-gray-500"
+              className="rounded-xl p-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
           )}
-          <h2 className="flex-1 truncate text-base font-semibold text-gray-900">
+          <h2 className="flex-1 truncate text-base font-semibold text-ink">
             {drilled ? drilled.name : title}
           </h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1 text-gray-500">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className="rounded-xl p-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+          >
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
@@ -128,8 +133,10 @@ function Tile({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg p-3 text-center text-sm font-medium ${
-        selected ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-900 ring-1 ring-gray-200'
+      className={`rounded-2xl border p-3 text-center text-sm font-medium transition-colors ${
+        selected
+          ? 'border-transparent bg-gradient-to-br from-accent to-accent-2 text-white shadow-[0_8px_16px_-8px_var(--accent)]'
+          : 'border-line bg-surface-2 text-ink'
       }`}
     >
       <span className="line-clamp-2">{label}</span>

@@ -3,9 +3,9 @@ import { NAV_ITEMS } from '../lib/nav';
 
 export default function Sidebar() {
   return (
-    <aside className="hidden w-56 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
+    <aside className="hidden w-56 shrink-0 flex-col border-r border-line bg-surface md:flex">
       <div className="flex items-center px-4 py-3">
-        <span className="font-semibold text-gray-900">kemana uangku</span>
+        <span className="font-semibold text-ink">kemana uangku</span>
       </div>
       <nav className="flex flex-1 flex-col gap-1 px-2">
         {NAV_ITEMS.map((item) => (
@@ -13,8 +13,8 @@ export default function Sidebar() {
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'
+              `flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium ${
+                isActive ? 'bg-surface-2 text-accent' : 'text-muted hover:bg-surface-2'
               }`
             }
           >

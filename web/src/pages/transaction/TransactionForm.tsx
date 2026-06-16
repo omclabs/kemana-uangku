@@ -35,6 +35,10 @@ function fromDatetimeLocal(value: string): number {
 
 type LookupTarget = 'account' | 'transferTo' | 'category';
 type CalculatorTarget = 'amount' | 'fee';
+const inputClass = 'w-full rounded-2xl border border-line bg-surface px-3 py-2 text-base text-ink';
+const pickerClass =
+  'flex w-full items-center justify-between rounded-2xl border border-line bg-surface px-3 py-2 text-left text-base text-ink';
+const readonlyClass = 'rounded-2xl border border-line bg-surface-2 px-3 py-2 text-base text-ink';
 
 export default function TransactionForm() {
   const { id } = useParams<{ id: string }>();
@@ -196,7 +200,7 @@ export default function TransactionForm() {
   }
 
   if (loading) {
-    return <p className="p-4 text-center text-gray-500">Loading...</p>;
+    return <p className="p-4 text-center text-muted">Loading...</p>;
   }
 
   function accountName(value: string): string {
@@ -209,20 +213,22 @@ export default function TransactionForm() {
 
   return (
     <PageContainer>
-      <h1 className="mb-4 text-xl font-semibold text-gray-900">
+      <h1 className="mb-4 text-xl font-semibold text-ink">
         {isEdit ? 'Edit Transaction' : 'Add Transaction'}
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {!isEdit ? (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex gap-1 rounded-2xl border border-line bg-surface-2 p-1">
             {TRANSACTION_TYPES.map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => handleTypeChange(t)}
-                className={`rounded-md py-2 text-sm font-medium capitalize ${
-                  type === t ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700 ring-1 ring-gray-200'
+                className={`flex-1 rounded-xl py-2 text-sm font-bold capitalize ${
+                  type === t
+                    ? 'bg-gradient-to-br from-accent to-accent-2 text-white'
+                    : 'text-muted'
                 }`}
               >
                 {t}
@@ -230,19 +236,19 @@ export default function TransactionForm() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-500">
-            Type: <span className="font-medium capitalize text-gray-900">{type}</span>
+          <p className="text-sm text-muted">
+            Type: <span className="font-medium capitalize text-ink">{type}</span>
           </p>
         )}
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="date">
+          <label className="mb-1 block text-sm font-medium text-muted" htmlFor="date">
             Date
           </label>
           <input
             id="date"
             type="datetime-local"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+            className={inputClass}
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
@@ -250,44 +256,44 @@ export default function TransactionForm() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-muted">
             {type === 'transfer' ? 'From' : 'Account'}
           </label>
           {isEdit ? (
-            <p className="rounded-md bg-gray-50 px-3 py-2 text-base text-gray-700 ring-1 ring-gray-200">
+            <p className={readonlyClass}>
               {accountName(accountId)}
             </p>
           ) : (
             <button
               type="button"
               onClick={() => setActiveLookup('account')}
-              className="flex w-full items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-left text-base"
+              className={pickerClass}
             >
-              <span className={accountId ? 'text-gray-900' : 'text-gray-400'}>
+              <span className={accountId ? 'text-ink' : 'text-muted'}>
                 {accountId ? accountName(accountId) : 'Select account'}
               </span>
-              <WalletIcon className="h-5 w-5 text-gray-400" />
+              <WalletIcon className="h-5 w-5 text-muted" />
             </button>
           )}
         </div>
 
         {showTransferTo && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">To</label>
+            <label className="mb-1 block text-sm font-medium text-muted">To</label>
             {isEdit ? (
-              <p className="rounded-md bg-gray-50 px-3 py-2 text-base text-gray-700 ring-1 ring-gray-200">
+              <p className={readonlyClass}>
                 {accountName(transferTo)}
               </p>
             ) : (
               <button
                 type="button"
                 onClick={() => setActiveLookup('transferTo')}
-                className="flex w-full items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-left text-base"
+                className={pickerClass}
               >
-                <span className={transferTo ? 'text-gray-900' : 'text-gray-400'}>
+                <span className={transferTo ? 'text-ink' : 'text-muted'}>
                   {transferTo ? accountName(transferTo) : 'Select account'}
                 </span>
-                <WalletIcon className="h-5 w-5 text-gray-400" />
+                <WalletIcon className="h-5 w-5 text-muted" />
               </button>
             )}
           </div>
@@ -295,47 +301,47 @@ export default function TransactionForm() {
 
         {type !== 'transfer' && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
+            <label className="mb-1 block text-sm font-medium text-muted">Category</label>
             {categoryLocked ? (
-              <p className="rounded-md bg-gray-50 px-3 py-2 text-base text-gray-700 ring-1 ring-gray-200">
+              <p className={readonlyClass}>
                 {categoryName(categoryId)}
               </p>
             ) : (
               <button
                 type="button"
                 onClick={() => setActiveLookup('category')}
-                className="flex w-full items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-left text-base"
+                className={pickerClass}
               >
-                <span className={categoryId ? 'text-gray-900' : 'text-gray-400'}>
+                <span className={categoryId ? 'text-ink' : 'text-muted'}>
                   {categoryId ? categoryName(categoryId) : 'Select category'}
                 </span>
-                <TagIcon className="h-5 w-5 text-gray-400" />
+                <TagIcon className="h-5 w-5 text-muted" />
               </button>
             )}
           </div>
         )}
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Amount</label>
+          <label className="mb-1 block text-sm font-medium text-muted">Amount</label>
           <button
             type="button"
             onClick={() => setActiveCalculator('amount')}
-            className="flex w-full items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-left text-base"
+            className={pickerClass}
           >
-            <span className={amount > 0 ? 'text-gray-900' : 'text-gray-400'}>
+            <span className={amount > 0 ? 'text-ink' : 'text-muted'}>
               {amount > 0 ? formatter.format(amount) : 'Enter amount'}
             </span>
-            <CalculatorIcon className="h-5 w-5 text-gray-400" />
+            <CalculatorIcon className="h-5 w-5 text-muted" />
           </button>
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="note">
+          <label className="mb-1 block text-sm font-medium text-muted" htmlFor="note">
             Note
           </label>
           <input
             id="note"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+            className={inputClass}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -343,9 +349,9 @@ export default function TransactionForm() {
 
         {showFee && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Fee (optional)</label>
+            <label className="mb-1 block text-sm font-medium text-muted">Fee (optional)</label>
             {isEdit ? (
-              <p className="rounded-md bg-gray-50 px-3 py-2 text-base text-gray-700 ring-1 ring-gray-200">
+              <p className={readonlyClass}>
                 {formatter.format(fee ?? 0)}
               </p>
             ) : (
@@ -353,18 +359,18 @@ export default function TransactionForm() {
                 <button
                   type="button"
                   onClick={() => setActiveCalculator('fee')}
-                  className="flex w-full items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-left text-base"
+                  className={pickerClass}
                 >
-                  <span className={fee !== null ? 'text-gray-900' : 'text-gray-400'}>
+                  <span className={fee !== null ? 'text-ink' : 'text-muted'}>
                     {fee !== null ? formatter.format(fee) : 'No fee'}
                   </span>
-                  <CalculatorIcon className="h-5 w-5 text-gray-400" />
+                  <CalculatorIcon className="h-5 w-5 text-muted" />
                 </button>
                 {fee !== null && (
                   <button
                     type="button"
                     onClick={() => setFee(null)}
-                    className="mt-1 text-xs text-gray-500"
+                    className="mt-1 text-xs font-medium text-muted"
                   >
                     Clear fee
                   </button>
@@ -375,8 +381,8 @@ export default function TransactionForm() {
         )}
 
         {!isEdit && (
-          <div className="rounded-lg bg-gray-50 p-3 ring-1 ring-gray-200">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <div className="rounded-2xl border border-line bg-surface-2 p-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-ink">
               <input
                 type="checkbox"
                 className="h-4 w-4"
@@ -388,16 +394,16 @@ export default function TransactionForm() {
 
             {recurringEnabled && (
               <div className="mt-3 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex gap-1 rounded-2xl border border-line bg-surface p-1">
                   {RECURRING_MODES.map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => setRecurringMode(mode)}
-                      className={`rounded-md py-2 text-sm font-medium capitalize ${
+                      className={`flex-1 rounded-xl py-2 text-sm font-bold capitalize ${
                         recurringMode === mode
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-700 ring-1 ring-gray-200'
+                          ? 'bg-gradient-to-br from-accent to-accent-2 text-white'
+                          : 'text-muted'
                       }`}
                     >
                       {mode}
@@ -414,10 +420,10 @@ export default function TransactionForm() {
                         setRecurringTotal(n);
                         setCustomTotal('');
                       }}
-                      className={`rounded-md py-2 text-sm font-medium ${
+                      className={`rounded-2xl border py-2 text-sm font-medium ${
                         recurringTotal === n && customTotal === ''
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-700 ring-1 ring-gray-200'
+                          ? 'border-transparent bg-gradient-to-br from-accent to-accent-2 text-white'
+                          : 'border-line bg-surface text-ink'
                       }`}
                     >
                       {n}
@@ -427,18 +433,18 @@ export default function TransactionForm() {
                     type="number"
                     min={2}
                     max={60}
-                    placeholder="Custom"
-                    value={customTotal}
-                    onChange={(e) => {
-                      setCustomTotal(e.target.value);
-                      const n = Number(e.target.value);
-                      if (n >= 2 && n <= 60) setRecurringTotal(n);
-                    }}
-                    className="rounded-md border border-gray-300 px-2 py-2 text-center text-sm"
+                      placeholder="Custom"
+                      value={customTotal}
+                      onChange={(e) => {
+                        setCustomTotal(e.target.value);
+                        const n = Number(e.target.value);
+                        if (n >= 2 && n <= 60) setRecurringTotal(n);
+                      }}
+                      className="rounded-2xl border border-line bg-surface px-2 py-2 text-center text-sm text-ink"
                   />
                 </div>
 
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted">
                   {recurringMode === 'recurring'
                     ? `Repeats ${formatter.format(amount)} every month for ${recurringTotal} months, same date.`
                     : `Splits ${formatter.format(amount)} into ${recurringTotal} monthly payments of ${formatter.format(installmentBase)} (last payment ${formatter.format(amount - installmentBase * (recurringTotal - 1))}).`}
@@ -448,14 +454,14 @@ export default function TransactionForm() {
           </div>
         )}
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-expense">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <button
             type="submit"
             disabled={saving}
             aria-label={saving ? 'Saving...' : 'Save'}
-            className="flex flex-1 items-center justify-center rounded-md bg-blue-600 px-4 py-3 text-white disabled:opacity-50"
+            className="flex flex-1 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-2 px-4 py-3 text-white shadow-[0_8px_16px_-6px_var(--accent)] disabled:opacity-50"
           >
             <CheckIcon className="h-5 w-5" />
           </button>
@@ -463,7 +469,7 @@ export default function TransactionForm() {
             type="button"
             onClick={() => navigate('/transactions')}
             aria-label="Cancel"
-            className="flex flex-1 items-center justify-center rounded-md border border-gray-300 px-4 py-3 text-gray-700"
+            className="flex flex-1 items-center justify-center rounded-2xl border border-line px-4 py-3 text-muted"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>

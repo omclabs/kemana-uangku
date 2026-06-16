@@ -42,22 +42,22 @@ export default function Calculator({ initialValue, onConfirm, onClose }: Calcula
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white p-4"
+        className="w-full max-w-md rounded-t-[28px] border border-line bg-surface p-4 shadow-[0_-12px_30px_-18px_rgba(43,39,51,.35)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Calculator</h2>
+          <h2 className="text-base font-semibold text-ink">Calculator</h2>
           <button
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="p-1 text-gray-500"
+            className="rounded-xl p-1 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="mb-3 rounded-lg bg-gray-100 px-3 py-4 text-right text-2xl font-semibold text-gray-900">
+        <div className="mb-3 rounded-2xl border border-line bg-surface-2 px-3 py-4 text-right text-2xl font-semibold text-ink">
           {displayValue(state)}
         </div>
 
@@ -88,7 +88,7 @@ export default function Calculator({ initialValue, onConfirm, onClose }: Calcula
         <button
           type="button"
           onClick={handleOk}
-          className="mt-3 w-full rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white"
+          className="mt-3 w-full rounded-2xl bg-gradient-to-br from-accent to-accent-2 px-4 py-3 text-base font-medium text-white shadow-[0_8px_16px_-6px_var(--accent)]"
         >
           OK
         </button>
@@ -109,17 +109,17 @@ function CalcButton({
   className?: string;
 }) {
   const variantClass = {
-    default: 'bg-white text-gray-900 ring-1 ring-gray-200',
-    operator: 'bg-blue-50 text-blue-600 ring-1 ring-blue-100',
-    clear: 'bg-rose-50 text-rose-600 ring-1 ring-rose-100',
-    equal: 'bg-gray-900 text-white',
+    default: 'border border-line bg-surface text-ink',
+    operator: 'border border-transparent bg-income-soft text-accent',
+    clear: 'border border-transparent bg-expense-soft text-expense',
+    equal: 'border border-transparent bg-gradient-to-br from-accent to-accent-2 text-white',
   }[variant];
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg py-3 text-lg font-medium active:opacity-70 ${variantClass} ${className}`}
+      className={`rounded-2xl py-3 text-lg font-medium active:opacity-70 ${variantClass} ${className}`}
     >
       {label}
     </button>

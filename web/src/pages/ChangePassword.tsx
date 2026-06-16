@@ -52,17 +52,17 @@ export default function ChangePassword() {
 
   return (
     <PageContainer>
-      <h1 className="mb-4 text-xl font-semibold text-gray-900">Change Password</h1>
+      <h1 className="mb-4 text-xl font-semibold text-ink">Change Password</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="currentPassword">
+          <label className="mb-1 block text-sm font-medium text-muted" htmlFor="currentPassword">
             Current password
           </label>
           <input
             id="currentPassword"
             type="password"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+            className="w-full rounded-2xl border border-line px-3 py-2 text-base"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
@@ -70,13 +70,13 @@ export default function ChangePassword() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="newPassword">
+          <label className="mb-1 block text-sm font-medium text-muted" htmlFor="newPassword">
             New password
           </label>
           <input
             id="newPassword"
             type="password"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+            className="w-full rounded-2xl border border-line px-3 py-2 text-base"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             minLength={8}
@@ -85,13 +85,13 @@ export default function ChangePassword() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="confirmPassword">
+          <label className="mb-1 block text-sm font-medium text-muted" htmlFor="confirmPassword">
             Confirm password
           </label>
           <input
             id="confirmPassword"
             type="password"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+            className="w-full rounded-2xl border border-line px-3 py-2 text-base"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             minLength={8}
@@ -99,15 +99,15 @@ export default function ChangePassword() {
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {saved && <p className="text-sm text-green-600">Password updated.</p>}
+        {error && <p className="text-sm text-expense">{error}</p>}
+        {saved && <p className="text-sm text-income">Password updated.</p>}
 
         <div className="flex gap-2 pt-2">
           <button
             type="submit"
             disabled={saving}
             aria-label={saving ? 'Saving...' : 'Save'}
-            className="flex flex-1 items-center justify-center rounded-md bg-blue-600 px-4 py-3 text-white disabled:opacity-50"
+            className="flex flex-1 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-2 px-4 py-3 text-white disabled:opacity-50"
           >
             <CheckIcon className="h-5 w-5" />
           </button>
@@ -115,7 +115,7 @@ export default function ChangePassword() {
             type="button"
             onClick={() => navigate('/config')}
             aria-label="Cancel"
-            className="flex flex-1 items-center justify-center rounded-md border border-gray-300 px-4 py-3 text-gray-700"
+            className="flex flex-1 items-center justify-center rounded-2xl border border-line px-4 py-3 text-muted"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>

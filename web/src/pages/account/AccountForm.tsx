@@ -11,8 +11,6 @@ const formatter = new Intl.NumberFormat('id-ID', {
   maximumFractionDigits: 0,
 });
 
-// Displays a raw numeric string (e.g. "1500000.5", JS Number()-compatible) as
-// id-ID grouped input text (e.g. "1.500.000,5").
 function formatNumberInput(raw: string): string {
   if (raw === '' || raw === '-') return raw;
   const negative = raw.startsWith('-');
@@ -24,8 +22,6 @@ function formatNumberInput(raw: string): string {
   return negative ? `-${display}` : display;
 }
 
-// Inverse of formatNumberInput: turns id-ID grouped input text back into a
-// raw numeric string suitable for Number().
 function unformatNumberInput(display: string): string {
   if (display === '' || display === '-') return display;
   const negative = display.startsWith('-');
@@ -122,7 +118,7 @@ export default function AccountForm() {
   }
 
   if (loading) {
-    return <p className="p-4 text-center text-gray-500">Loading...</p>;
+    return <p className="p-4 text-center text-muted">Loading...</p>;
   }
 
   const topLevelAccounts = accounts.filter(
@@ -134,18 +130,18 @@ export default function AccountForm() {
 
   return (
     <PageContainer>
-      <h1 className="mb-4 text-xl font-semibold text-gray-900">
+      <h1 className="mb-4 text-xl font-semibold text-ink">
         {isEdit ? 'Edit Account' : 'Add Account'}
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="name">
+          <label className="mb-1 block text-sm font-medium text-muted" htmlFor="name">
             Name
           </label>
           <input
             id="name"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+            className="w-full rounded-2xl border border-line px-3 py-2 text-base"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -153,12 +149,12 @@ export default function AccountForm() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="type">
+          <label className="mb-1 block text-sm font-medium text-muted" htmlFor="type">
             Type
           </label>
           <select
             id="type"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-500"
+            className="w-full rounded-2xl border border-line px-3 py-2 text-base disabled:bg-surface-2 disabled:text-muted"
             value={type}
             onChange={(e) => setType(e.target.value as AccountType)}
             disabled={Boolean(parentId)}
@@ -170,35 +166,35 @@ export default function AccountForm() {
             ))}
           </select>
           {parentId && (
-            <p className="mt-1 text-xs text-gray-500">Matches parent account&apos;s type.</p>
+            <p className="mt-1 text-xs text-muted">Matches parent account&apos;s type.</p>
           )}
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="balance">
+          <label className="mb-1 block text-sm font-medium text-muted" htmlFor="balance">
             Balance
           </label>
           <input
             id="balance"
             type="text"
             inputMode="decimal"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+            className="w-full rounded-2xl border border-line px-3 py-2 text-base"
             value={formatNumberInput(balance)}
             onChange={(e) => setBalance(unformatNumberInput(e.target.value))}
             required
           />
           {(type === 'credit_card' || type === 'loan') && (
-            <p className="mt-1 text-xs text-gray-500">Use a negative number for amount owed.</p>
+            <p className="mt-1 text-xs text-muted">Use a negative number for amount owed.</p>
           )}
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="parent">
+          <label className="mb-1 block text-sm font-medium text-muted" htmlFor="parent">
             Parent account (optional)
           </label>
           <select
             id="parent"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+            className="w-full rounded-2xl border border-line px-3 py-2 text-base"
             value={parentId}
             onChange={(e) => setParentId(e.target.value)}
           >
@@ -214,21 +210,21 @@ export default function AccountForm() {
         {type === 'credit_card' && (
           <>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="creditLimit">
+              <label className="mb-1 block text-sm font-medium text-muted" htmlFor="creditLimit">
                 Credit limit
               </label>
               <input
                 id="creditLimit"
                 type="text"
                 inputMode="decimal"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+                className="w-full rounded-2xl border border-line px-3 py-2 text-base"
                 value={formatNumberInput(creditLimit)}
                 onChange={(e) => setCreditLimit(unformatNumberInput(e.target.value))}
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="billingDate">
+              <label className="mb-1 block text-sm font-medium text-muted" htmlFor="billingDate">
                 Billing date (day of month, 1-28)
               </label>
               <input
@@ -236,7 +232,7 @@ export default function AccountForm() {
                 type="number"
                 min="1"
                 max="28"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
+                className="w-full rounded-2xl border border-line px-3 py-2 text-base"
                 value={billingDate}
                 onChange={(e) => setBillingDate(e.target.value)}
                 required
@@ -245,7 +241,7 @@ export default function AccountForm() {
           </>
         )}
 
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-muted">
           <input
             type="checkbox"
             className="h-4 w-4"
@@ -257,7 +253,7 @@ export default function AccountForm() {
 
         {isEdit && (
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <label className="flex items-center gap-2 text-sm font-medium text-muted">
               <input
                 type="checkbox"
                 className="h-4 w-4"
@@ -268,21 +264,21 @@ export default function AccountForm() {
               Active
             </label>
             {hasActiveChildren && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-muted">
                 Cannot change: account has active sub-accounts.
               </p>
             )}
           </div>
         )}
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-expense">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <button
             type="submit"
             disabled={saving}
             aria-label={saving ? 'Saving...' : 'Save'}
-            className="flex flex-1 items-center justify-center rounded-md bg-blue-600 px-4 py-3 text-white disabled:opacity-50"
+            className="flex flex-1 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-2 px-4 py-3 text-white disabled:opacity-50"
           >
             <CheckIcon className="h-5 w-5" />
           </button>
@@ -290,7 +286,7 @@ export default function AccountForm() {
             type="button"
             onClick={() => navigate('/accounts')}
             aria-label="Cancel"
-            className="flex flex-1 items-center justify-center rounded-md border border-gray-300 px-4 py-3 text-gray-700"
+            className="flex flex-1 items-center justify-center rounded-2xl border border-line px-4 py-3 text-muted"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -299,7 +295,7 @@ export default function AccountForm() {
 
       {isEdit && children.length > 0 && (
         <div className="mt-6">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
             Sub-accounts
           </h2>
           <ul className="space-y-2">
@@ -307,18 +303,18 @@ export default function AccountForm() {
               <li key={child.id}>
                 <Link
                   to={`/accounts/${child.id}/edit`}
-                  className="block rounded-lg bg-white p-3 shadow-sm hover:bg-gray-50"
+                  className="block rounded-2xl bg-surface p-3 shadow-[0_4px_16px_-6px_rgba(60,45,110,.12)] hover:bg-surface-2"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-gray-900">{child.name}</p>
+                      <p className="truncate font-medium text-ink">{child.name}</p>
                       {child.is_active === 0 && (
-                        <p className="text-xs text-gray-500">Inactive</p>
+                        <p className="text-xs text-muted">Inactive</p>
                       )}
                     </div>
                     <span
                       className={`shrink-0 text-sm font-medium ${
-                        child.computed_balance < 0 ? 'text-red-600' : 'text-gray-900'
+                        child.computed_balance < 0 ? 'text-expense' : 'text-ink'
                       }`}
                     >
                       {formatter.format(child.computed_balance)}

@@ -1,12 +1,74 @@
 @import "tailwindcss";
 
-html,
-body,
-#root {
-  height: 100%;
+/* Dark mode is driven by [data-theme="dark"] on <html>, set by ThemeProvider.
+   This also enables `dark:` utilities if you ever want them. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ----------------------------------------------------------------
+   DESIGN TOKENS  — light (default) + dark overrides
+   Edit colors here once; every screen updates.
+-----------------------------------------------------------------*/
+:root {
+  --canvas:      #ECE8E0;   /* app shell / behind content */
+  --bg:          #F5F2EC;   /* page background (warm off-white) */
+  --surface:     #ffffff;   /* cards */
+  --surface-2:   #FAF7F1;   /* inset / segmented backgrounds */
+  --ink:         #2B2733;   /* primary text */
+  --muted:       #8A8597;   /* secondary text */
+  --line:        #ECE7DE;   /* hairlines / card borders */
+  --accent:      #5B43E8;   /* brand indigo */
+  --accent-2:    #7B61F0;   /* gradient stop */
+  --income:      #1FA971;
+  --income-soft: rgba(31,169,113,.12);
+  --expense:     #E5544B;
+  --expense-soft:rgba(229,84,75,.12);
 }
 
+[data-theme="dark"] {
+  --canvas:      #0E0D16;
+  --bg:          #141320;
+  --surface:     #1E1C2B;
+  --surface-2:   #262338;
+  --ink:         #F3F1FA;
+  --muted:       #9C97B2;
+  --line:        #2E2B40;
+  --accent:      #7C68FF;
+  --accent-2:    #A78BFA;
+  --income:      #34D399;
+  --income-soft: rgba(52,211,153,.14);
+  --expense:     #FB7185;
+  --expense-soft:rgba(251,113,133,.15);
+}
+
+/* ----------------------------------------------------------------
+   Map tokens into Tailwind v4 so utilities resolve to the live
+   CSS vars (so they auto-switch in dark mode):
+     bg-surface  text-ink  text-muted  border-line
+     bg-accent   text-accent   from-accent to-accent-2
+     text-income text-expense  bg-income-soft bg-expense-soft
+-----------------------------------------------------------------*/
+@theme inline {
+  --color-canvas:       var(--canvas);
+  --color-bg:           var(--bg);
+  --color-surface:      var(--surface);
+  --color-surface-2:    var(--surface-2);
+  --color-ink:          var(--ink);
+  --color-muted:        var(--muted);
+  --color-line:         var(--line);
+  --color-accent:       var(--accent);
+  --color-accent-2:     var(--accent-2);
+  --color-income:       var(--income);
+  --color-income-soft:  var(--income-soft);
+  --color-expense:      var(--expense);
+  --color-expense-soft: var(--expense-soft);
+  --font-sans: "Plus Jakarta Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+html, body, #root { height: 100%; }
 body {
   margin: 0;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }

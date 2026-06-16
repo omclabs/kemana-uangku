@@ -1,18 +1,22 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
-import { ApiError, apiFetch } from '../lib/api';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ApiError, apiFetch, clearSession } from '../lib/api';
 import type { Config as ConfigType } from '../lib/types';
 import PageContainer from '../components/PageContainer';
-import { ChevronRightIcon, LockClosedIcon } from '../components/icons';
+import {
+  ArrowRightOnRectangleIcon,
+  ChevronRightIcon,
+  LockClosedIcon,
+  WalletIcon,
+} from '../components/icons';
 
 export default function Config() {
+  const navigate = useNavigate();
   const [currency, setCurrency] = useState('');
   const [timezone, setTimezone] = useState('');
   const [version, setVersion] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,82 +40,69 @@ export default function Config() {
     };
   }, []);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSaved(false);
-    setSaving(true);
-
-    try {
-      await apiFetch<ConfigType>('/config', {
-        method: 'PUT',
-        body: JSON.stringify({ currency, default_timezone: timezone }),
-      });
-      setSaved(true);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to save config');
-    } finally {
-      setSaving(false);
-    }
+  function handleLogout() {
+    clearSession();
+    navigate('/login', { replace: true });
   }
 
   if (loading) {
-    return <p className="p-4 text-center text-gray-500">Loading...</p>;
+    return <p className="p-4 text-center text-muted">Loading...</p>;
   }
 
   return (
     <PageContainer>
-      <h1 className="mb-4 text-xl font-semibold text-gray-900">Config</h1>
+      <h1 className="mb-4 text-xl font-semibold text-ink">Config</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="currency">
-            Currency
-          </label>
-          <input
-            id="currency"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            required
-          />
-        </div>
+      {error && <p className="mb-4 text-sm text-expense">{error}</p>}
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="timezone">
-            Default timezone
-          </label>
-          <input
-            id="timezone"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-base"
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            required
-          />
-        </div>
+      <div className="space-y-3">
+        <Link
+          to="/config/preferences"
+          className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 shadow-[0_4px_16px_-6px_rgba(60,45,110,.12)]"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-income-soft text-accent">
+            <WalletIcon className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium text-ink">General Settings</span>
+            <span className="block truncate text-sm text-muted">
+              {currency} · {timezone}
+            </span>
+          </span>
+          <ChevronRightIcon className="h-4 w-4 text-muted" />
+        </Link>
 
-        <p className="text-xs text-gray-500">Schema version: {version}</p>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {saved && <p className="text-sm text-green-600">Saved.</p>}
+        <Link
+          to="/config/change-password"
+          className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 shadow-[0_4px_16px_-6px_rgba(60,45,110,.12)]"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-expense-soft text-expense">
+            <LockClosedIcon className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium text-ink">Change Password</span>
+            <span className="block truncate text-sm text-muted">Update your login credentials</span>
+          </span>
+          <ChevronRightIcon className="h-4 w-4 text-muted" />
+        </Link>
 
         <button
-          type="submit"
-          disabled={saving}
-          className="w-full rounded-md bg-blue-600 px-4 py-3 text-base font-medium text-white disabled:opacity-50"
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-left shadow-[0_4px_16px_-6px_rgba(60,45,110,.12)]"
         >
-          {saving ? 'Saving...' : 'Save'}
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-expense-soft text-expense">
+            <ArrowRightOnRectangleIcon className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium text-ink">Log Out</span>
+            <span className="block truncate text-sm text-muted">End this session on the device</span>
+          </span>
+          <ChevronRightIcon className="h-4 w-4 text-muted" />
         </button>
-      </form>
+      </div>
 
-      <Link
-        to="/config/change-password"
-        className="mt-6 flex items-center gap-1.5 rounded-lg bg-white p-3 font-medium text-gray-900 shadow-sm"
-      >
-        <LockClosedIcon className="h-5 w-5 text-gray-400" />
-        <span className="flex-1">Change Password</span>
-        <ChevronRightIcon className="h-4 w-4 text-gray-400" />
-      </Link>
+      <p className="mt-6 text-xs text-muted">Schema version: {version}</p>
     </PageContainer>
   );
 }
