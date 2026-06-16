@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
 import Sidebar from './components/Sidebar';
-import Topbar from './components/Topbar';
 import BottomNav from './components/BottomNav';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -15,13 +14,13 @@ import CategoryList from './pages/category/CategoryList';
 import CategoryForm from './pages/category/CategoryForm';
 import TransactionList from './pages/transaction/TransactionList';
 import TransactionForm from './pages/transaction/TransactionForm';
+import TransactionReceiptImport from './pages/transaction/TransactionReceiptImport';
 
 function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-canvas">
       <Sidebar />
       <div className="flex min-h-screen flex-1 flex-col bg-bg">
-        <Topbar />
         <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <BottomNav />
       </div>
@@ -61,6 +60,16 @@ export default function App() {
             <AuthGuard>
               <AuthLayout>
                 <TransactionForm />
+              </AuthLayout>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/transactions/import"
+          element={
+            <AuthGuard>
+              <AuthLayout>
+                <TransactionReceiptImport />
               </AuthLayout>
             </AuthGuard>
           }

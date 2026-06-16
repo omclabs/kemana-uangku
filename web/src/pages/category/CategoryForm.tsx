@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import StyledSelect from '../../components/StyledSelect';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
 import { CATEGORY_TYPES, type Category, type CategoryInput, type CategoryType } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
-import { CheckIcon, XMarkIcon } from '../../components/icons';
 
 export default function CategoryForm() {
   const { id } = useParams<{ id: string }>();
@@ -87,6 +87,19 @@ export default function CategoryForm() {
     (c) => c.parent_id === null && c.id !== id && c.is_active === 1
   );
   const parentOptions = topLevelCategories.filter((c) => c.type === type);
+  const typeOptions = CATEGORY_TYPES.map((categoryType) => ({
+    value: categoryType,
+    label: categoryType.charAt(0).toUpperCase() + categoryType.slice(1),
+    hint: categoryType === 'income' ? 'Money coming in' : 'Money going out',
+  }));
+  const parentSelectOptions = [
+    { value: '', label: 'None (top-level)', hint: 'Create this as a main category' },
+    ...parentOptions.map((category) => ({
+      value: category.id,
+      label: category.name,
+      hint: category.type.charAt(0).toUpperCase() + category.type.slice(1),
+    })),
+  ];
   const children = categories.filter((c) => c.parent_id === id);
   const hasActiveChildren = children.some((c) => c.is_active === 1);
   const previewVisual = categoryVisual(name || type);
@@ -117,7 +130,7 @@ export default function CategoryForm() {
           </label>
           <input
             id="name"
-            className="w-full rounded-2xl border border-line px-3 py-2 text-base"
+            className="w-full rounded-2xl border border-line bg-surface px-3 py-2 text-base text-ink"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -128,19 +141,12 @@ export default function CategoryForm() {
           <label className="mb-1 block text-sm font-medium text-muted" htmlFor="type">
             Type
           </label>
-          <select
-            id="type"
-            className="w-full rounded-2xl border border-line px-3 py-2 text-base disabled:bg-surface-2 disabled:text-muted"
+          <StyledSelect
             value={type}
-            onChange={(e) => setType(e.target.value as CategoryType)}
+            options={typeOptions}
             disabled={Boolean(parentId)}
-          >
-            {CATEGORY_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </option>
-            ))}
-          </select>
+            onChange={(nextValue) => setType(nextValue as CategoryType)}
+          />
           {parentId && (
             <p className="mt-1 text-xs text-muted">Matches parent category&apos;s type.</p>
           )}
@@ -150,19 +156,11 @@ export default function CategoryForm() {
           <label className="mb-1 block text-sm font-medium text-muted" htmlFor="parent">
             Parent category (optional)
           </label>
-          <select
-            id="parent"
-            className="w-full rounded-2xl border border-line px-3 py-2 text-base"
+          <StyledSelect
             value={parentId}
-            onChange={(e) => setParentId(e.target.value)}
-          >
-            <option value="">None (top-level)</option>
-            {parentOptions.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            options={parentSelectOptions}
+            onChange={setParentId}
+          />
         </div>
 
         {isEdit && (
@@ -187,22 +185,13 @@ export default function CategoryForm() {
 
         {error && <p className="text-sm text-expense">{error}</p>}
 
-        <div className="flex gap-2 pt-2">
+        <div className="pt-2">
           <button
             type="submit"
             disabled={saving}
-            aria-label={saving ? 'Saving...' : 'Save'}
-            className="flex flex-1 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-2 px-4 py-3 text-white disabled:opacity-50"
+            className="w-full rounded-2xl bg-gradient-to-br from-accent to-accent-2 px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_20px_-6px_var(--accent)] disabled:opacity-50"
           >
-            <CheckIcon className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/categories')}
-            aria-label="Cancel"
-            className="flex flex-1 items-center justify-center rounded-2xl border border-line px-4 py-3 text-muted"
-          >
-            <XMarkIcon className="h-5 w-5" />
+            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add category'}
           </button>
         </div>
       </form>

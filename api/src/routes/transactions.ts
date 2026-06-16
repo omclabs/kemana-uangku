@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Bindings } from '../middleware/auth';
-import { transactionCreate, transactionUpdate } from '../lib/validation';
+import { receiptImportCommitInput, transactionCreate, transactionUpdate } from '../lib/validation';
 import {
   adjustBalanceStatement,
   mergeBalanceOps,
@@ -8,6 +8,7 @@ import {
   type BalanceOp,
   type TransactionBalanceRow,
 } from '../lib/balance';
+import { buildReceiptDraft } from '../lib/receipt-import';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -89,7 +90,7 @@ async function loadActiveAccount(db: D1Database, id: string): Promise<AccountRow
 async function validateCategoryForType(
   db: D1Database,
   categoryId: string,
-  transactionType: 'income' | 'expense'
+  transactionType?: 'income' | 'expense'
 ): Promise<string | null> {
   if (SYSTEM_CATEGORY_IDS.includes(categoryId)) {
     return null;
@@ -102,7 +103,7 @@ async function validateCategoryForType(
   if (!category || category.is_active !== 1) {
     return 'category_id not found';
   }
-  if (category.type !== transactionType) {
+  if (transactionType && category.type !== transactionType) {
     return 'category type must match transaction type';
   }
 
@@ -129,6 +130,50 @@ function toBalanceRow(
     type: row.type,
     amount,
   };
+}
+
+async function createImportedExpenseRows(
+  db: D1Database,
+  accountId: string,
+  rows: Array<{ date: number; category_id: string; amount: number; note: string; paid_status: 'paid' | 'settle' }>
+): Promise<TransactionRow[]> {
+  const insertedIds: string[] = [];
+  const statements: D1PreparedStatement[] = [];
+  const balanceOps: BalanceOp[] = [];
+
+  for (const row of rows) {
+    const id = crypto.randomUUID();
+    insertedIds.push(id);
+    statements.push(
+      db.prepare(
+        `INSERT INTO transactions
+          (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id)
+         VALUES (?, ?, ?, ?, ?, ?, 'expense', NULL, NULL, 'bulk', ?, NULL, NULL, NULL, NULL, NULL)`
+      ).bind(id, row.date, accountId, row.category_id, row.amount, row.note, row.paid_status)
+    );
+
+    balanceOps.push(
+      ...transactionBalanceOps(
+        toBalanceRow({ account_id: accountId, transfer_to: null, type: 'expense' }, row.amount),
+        1
+      )
+    );
+  }
+
+  for (const op of mergeBalanceOps(balanceOps)) {
+    statements.push(adjustBalanceStatement(db, op));
+  }
+
+  await db.batch(statements);
+
+  const placeholders = insertedIds.map(() => '?').join(',');
+  const { results } = await db.prepare(
+    `SELECT * FROM transactions WHERE id IN (${placeholders}) ORDER BY date ASC, created_at ASC`
+  )
+    .bind(...insertedIds)
+    .all<TransactionRow>();
+
+  return results;
 }
 
 app.get('/', async (c) => {
@@ -203,6 +248,78 @@ app.get('/:id', async (c) => {
   }
 
   return c.json(row, 200);
+});
+
+app.post('/import-receipt/parse', async (c) => {
+  const form = await c.req.formData();
+  const accountId = form.get('account_id');
+  const file = form.get('file');
+
+  if (typeof accountId !== 'string' || !accountId) {
+    return c.json({ error: 'account_id required' }, 400);
+  }
+  const hasFile =
+    file
+    && typeof file === 'object'
+    && 'arrayBuffer' in file
+    && 'name' in file;
+  if (!hasFile) {
+    return c.json({ error: 'csv file required' }, 400);
+  }
+
+  const account = await loadActiveAccount(c.env.DB, accountId);
+  if (!account) {
+    return c.json({ error: 'account_id not found or inactive' }, 400);
+  }
+
+  const csvText = await (file as File).text();
+  const draft = buildReceiptDraft(accountId, csvText);
+  return c.json(draft, 200);
+});
+
+app.post('/import-receipt/commit', async (c) => {
+  const body = receiptImportCommitInput.parse(await c.req.json());
+  const account = await loadActiveAccount(c.env.DB, body.account_id);
+  if (!account) {
+    return c.json({ error: 'account_id not found or inactive' }, 400);
+  }
+
+  const includedRows = body.draft_items.filter((row) => row.included);
+  if (includedRows.length === 0) {
+    return c.json({ error: 'at least one included row is required' }, 400);
+  }
+
+  for (const row of includedRows) {
+    if (!row.note.trim()) {
+      return c.json({ error: `note required for row ${row.id}` }, 400);
+    }
+    if (!row.category_id) {
+      return c.json({ error: `category_id required for row ${row.id}` }, 400);
+    }
+    const categoryError = await validateCategoryForType(
+      c.env.DB,
+      row.category_id,
+      row.kind === 'voucher' || row.amount < 0 ? undefined : 'expense'
+    );
+    if (categoryError) {
+      return c.json({ error: `row ${row.id}: ${categoryError}` }, 400);
+    }
+  }
+
+  const paidStatus: 'paid' | 'settle' = account.type === 'credit_card' ? 'settle' : 'paid';
+  const created = await createImportedExpenseRows(
+    c.env.DB,
+    body.account_id,
+    includedRows.map((row) => ({
+      date: row.date,
+      category_id: row.category_id as string,
+      amount: row.amount,
+      note: row.note.trim(),
+      paid_status: paidStatus,
+    }))
+  );
+
+  return c.json(created, 201);
 });
 
 app.post('/', async (c) => {

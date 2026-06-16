@@ -91,6 +91,40 @@ export const transactionUpdate = z.object({
   paid_status: z.enum(['paid', 'settle']).optional(),
 });
 
+export const receiptImportWarning = z.object({
+  code: z.enum([
+    'ocr_unavailable',
+    'line_uncertain',
+    'no_rows_detected',
+    'total_mismatch',
+    'missing_total',
+    'missing_date',
+  ]),
+  message: z.string().min(1),
+  row_id: z.string().min(1).optional(),
+});
+
+export const receiptImportDraftItem = z.object({
+  id: z.string().min(1),
+  kind: z.enum(['item', 'voucher', 'manual']),
+  note: z.string(),
+  amount: z.number().refine((value) => value !== 0, { message: 'amount must not be zero' }),
+  date: z.number().int(),
+  category_id: z.string().min(1).nullable(),
+  included: z.boolean(),
+  origin: z.enum(['parsed', 'manual']),
+  confidence: z.number().min(0).max(1),
+  warnings: z.array(receiptImportWarning),
+  raw_line: z.string().nullable(),
+});
+
+export const receiptImportCommitInput = z.object({
+  account_id: z.string().min(1),
+  draft_items: z.array(receiptImportDraftItem).min(1),
+});
+
+export const receiptImportMerchant = z.enum(['generic', 'superindo']);
+
 export type CategoryCreate = z.infer<typeof categoryCreate>;
 export type CategoryUpdate = z.infer<typeof categoryUpdate>;
 export type AccountCreate = z.infer<typeof accountCreate>;
@@ -102,3 +136,6 @@ export type AuthLogin = z.infer<typeof authLogin>;
 export type ChangePassword = z.infer<typeof changePassword>;
 export type TransactionCreate = z.infer<typeof transactionCreate>;
 export type TransactionUpdate = z.infer<typeof transactionUpdate>;
+export type ReceiptImportWarning = z.infer<typeof receiptImportWarning>;
+export type ReceiptImportDraftItem = z.infer<typeof receiptImportDraftItem>;
+export type ReceiptImportCommitInput = z.infer<typeof receiptImportCommitInput>;

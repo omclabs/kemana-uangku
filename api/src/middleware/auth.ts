@@ -3,6 +3,10 @@ import { createMiddleware } from 'hono/factory';
 export type Bindings = {
   DB: D1Database;
   API_TOKEN: string;
+  AI?: {
+    run(model: string, input: unknown): Promise<unknown>;
+  };
+  RECEIPT_OCR_MODEL?: string;
 };
 
 export const authMiddleware = createMiddleware<{ Bindings: Bindings }>(async (c, next) => {

@@ -112,3 +112,48 @@ export interface TransactionInput {
   fee?: number | null;
   recurring?: { mode: RecurringMode; total: number };
 }
+
+export type ReceiptImportDraftKind = 'item' | 'voucher' | 'manual';
+export type ReceiptImportDraftOrigin = 'parsed' | 'manual';
+export type ReceiptImportWarningCode =
+  | 'ocr_unavailable'
+  | 'line_uncertain'
+  | 'no_rows_detected'
+  | 'total_mismatch'
+  | 'missing_total'
+  | 'missing_date';
+
+export interface ReceiptImportWarning {
+  code: ReceiptImportWarningCode;
+  message: string;
+  row_id?: string;
+}
+
+export interface ReceiptImportDraftItem {
+  id: string;
+  kind: ReceiptImportDraftKind;
+  note: string;
+  amount: number;
+  date: number;
+  category_id: string | null;
+  included: boolean;
+  origin: ReceiptImportDraftOrigin;
+  confidence: number;
+  warnings: ReceiptImportWarning[];
+  raw_line: string | null;
+}
+
+export interface ReceiptImportDraft {
+  account_id: string;
+  receipt_total: number | null;
+  included_total: number;
+  detected_date: number | null;
+  draft_items: ReceiptImportDraftItem[];
+  warnings: ReceiptImportWarning[];
+  ocr_text: string | null;
+}
+
+export interface ReceiptImportCommitInput {
+  account_id: string;
+  draft_items: ReceiptImportDraftItem[];
+}

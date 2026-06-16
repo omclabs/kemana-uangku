@@ -15,6 +15,7 @@ type TxRow = {
   type: string;
   transfer_to: string | null;
   fee: number | null;
+  source: 'single' | 'bulk';
   paid_status: string;
   recurring_group_id: string | null;
   recurring_mode: string | null;
@@ -36,6 +37,11 @@ async function postTransaction(body: Record<string, unknown>) {
     headers: JSON_HEADERS,
     body: JSON.stringify(body),
   });
+}
+
+async function listTransactions() {
+  const res = await SELF.fetch('https://example.com/transactions', { headers: AUTH });
+  return (await res.json()) as TxRow[];
 }
 
 describe('/transactions', () => {
@@ -489,5 +495,169 @@ describe('/transactions', () => {
       expect(row.account_id).toBe('acc-cash');
       expect(row.type).toBe('income');
     });
+  });
+
+  it('POST /import-receipt/parse returns draft rows from csv without creating transactions', async () => {
+    const before = await listTransactions();
+    const form = new FormData();
+    form.set('account_id', 'acc-bank-bca');
+    form.set(
+      'file',
+      new File(
+        [
+          [
+            'note,amount,date,kind',
+            'Nasi Goreng,30000,2026-01-16,item',
+            'Es Teh,8000,2026-01-16,item',
+            'Voucher Toko,-5000,2026-01-16,voucher',
+          ].join('\n'),
+        ],
+        'receipt.csv',
+        { type: 'text/csv' }
+      )
+    );
+
+    const res = await SELF.fetch('https://example.com/transactions/import-receipt/parse', {
+      method: 'POST',
+      headers: AUTH,
+      body: form,
+    });
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      receipt_total: number | null;
+      included_total: number;
+      draft_items: Array<{ kind: string; note: string; amount: number; included: boolean; category_id: string | null }>;
+      warnings: Array<{ code: string }>;
+    };
+
+    expect(body.receipt_total).toBeNull();
+    expect(body.included_total).toBe(33000);
+    expect(body.draft_items).toHaveLength(3);
+    expect(body.draft_items.map((row) => row.amount)).toEqual([30000, 8000, -5000]);
+    expect(body.draft_items.find((row) => row.kind === 'voucher')?.amount).toBe(-5000);
+    expect(body.draft_items.every((row) => row.category_id === null)).toBe(true);
+    expect(body.warnings.some((warning) => warning.code === 'invalid_csv')).toBe(false);
+
+    const after = await listTransactions();
+    expect(after).toHaveLength(before.length);
+  });
+
+  it('POST /import-receipt/parse rejects csv without required headers', async () => {
+    const form = new FormData();
+    form.set('account_id', 'acc-bank-bca');
+    form.set(
+      'file',
+      new File([['description,total', 'Nasi Goreng,30000'].join('\n')], 'invalid.csv', { type: 'text/csv' })
+    );
+
+    const res = await SELF.fetch('https://example.com/transactions/import-receipt/parse', {
+      method: 'POST',
+      headers: AUTH,
+      body: form,
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      draft_items: Array<{ amount: number }>;
+      warnings: Array<{ code: string }>;
+    };
+    expect(body.draft_items).toHaveLength(0);
+    expect(body.warnings.some((row) => row.code === 'invalid_csv')).toBe(true);
+  });
+
+  it('POST /import-receipt/commit creates bulk expense rows and applies voucher balance math', async () => {
+    const parseForm = new FormData();
+    parseForm.set('account_id', 'acc-bank-bca');
+    parseForm.set(
+      'file',
+      new File(
+        [
+          [
+            'note,amount,date,kind',
+            'Roti Bakar,12000,2026-01-16,item',
+            'Kopi Susu,18000,2026-01-16,item',
+            'Voucher Member,-5000,2026-01-16,voucher',
+          ].join('\n'),
+        ],
+        'receipt.csv',
+        { type: 'text/csv' }
+      )
+    );
+
+    const parseRes = await SELF.fetch('https://example.com/transactions/import-receipt/parse', {
+      method: 'POST',
+      headers: AUTH,
+      body: parseForm,
+    });
+    const draft = (await parseRes.json()) as {
+      account_id: string;
+      draft_items: Array<{
+        id: string;
+        kind: 'item' | 'voucher' | 'manual';
+        note: string;
+        amount: number;
+        date: number;
+        category_id: string | null;
+        included: boolean;
+        origin: 'parsed' | 'manual';
+        confidence: number;
+        warnings: Array<{ code: string; message: string; row_id?: string }>;
+        raw_line: string | null;
+      }>;
+    };
+
+    const before = await getAccountBalance('acc-bank-bca');
+    const commitRes = await SELF.fetch('https://example.com/transactions/import-receipt/commit', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        account_id: draft.account_id,
+        draft_items: [
+          {
+            ...draft.draft_items[0],
+            category_id: 'cat-food-breakfast',
+          },
+          {
+            ...draft.draft_items[1],
+            note: 'Kopi susu panas',
+            category_id: 'cat-food-coffee',
+          },
+          {
+            ...draft.draft_items[2],
+            category_id: 'cat-admin-bca',
+          },
+          {
+            id: 'manual-row-1',
+            kind: 'manual',
+            note: 'Service charge',
+            amount: 2000,
+            date: draft.draft_items[0].date,
+            category_id: 'cat-admin-bca',
+            included: true,
+            origin: 'manual',
+            confidence: 1,
+            warnings: [],
+            raw_line: null,
+          },
+        ],
+      }),
+    });
+
+    expect(commitRes.status).toBe(201);
+    const created = (await commitRes.json()) as TxRow[];
+    expect(created).toHaveLength(4);
+    created.forEach((row) => {
+      expect(row.source).toBe('bulk');
+      expect(row.type).toBe('expense');
+      expect(row.account_id).toBe('acc-bank-bca');
+    });
+
+    const voucherRow = created.find((row) => row.amount < 0)!;
+    expect(voucherRow.amount).toBe(-5000);
+    expect(voucherRow.category_id).toBe('cat-admin-bca');
+
+    const after = await getAccountBalance('acc-bank-bca');
+    expect(after - before).toBeCloseTo(-27000, 5);
   });
 });
