@@ -2,6 +2,8 @@
 
 Personal finance tracker — Cloudflare Worker API on D1 (SQLite), built with Hono + TypeScript.
 
+Deployment instructions: see [DEPLOY.md](/Users/fajar.pratama/Documents/projects/kemana-uangku/DEPLOY.md:1).
+
 ## Phase 1 scope
 
 - D1 schema: `config` (singleton), `categories` (parent/child), `accounts` (parent/child), `users` (flat)

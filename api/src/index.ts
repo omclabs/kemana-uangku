@@ -44,6 +44,14 @@ app.onError((err, c) => {
   if (err instanceof ZodError) {
     return c.json({ error: 'Validation failed', details: err.issues }, 400);
   }
+
+  console.error('Unhandled API error', {
+    method: c.req.method,
+    path: c.req.path,
+    error: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  });
+
   return c.json({ error: 'Internal Server Error' }, 500);
 });
 
