@@ -1,4 +1,4 @@
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 
 const AUTH = { Authorization: 'Bearer test-token' };
@@ -35,6 +35,9 @@ describe('/config', () => {
     const body = (await res.json()) as { currency: string; last_updated: number };
     expect(body.currency).toBe('USD');
     expect(body.last_updated).toBeGreaterThanOrEqual(beforeBody.last_updated);
+
+    const audit = await env.DB.prepare('SELECT updated_by FROM config WHERE id = 1').first<{ updated_by: string | null }>();
+    expect(audit?.updated_by).toBe('user-admin');
   });
 
   it('POST /config returns 405', async () => {

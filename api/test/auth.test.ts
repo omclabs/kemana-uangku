@@ -5,16 +5,18 @@ const AUTH = { Authorization: 'Bearer test-token' };
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 describe('/auth/login', () => {
-  it('correct admin/admin credentials returns 200 with token === API_TOKEN', async () => {
+  it('correct admin/admin credentials returns 200 with a session token and role', async () => {
     const res = await SELF.fetch('https://example.com/auth/login', {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify({ username: 'admin', password: 'admin' }),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { token: string; user: { id: string; username: string } };
-    expect(body.token).toBe(env.API_TOKEN);
+    const body = (await res.json()) as { token: string; user: { id: string; username: string; role: string } };
+    expect(body.token).not.toBe(env.API_TOKEN);
+    expect(body.token.length).toBeGreaterThan(20);
     expect(body.user.username).toBe('admin');
+    expect(body.user.role).toBe('admin');
   });
 
   it('wrong password returns 401', async () => {
@@ -67,7 +69,7 @@ describe('/auth/login', () => {
 });
 
 describe('protected routes still require auth after restructure', () => {
-  it.each(['/config', '/categories', '/accounts', '/users'])('%s returns 401 without Authorization', async (path) => {
+  it.each(['/config', '/categories', '/accounts', '/balances', '/budgets', '/users'])('%s returns 401 without Authorization', async (path) => {
     const res = await SELF.fetch(`https://example.com${path}`);
     expect(res.status).toBe(401);
   });

@@ -1,0 +1,40 @@
+ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin','user'));
+ALTER TABLE users ADD COLUMN created_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN updated_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN deleted_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN deleted_at INTEGER NULL;
+
+UPDATE users SET role = 'admin' WHERE id = 'user-admin';
+
+ALTER TABLE config ADD COLUMN created_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE config ADD COLUMN updated_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE config ADD COLUMN deleted_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE config ADD COLUMN deleted_at INTEGER NULL;
+
+ALTER TABLE categories ADD COLUMN created_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE categories ADD COLUMN updated_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE categories ADD COLUMN deleted_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE categories ADD COLUMN deleted_at INTEGER NULL;
+
+ALTER TABLE accounts ADD COLUMN created_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE accounts ADD COLUMN updated_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE accounts ADD COLUMN deleted_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE accounts ADD COLUMN deleted_at INTEGER NULL;
+
+ALTER TABLE transactions ADD COLUMN created_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE transactions ADD COLUMN updated_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE transactions ADD COLUMN deleted_by TEXT NULL REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE transactions ADD COLUMN deleted_at INTEGER NULL;
+
+CREATE TABLE sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at INTEGER NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);

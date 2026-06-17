@@ -23,6 +23,9 @@ type TxRow = {
   installment_total: number | null;
   parent_transaction_id: string | null;
   is_active: number;
+  created_by?: string | null;
+  updated_by?: string | null;
+  deleted_by?: string | null;
 };
 
 async function getAccountBalance(id: string): Promise<number> {
@@ -150,6 +153,7 @@ describe('/transactions', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].paid_status).toBe('paid');
     expect(rows[0].type).toBe('income');
+    expect(rows[0].created_by).toBe('user-admin');
 
     const after = await getAccountBalance('acc-bank-bca');
     expect(after - before).toBeCloseTo(1000000, 5);
@@ -334,6 +338,7 @@ describe('/transactions', () => {
     expect(payRes.status).toBe(200);
     const paid = (await payRes.json()) as TxRow;
     expect(paid.paid_status).toBe('paid');
+    expect(paid.updated_by).toBe('user-admin');
 
     const againRes = await SELF.fetch(`https://example.com/transactions/${row.id}/pay`, {
       method: 'PATCH',
@@ -390,6 +395,7 @@ describe('/transactions', () => {
     expect(deleteRes.status).toBe(200);
     const deleted = (await deleteRes.json()) as TxRow;
     expect(deleted.is_active).toBe(0);
+    expect(deleted.deleted_by).toBe('user-admin');
 
     const afterDelete = await getAccountBalance('acc-bank-bca');
     expect(afterDelete - before).toBeCloseTo(0, 5);

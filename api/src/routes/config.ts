@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { Bindings } from '../middleware/auth';
+import { getCurrentUser, type Bindings } from '../middleware/auth';
 import { configUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -11,6 +11,7 @@ app.get('/', async (c) => {
 
 app.put('/', async (c) => {
   const body = configUpdate.parse(await c.req.json());
+  const actor = getCurrentUser(c);
 
   const fields = Object.keys(body) as (keyof typeof body)[];
   if (fields.length > 0) {
@@ -18,12 +19,18 @@ app.put('/', async (c) => {
     const values = fields.map((field) => body[field]);
 
     await c.env.DB.prepare(
-      `UPDATE config SET ${setClause}, last_updated = unixepoch() WHERE id = 1`
+      `UPDATE config
+       SET ${setClause}, updated_by = ?, last_updated = unixepoch()
+       WHERE id = 1`
     )
-      .bind(...values)
+      .bind(...values, actor?.id ?? null)
       .run();
   } else {
-    await c.env.DB.prepare('UPDATE config SET last_updated = unixepoch() WHERE id = 1').run();
+    await c.env.DB.prepare(
+      'UPDATE config SET updated_by = ?, last_updated = unixepoch() WHERE id = 1'
+    )
+      .bind(actor?.id ?? null)
+      .run();
   }
 
   const row = await c.env.DB.prepare('SELECT * FROM config WHERE id = 1').first();

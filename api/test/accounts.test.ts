@@ -59,8 +59,9 @@ describe('/accounts', () => {
       }),
     });
     expect(parentRes.status).toBe(201);
-    const parent = (await parentRes.json()) as { id: string; parent_id: string | null };
+    const parent = (await parentRes.json()) as { id: string; parent_id: string | null; created_by: string | null };
     expect(parent.parent_id).toBeNull();
+    expect(parent.created_by).toBe('user-admin');
     const parentId = parent.id;
 
     // Create a child account included in total (same type as parent)
@@ -140,8 +141,9 @@ describe('/accounts', () => {
       headers: AUTH,
     });
     expect(softDeleteChildRes.status).toBe(200);
-    const softDeletedChild = (await softDeleteChildRes.json()) as { is_active: number };
+    const softDeletedChild = (await softDeleteChildRes.json()) as { is_active: number; deleted_by: string | null };
     expect(softDeletedChild.is_active).toBe(0);
+    expect(softDeletedChild.deleted_by).toBe('user-admin');
 
     const softDeleteExcludedChildRes = await SELF.fetch(
       `https://example.com/accounts/${excludedChild.id}`,

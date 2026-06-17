@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, apiFetch, setSession } from '../lib/api';
+import type { SessionUser } from '../lib/types';
 
 interface LoginResponse {
   token: string;
-  user: { id: string; username: string };
+  user: SessionUser;
 }
 
 function EyeIcon({ open }: { open: boolean }) {

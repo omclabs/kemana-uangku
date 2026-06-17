@@ -14,6 +14,7 @@ export default function CategoryForm() {
   const [name, setName] = useState('');
   const [type, setType] = useState<CategoryType>('expense');
   const [parentId, setParentId] = useState('');
+  const [budgetMonthly, setBudgetMonthly] = useState('0');
   const [isActive, setIsActive] = useState(true);
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -36,6 +37,7 @@ export default function CategoryForm() {
           setName(category.name);
           setType(category.type);
           setParentId(category.parent_id ?? '');
+          setBudgetMonthly(String(category.budget_monthly ?? 0));
           setIsActive(category.is_active === 1);
         }
       } catch (err) {
@@ -62,6 +64,7 @@ export default function CategoryForm() {
       name,
       type,
       parent_id: parentId || null,
+      budget_monthly: type === 'expense' ? Number(budgetMonthly || '0') : 0,
       is_active: isActive,
     };
 
@@ -162,6 +165,26 @@ export default function CategoryForm() {
             onChange={setParentId}
           />
         </div>
+
+        {type === 'expense' && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-muted" htmlFor="budget-monthly">
+              Default monthly budget
+            </label>
+            <input
+              id="budget-monthly"
+              type="number"
+              min="0"
+              step="1"
+              className="w-full rounded-2xl border border-line bg-surface px-3 py-2 text-base text-ink"
+              value={budgetMonthly}
+              onChange={(e) => setBudgetMonthly(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted">
+              Used as the starting value when a month has no saved budget yet.
+            </p>
+          </div>
+        )}
 
         {isEdit && (
           <div>

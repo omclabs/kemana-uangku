@@ -1,3 +1,5 @@
+import type { SessionUser } from './types';
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787';
 
 export class ApiError extends Error {
@@ -13,7 +15,7 @@ export function getToken(): string | null {
   return localStorage.getItem('token');
 }
 
-export function setSession(token: string, user: { id: string; username: string }): void {
+export function setSession(token: string, user: SessionUser): void {
   localStorage.setItem('token', token);
   localStorage.setItem('user', JSON.stringify(user));
 }
@@ -23,11 +25,11 @@ export function clearSession(): void {
   localStorage.removeItem('user');
 }
 
-export function getUser(): { id: string; username: string } | null {
+export function getUser(): SessionUser | null {
   const raw = localStorage.getItem('user');
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as { id: string; username: string };
+    return JSON.parse(raw) as SessionUser;
   } catch {
     return null;
   }

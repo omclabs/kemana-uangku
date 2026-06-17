@@ -10,6 +10,13 @@ export const ACCOUNT_TYPES = [
 ] as const;
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
+export type Role = 'admin' | 'user';
+
+export interface SessionUser {
+  id: string;
+  username: string;
+  role: Role;
+}
 
 export interface Account {
   id: string;
@@ -66,6 +73,55 @@ export interface Config {
   default_timezone: string;
   currency: string;
   last_updated: number;
+}
+
+export interface MonthlyBalance {
+  month_start: number;
+  month_key: string;
+  income: number;
+  expense: number;
+  balance: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface BudgetItem {
+  category_id: string;
+  name: string;
+  parent_id: string | null;
+  template_amount: number;
+  own_amount: number;
+  total_amount: number;
+  is_saved: boolean;
+}
+
+export interface BudgetMonth {
+  month_key: string;
+  month_start: number;
+  total_budget: number;
+  items: BudgetItem[];
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: Role;
+  is_active: number;
+  created_at: number;
+  updated_at: number;
+  created_by: string | null;
+  updated_by: string | null;
+  deleted_by: string | null;
+  deleted_at: number | null;
+}
+
+export interface UserInput {
+  username: string;
+  email: string;
+  role: Role;
+  password?: string;
+  is_active?: boolean;
 }
 
 export const TRANSACTION_TYPES = ['income', 'expense', 'transfer'] as const;

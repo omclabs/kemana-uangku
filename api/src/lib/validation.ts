@@ -11,6 +11,17 @@ export const categoryUpdate = categoryCreate.partial().extend({
   is_active: z.boolean().optional(),
 });
 
+export const monthKey = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+
+export const budgetUpsert = z.object({
+  items: z.array(
+    z.object({
+      category_id: z.string().min(1),
+      amount: z.number().nonnegative(),
+    })
+  ),
+});
+
 export const accountCreate = z.object({
   name: z.string().min(1),
   type: z.enum([
@@ -44,6 +55,7 @@ export const userCreate = z.object({
   username: z.string().min(3),
   email: z.string().email(),
   password: z.string().min(8),
+  role: z.enum(['admin', 'user']).optional(),
 });
 
 export const userUpdate = userCreate.partial().extend({
@@ -127,6 +139,7 @@ export const receiptImportMerchant = z.enum(['generic', 'superindo']);
 
 export type CategoryCreate = z.infer<typeof categoryCreate>;
 export type CategoryUpdate = z.infer<typeof categoryUpdate>;
+export type BudgetUpsert = z.infer<typeof budgetUpsert>;
 export type AccountCreate = z.infer<typeof accountCreate>;
 export type AccountUpdate = z.infer<typeof accountUpdate>;
 export type ConfigUpdate = z.infer<typeof configUpdate>;

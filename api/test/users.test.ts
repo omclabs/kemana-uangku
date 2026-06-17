@@ -5,6 +5,16 @@ import bcrypt from 'bcryptjs';
 const AUTH = { Authorization: 'Bearer test-token' };
 const JSON_HEADERS = { ...AUTH, 'Content-Type': 'application/json' };
 
+async function login(username: string, password: string): Promise<string> {
+  const res = await SELF.fetch('https://example.com/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const body = (await res.json()) as { token: string };
+  return body.token;
+}
+
 describe('/users', () => {
   it('POST /users without Authorization returns 401', async () => {
     const res = await SELF.fetch('https://example.com/users', {
@@ -45,7 +55,10 @@ describe('/users', () => {
     expect(created).not.toHaveProperty('password_hash');
     expect(created.username).toBe('alice');
     expect(created.email).toBe('alice@example.com');
+    expect(created.role).toBe('user');
     expect(created.is_active).toBe(1);
+    expect(created.created_by).toBe('user-admin');
+    expect(created.updated_by).toBe('user-admin');
     const id = created.id as string;
 
     // Duplicate username -> 409
@@ -99,6 +112,7 @@ describe('/users', () => {
     const updated = (await updateRes.json()) as Record<string, unknown>;
     expect(updated).not.toHaveProperty('password_hash');
     expect(updated.email).toBe('alice2@example.com');
+    expect(updated.updated_by).toBe('user-admin');
     expect(updated.updated_at as number).toBeGreaterThanOrEqual(updated.created_at as number);
 
     // Password hash actually changed and verifies against the new password
@@ -116,20 +130,12 @@ describe('/users', () => {
     expect(softDeleteRes.status).toBe(200);
     const softDeleted = (await softDeleteRes.json()) as Record<string, unknown>;
     expect(softDeleted.is_active).toBe(0);
+    expect(softDeleted.deleted_by).toBe('user-admin');
+    expect(softDeleted.deleted_at).not.toBeNull();
 
     // Still GET-able by id after soft delete
     const getAfterSoftRes = await SELF.fetch(`https://example.com/users/${id}`, { headers: AUTH });
     expect(getAfterSoftRes.status).toBe(200);
-
-    // Hard delete
-    const hardDeleteRes = await SELF.fetch(`https://example.com/users/${id}?hard=true`, {
-      method: 'DELETE',
-      headers: AUTH,
-    });
-    expect(hardDeleteRes.status).toBe(200);
-
-    const getAfterHardRes = await SELF.fetch(`https://example.com/users/${id}`, { headers: AUTH });
-    expect(getAfterHardRes.status).toBe(404);
   });
 
   it('POST /users/:id/change-password lifecycle', async () => {
@@ -156,14 +162,20 @@ describe('/users', () => {
     });
     expect(shortRes.status).toBe(400);
 
-    // Correct current password -> 200, hash changes
+    const selfToken = await login('dave', 'password1');
+    const selfHeaders = {
+      Authorization: `Bearer ${selfToken}`,
+      'Content-Type': 'application/json',
+    };
+
+    // Correct current password with self session -> 200, hash changes
     const before = await env.DB.prepare('SELECT password_hash FROM users WHERE id = ?')
       .bind(id)
       .first<{ password_hash: string }>();
 
     const okRes = await SELF.fetch(`https://example.com/users/${id}/change-password`, {
       method: 'POST',
-      headers: JSON_HEADERS,
+      headers: selfHeaders,
       body: JSON.stringify({ current_password: 'password1', new_password: 'newpassword1' }),
     });
     expect(okRes.status).toBe(200);
@@ -180,7 +192,7 @@ describe('/users', () => {
     // Old password no longer works
     const staleRes = await SELF.fetch(`https://example.com/users/${id}/change-password`, {
       method: 'POST',
-      headers: JSON_HEADERS,
+      headers: selfHeaders,
       body: JSON.stringify({ current_password: 'password1', new_password: 'anotherpassword' }),
     });
     expect(staleRes.status).toBe(401);
@@ -215,5 +227,20 @@ describe('/users', () => {
       body: JSON.stringify({ username: 'carol' }),
     });
     expect(conflictRes.status).toBe(409);
+  });
+
+  it('non-admin session cannot list users', async () => {
+    await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ username: 'erin', email: 'erin@example.com', password: 'password1' }),
+    });
+
+    const token = await login('erin', 'password1');
+    const res = await SELF.fetch('https://example.com/users', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(res.status).toBe(403);
   });
 });

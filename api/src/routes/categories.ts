@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { Bindings } from '../middleware/auth';
+import { getCurrentUser, type Bindings } from '../middleware/auth';
 import { categoryCreate, categoryUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -59,6 +59,7 @@ app.get('/:id', async (c) => {
 });
 
 app.post('/', async (c) => {
+  const actor = getCurrentUser(c);
   const body = categoryCreate.parse(await c.req.json());
 
   if (body.parent_id) {
@@ -80,9 +81,19 @@ app.post('/', async (c) => {
   const id = crypto.randomUUID();
 
   await c.env.DB.prepare(
-    'INSERT INTO categories (id, name, type, parent_id, budget_monthly) VALUES (?, ?, ?, ?, ?)'
+    `INSERT INTO categories
+      (id, name, type, parent_id, budget_monthly, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(id, body.name, body.type, body.parent_id ?? null, body.budget_monthly ?? 0)
+    .bind(
+      id,
+      body.name,
+      body.type,
+      body.parent_id ?? null,
+      body.budget_monthly ?? 0,
+      actor?.id ?? null,
+      actor?.id ?? null
+    )
     .run();
 
   const row = await c.env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first();
@@ -91,6 +102,7 @@ app.post('/', async (c) => {
 });
 
 app.put('/:id', async (c) => {
+  const actor = getCurrentUser(c);
   const id = c.req.param('id');
   const existing = await c.env.DB.prepare('SELECT * FROM categories WHERE id = ?')
     .bind(id)
@@ -170,17 +182,29 @@ app.put('/:id', async (c) => {
   if (body.is_active !== undefined) {
     fields.push('is_active = ?');
     values.push(body.is_active ? 1 : 0);
+    if (body.is_active) {
+      fields.push('deleted_by = NULL');
+      fields.push('deleted_at = NULL');
+    } else {
+      fields.push('deleted_by = ?');
+      values.push(actor?.id ?? null);
+      fields.push('deleted_at = unixepoch()');
+    }
   }
 
   if (fields.length > 0) {
     await c.env.DB.prepare(
-      `UPDATE categories SET ${fields.join(', ')}, updated_at = unixepoch() WHERE id = ?`
+      `UPDATE categories
+       SET ${fields.join(', ')}, updated_by = ?, updated_at = unixepoch()
+       WHERE id = ?`
     )
-      .bind(...values, id)
+      .bind(...values, actor?.id ?? null, id)
       .run();
   } else {
-    await c.env.DB.prepare('UPDATE categories SET updated_at = unixepoch() WHERE id = ?')
-      .bind(id)
+    await c.env.DB.prepare(
+      'UPDATE categories SET updated_by = ?, updated_at = unixepoch() WHERE id = ?'
+    )
+      .bind(actor?.id ?? null, id)
       .run();
   }
 
@@ -190,6 +214,7 @@ app.put('/:id', async (c) => {
 });
 
 app.delete('/:id', async (c) => {
+  const actor = getCurrentUser(c);
   const id = c.req.param('id');
   const existing = await c.env.DB.prepare('SELECT * FROM categories WHERE id = ?')
     .bind(id)
@@ -222,8 +247,16 @@ app.delete('/:id', async (c) => {
     return c.json({ error: 'cannot delete: row has active children' }, 409);
   }
 
-  await c.env.DB.prepare('UPDATE categories SET is_active = 0, updated_at = unixepoch() WHERE id = ?')
-    .bind(id)
+  await c.env.DB.prepare(
+    `UPDATE categories
+     SET is_active = 0,
+         updated_by = ?,
+         deleted_by = ?,
+         deleted_at = unixepoch(),
+         updated_at = unixepoch()
+     WHERE id = ?`
+  )
+    .bind(actor?.id ?? null, actor?.id ?? null, id)
     .run();
 
   const row = await c.env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first();

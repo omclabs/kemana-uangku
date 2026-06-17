@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import PageContainer from '../components/PageContainer';
 import { ApiError, apiFetch, getUser } from '../lib/api';
 import { categoryVisual, initial } from '../lib/categories';
-import type { Account, Category, Transaction } from '../lib/types';
+import type { Account, BudgetMonth, Category, MonthlyBalance, Transaction } from '../lib/types';
 
 const idr = new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -25,8 +25,8 @@ function shortCurrency(value: number): string {
   return idr.format(value);
 }
 
-function monthLabel(monthIndex: number): string {
-  return new Date(2026, monthIndex, 1).toLocaleString('id-ID', { month: 'long' });
+function monthLabel(year: number, monthNumber: number): string {
+  return new Date(year, monthNumber - 1, 1).toLocaleString('id-ID', { month: 'long', year: 'numeric' });
 }
 
 function pctLabel(value: number): string {
@@ -35,6 +35,8 @@ function pctLabel(value: number): string {
 
 export default function Dashboard() {
   const [accounts,     setAccounts]     = useState<Account[]>([]);
+  const [budgetMonth, setBudgetMonth] = useState<BudgetMonth | null>(null);
+  const [monthlyBalances, setMonthlyBalances] = useState<MonthlyBalance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories,   setCategories]   = useState<Category[]>([]);
   const [loading,      setLoading]      = useState(true);
@@ -49,12 +51,14 @@ export default function Dashboard() {
     let cancelled = false;
     Promise.all([
       apiFetch<Account[]>('/accounts'),
+      apiFetch<MonthlyBalance[]>('/balances?limit=24'),
       apiFetch<Transaction[]>('/transactions'),
       apiFetch<Category[]>('/categories?include_inactive=true'),
     ])
-      .then(([accountList, transactionList, categoryList]) => {
+      .then(([accountList, monthlyBalanceList, transactionList, categoryList]) => {
         if (cancelled) return;
         setAccounts(accountList);
+        setMonthlyBalances(monthlyBalanceList);
         setTransactions(transactionList);
         setCategories(categoryList);
       })
@@ -70,32 +74,33 @@ export default function Dashboard() {
   const topLevelAccounts = accounts.filter(
     (a) => a.parent_id === null && a.include_in_total === 1,
   );
-  const accountById = new Map(accounts.map((account) => [account.id, account]));
-
-  function countsTowardNetWorth(accountId: string | null): boolean {
-    if (!accountId) return false;
-    let current = accountById.get(accountId) ?? null;
-    while (current?.parent_id) current = accountById.get(current.parent_id) ?? null;
-    if (!current) return false;
-    if (current.include_in_total !== 1) return false;
-    return current.type !== 'credit_card' && current.type !== 'loan';
-  }
 
   const totalBalance = topLevelAccounts
     .filter((a) => a.type !== 'credit_card' && a.type !== 'loan')
     .reduce((sum, a) => sum + a.computed_balance, 0);
 
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-  const availableMonthKeys = [...new Set(
-    transactions
-      .map((transaction) => new Date(transaction.date * 1000))
-      .filter((date) => date.getFullYear() === currentYear && date.getMonth() <= currentMonth)
-      .map((date) => `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`),
-  )].sort((left, right) => right.localeCompare(left));
-  const effectiveMonthKey = selectedMonthKey || availableMonthKeys[0] || `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-  const [selectedYear, selectedMonth] = effectiveMonthKey.split('-').map(Number);
+  const fallbackMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const availableMonthKeys = monthlyBalances.map((row) => row.month_key);
+  const effectiveMonthKey = selectedMonthKey || availableMonthKeys[0] || fallbackMonthKey;
+  const [selectedYear, selectedMonthNumber] = effectiveMonthKey.split('-').map(Number);
+  const selectedMonth = selectedMonthNumber - 1;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    apiFetch<BudgetMonth>(`/budgets?month=${effectiveMonthKey}`)
+      .then((payload) => {
+        if (!cancelled) setBudgetMonth(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setBudgetMonth(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveMonthKey]);
 
   useEffect(() => {
     if (!availableMonthKeys.length) {
@@ -111,23 +116,18 @@ export default function Dashboard() {
     const d = new Date(t.date * 1000);
     return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
   });
-  const income  = monthTx.filter((t) => t.type === 'income') .reduce((s, t) => s + t.amount, 0);
-  const expense = monthTx.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-
-  const monthNetWorthDelta = monthTx.reduce((sum, transaction) => {
-    let delta = sum;
-    if (countsTowardNetWorth(transaction.account_id)) {
-      delta += transaction.type === 'income' ? transaction.amount : -transaction.amount;
-    }
-    if (countsTowardNetWorth(transaction.transfer_to)) {
-      delta += transaction.amount;
-    }
-    return delta;
-  }, 0);
-  const previousMonthNetWorth = totalBalance - monthNetWorthDelta;
+  const selectedMonthlyBalance = monthlyBalances.find((row) => row.month_key === effectiveMonthKey) ?? null;
+  const selectedIndex = monthlyBalances.findIndex((row) => row.month_key === effectiveMonthKey);
+  const previousMonthlyBalance = selectedIndex >= 0 ? monthlyBalances[selectedIndex + 1] ?? null : null;
+  const income = selectedMonthlyBalance?.income
+    ?? monthTx.filter((t) => t.type === 'income' && t.transfer_to === null).reduce((s, t) => s + t.amount, 0);
+  const expense = selectedMonthlyBalance?.expense
+    ?? monthTx.filter((t) => t.type === 'expense' && t.transfer_to === null).reduce((s, t) => s + t.amount, 0);
+  const balanceSummary = selectedMonthlyBalance?.balance ?? totalBalance;
+  const previousMonthNetWorth = previousMonthlyBalance?.balance ?? (balanceSummary - income + expense);
   const hasPreviousMonthBaseline = previousMonthNetWorth !== 0;
   const monthOverMonthPct = hasPreviousMonthBaseline
-    ? ((totalBalance - previousMonthNetWorth) / Math.abs(previousMonthNetWorth)) * 100
+    ? ((balanceSummary - previousMonthNetWorth) / Math.abs(previousMonthNetWorth)) * 100
     : 0;
   const monthOverMonthPrefix = !hasPreviousMonthBaseline
     ? '-'
@@ -178,7 +178,7 @@ export default function Dashboard() {
       pct: donutTotal > 0 ? Math.round((amount / donutTotal) * 100) : 0,
       color: DONUT_COLORS[index],
     }));
-  const totalBudget = categories
+  const totalBudget = budgetMonth?.total_budget ?? categories
     .filter((category) => category.type === 'expense' && category.is_active === 1)
     .reduce((sum, category) => sum + category.budget_monthly, 0);
   const budgetUsagePct = totalBudget > 0 ? Math.min((expense / totalBudget) * 100, 100) : 0;
@@ -276,10 +276,10 @@ export default function Dashboard() {
 
             <div style={{ position: 'relative' }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500, opacity: .85 }}>
-                Total Balance
+                Balance
               </p>
               <p style={{ margin: '5px 0 0', fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                {idr.format(totalBalance)}
+                {idr.format(balanceSummary)}
               </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 9 }}>
                 <span style={{
@@ -381,7 +381,7 @@ export default function Dashboard() {
                   fontFamily: 'inherit',
                 }}
                 >
-                  <span>{monthLabel(selectedMonth)}</span>
+                  <span>{monthLabel(selectedYear, selectedMonthNumber)}</span>
                   <span style={{ fontSize: 10 }}>▾</span>
                 </button>
               </div>
@@ -574,7 +574,7 @@ export default function Dashboard() {
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
               {(availableMonthKeys.length ? availableMonthKeys : [effectiveMonthKey]).map((monthKey) => {
-                const [, monthValue] = monthKey.split('-').map(Number);
+                const [yearValue, monthValue] = monthKey.split('-').map(Number);
                 const active = monthKey === effectiveMonthKey;
                 return (
                   <button
@@ -597,7 +597,7 @@ export default function Dashboard() {
                       cursor: 'pointer',
                     }}
                   >
-                    {monthLabel(monthValue)}
+                    {monthLabel(yearValue, monthValue)}
                   </button>
                 );
               })}

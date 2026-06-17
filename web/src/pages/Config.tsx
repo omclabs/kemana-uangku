@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ApiError, apiFetch, clearSession } from '../lib/api';
+import { ApiError, apiFetch, clearSession, getUser } from '../lib/api';
 import type { Config as ConfigType } from '../lib/types';
 import PageContainer from '../components/PageContainer';
 import PageHeader from '../components/PageHeader';
@@ -14,8 +14,14 @@ function LockIcon() {
 function TagIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3z"/><path d="M7.25 6h.008v.008H7.25V6z"/></svg>;
 }
+function BudgetIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M16 15h0"/></svg>;
+}
 function LogoutIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+}
+function UserIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>;
 }
 function ChevronRight() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
@@ -30,6 +36,7 @@ const cardStyle: React.CSSProperties = {
 
 export default function Config() {
   const navigate = useNavigate();
+  const user = getUser();
   const [currency, setCurrency] = useState('');
   const [timezone, setTimezone] = useState('');
   const [version, setVersion] = useState('');
@@ -106,6 +113,23 @@ export default function Config() {
             <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
           </Link>
 
+          <Link to="/config/budgets" style={cardStyle}>
+            <span style={{
+              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+              background: 'color-mix(in srgb, var(--accent-2) 10%, transparent)', color: 'var(--accent-2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <BudgetIcon />
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Budgets</span>
+              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                Manage month-specific budget targets
+              </span>
+            </span>
+            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+          </Link>
+
           <Link to="/config/change-password" style={cardStyle}>
             <span style={{
               width: 44, height: 44, borderRadius: 13, flexShrink: 0,
@@ -122,6 +146,25 @@ export default function Config() {
             </span>
             <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
           </Link>
+
+          {user?.role === 'admin' && (
+            <Link to="/config/users" style={cardStyle}>
+              <span style={{
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                background: 'color-mix(in srgb, var(--accent-2) 14%, transparent)', color: 'var(--accent-2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <UserIcon />
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Users</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                  Manage user access and roles
+                </span>
+              </span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+            </Link>
+          )}
 
           <button
             type="button"

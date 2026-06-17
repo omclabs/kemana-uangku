@@ -6,6 +6,8 @@ import authRoute from './routes/auth';
 import configRoute from './routes/config';
 import categoriesRoute from './routes/categories';
 import accountsRoute from './routes/accounts';
+import balancesRoute from './routes/balances';
+import budgetsRoute from './routes/budgets';
 import usersRoute from './routes/users';
 import transactionsRoute from './routes/transactions';
 
@@ -28,6 +30,8 @@ protectedApp.use('*', authMiddleware);
 protectedApp.route('/config', configRoute);
 protectedApp.route('/categories', categoriesRoute);
 protectedApp.route('/accounts', accountsRoute);
+protectedApp.route('/balances', balancesRoute);
+protectedApp.route('/budgets', budgetsRoute);
 protectedApp.route('/users', usersRoute);
 protectedApp.route('/transactions', transactionsRoute);
 

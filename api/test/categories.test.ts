@@ -22,8 +22,9 @@ describe('/categories', () => {
       body: JSON.stringify({ name: 'Food', type: 'expense' }),
     });
     expect(parentRes.status).toBe(201);
-    const parent = (await parentRes.json()) as { id: string; type: string; parent_id: string | null };
+    const parent = (await parentRes.json()) as { id: string; type: string; parent_id: string | null; created_by: string | null };
     expect(parent.parent_id).toBeNull();
+    expect(parent.created_by).toBe('user-admin');
     const parentId = parent.id;
 
     // Create a child of the parent with the same type
@@ -73,6 +74,8 @@ describe('/categories', () => {
       headers: AUTH,
     });
     expect(softDeleteChildRes.status).toBe(200);
+    const softDeletedChild = (await softDeleteChildRes.json()) as { deleted_by: string | null };
+    expect(softDeletedChild.deleted_by).toBe('user-admin');
 
     // Verify the child shows is_active = 0 via include_inactive
     const childAfterRes = await SELF.fetch(

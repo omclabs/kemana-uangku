@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
+import AdminGuard from './components/AdminGuard';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import Login from './pages/Login';
@@ -8,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Config from './pages/Config';
 import ChangePassword from './pages/ChangePassword';
 import ConfigPreferences from './pages/ConfigPreferences';
+import BudgetPage from './pages/budget/BudgetPage';
 import AccountList from './pages/account/AccountList';
 import AccountForm from './pages/account/AccountForm';
 import AccountTransactions from './pages/account/AccountTransactions';
@@ -16,6 +18,8 @@ import CategoryForm from './pages/category/CategoryForm';
 import TransactionList from './pages/transaction/TransactionList';
 import TransactionForm from './pages/transaction/TransactionForm';
 import TransactionReceiptImport from './pages/transaction/TransactionReceiptImport';
+import UserList from './pages/user/UserList';
+import UserForm from './pages/user/UserForm';
 
 function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -141,6 +145,16 @@ export default function App() {
           }
         />
         <Route
+          path="/config/budgets"
+          element={
+            <AuthGuard>
+              <AuthLayout>
+                <BudgetPage />
+              </AuthLayout>
+            </AuthGuard>
+          }
+        />
+        <Route
           path="/config/categories"
           element={
             <AuthGuard>
@@ -201,6 +215,36 @@ export default function App() {
                 <ChangePassword />
               </AuthLayout>
             </AuthGuard>
+          }
+        />
+        <Route
+          path="/config/users"
+          element={
+            <AdminGuard>
+              <AuthLayout>
+                <UserList />
+              </AuthLayout>
+            </AdminGuard>
+          }
+        />
+        <Route
+          path="/config/users/new"
+          element={
+            <AdminGuard>
+              <AuthLayout>
+                <UserForm />
+              </AuthLayout>
+            </AdminGuard>
+          }
+        />
+        <Route
+          path="/config/users/:id/edit"
+          element={
+            <AdminGuard>
+              <AuthLayout>
+                <UserForm />
+              </AuthLayout>
+            </AdminGuard>
           }
         />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

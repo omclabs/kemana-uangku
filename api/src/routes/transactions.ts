@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { Bindings } from '../middleware/auth';
+import { getCurrentUser, type Bindings } from '../middleware/auth';
 import { receiptImportCommitInput, transactionCreate, transactionUpdate } from '../lib/validation';
 import {
   adjustBalanceStatement,
@@ -8,6 +8,7 @@ import {
   type BalanceOp,
   type TransactionBalanceRow,
 } from '../lib/balance';
+import { rebuildMonthlyBalancesFrom } from '../lib/month-balance';
 import { buildReceiptDraft } from '../lib/receipt-import';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -134,6 +135,7 @@ function toBalanceRow(
 
 async function createImportedExpenseRows(
   db: D1Database,
+  actorId: string | null,
   accountId: string,
   rows: Array<{ date: number; category_id: string; amount: number; note: string; paid_status: 'paid' | 'settle' }>
 ): Promise<TransactionRow[]> {
@@ -147,9 +149,9 @@ async function createImportedExpenseRows(
     statements.push(
       db.prepare(
         `INSERT INTO transactions
-          (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id)
-         VALUES (?, ?, ?, ?, ?, ?, 'expense', NULL, NULL, 'bulk', ?, NULL, NULL, NULL, NULL, NULL)`
-      ).bind(id, row.date, accountId, row.category_id, row.amount, row.note, row.paid_status)
+          (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, 'expense', NULL, NULL, 'bulk', ?, NULL, NULL, NULL, NULL, NULL, ?, ?)`
+      ).bind(id, row.date, accountId, row.category_id, row.amount, row.note, row.paid_status, actorId, actorId)
     );
 
     balanceOps.push(
@@ -165,6 +167,9 @@ async function createImportedExpenseRows(
   }
 
   await db.batch(statements);
+
+  const minDate = Math.min(...rows.map((row) => row.date));
+  await rebuildMonthlyBalancesFrom(db, minDate, actorId);
 
   const placeholders = insertedIds.map(() => '?').join(',');
   const { results } = await db.prepare(
@@ -278,6 +283,7 @@ app.post('/import-receipt/parse', async (c) => {
 });
 
 app.post('/import-receipt/commit', async (c) => {
+  const actor = getCurrentUser(c);
   const body = receiptImportCommitInput.parse(await c.req.json());
   const account = await loadActiveAccount(c.env.DB, body.account_id);
   if (!account) {
@@ -309,6 +315,7 @@ app.post('/import-receipt/commit', async (c) => {
   const paidStatus: 'paid' | 'settle' = account.type === 'credit_card' ? 'settle' : 'paid';
   const created = await createImportedExpenseRows(
     c.env.DB,
+    actor?.id ?? null,
     body.account_id,
     includedRows.map((row) => ({
       date: row.date,
@@ -323,6 +330,7 @@ app.post('/import-receipt/commit', async (c) => {
 });
 
 app.post('/', async (c) => {
+  const actor = getCurrentUser(c);
   const body = transactionCreate.parse(await c.req.json());
 
   if (body.type === 'transfer') {
@@ -401,8 +409,8 @@ app.post('/', async (c) => {
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO transactions
-          (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'single', ?, ?, ?, ?, ?, NULL)`
+          (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'single', ?, ?, ?, ?, ?, NULL, ?, ?)`
       ).bind(
         rowId,
         occurrenceDate,
@@ -417,7 +425,9 @@ app.post('/', async (c) => {
         recurringGroupId,
         recurringMode,
         installmentIndex,
-        installmentTotal
+        installmentTotal,
+        actor?.id ?? null,
+        actor?.id ?? null
       )
     );
 
@@ -442,8 +452,8 @@ app.post('/', async (c) => {
       statements.push(
         c.env.DB.prepare(
           `INSERT INTO transactions
-            (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id)
-           VALUES (?, ?, ?, ?, ?, ?, 'expense', NULL, NULL, 'single', ?, ?, ?, ?, ?, ?)`
+            (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, 'expense', NULL, NULL, 'single', ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           feeRowId,
           occurrenceDate,
@@ -456,7 +466,9 @@ app.post('/', async (c) => {
           recurringMode,
           installmentIndex,
           installmentTotal,
-          rowId
+          rowId,
+          actor?.id ?? null,
+          actor?.id ?? null
         )
       );
 
@@ -477,6 +489,11 @@ app.post('/', async (c) => {
   }
 
   await c.env.DB.batch(statements);
+  await rebuildMonthlyBalancesFrom(
+    c.env.DB,
+    body.date,
+    actor?.id ?? null
+  );
 
   const placeholders = insertedIds.map(() => '?').join(',');
   const { results } = await c.env.DB.prepare(
@@ -489,6 +506,7 @@ app.post('/', async (c) => {
 });
 
 app.put('/:id', async (c) => {
+  const actor = getCurrentUser(c);
   const id = c.req.param('id');
   const existing = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?')
     .bind(id)
@@ -573,26 +591,46 @@ app.put('/:id', async (c) => {
   if (body.is_active !== undefined) {
     fields.push('is_active = ?');
     values.push(newIsActive);
+    if (body.is_active) {
+      fields.push('deleted_by = NULL');
+      fields.push('deleted_at = NULL');
+    } else {
+      fields.push('deleted_by = ?');
+      values.push(actor?.id ?? null);
+      fields.push('deleted_at = unixepoch()');
+    }
   }
 
   const statements: D1PreparedStatement[] = [];
 
   if (fields.length > 0) {
     statements.push(
-      c.env.DB.prepare(`UPDATE transactions SET ${fields.join(', ')}, updated_at = unixepoch() WHERE id = ?`)
-        .bind(...values, id)
+      c.env.DB.prepare(
+        `UPDATE transactions
+         SET ${fields.join(', ')}, updated_by = ?, updated_at = unixepoch()
+         WHERE id = ?`
+      )
+        .bind(...values, actor?.id ?? null, id)
     );
   } else {
     statements.push(
-      c.env.DB.prepare('UPDATE transactions SET updated_at = unixepoch() WHERE id = ?').bind(id)
+      c.env.DB.prepare(
+        'UPDATE transactions SET updated_by = ?, updated_at = unixepoch() WHERE id = ?'
+      ).bind(actor?.id ?? null, id)
     );
   }
 
   if (feeChildren.length > 0) {
     statements.push(
       c.env.DB.prepare(
-        'UPDATE transactions SET is_active = ?, updated_at = unixepoch() WHERE parent_transaction_id = ? AND is_active = ?'
-      ).bind(newIsActive, id, existing.is_active)
+        `UPDATE transactions
+         SET is_active = ?,
+             updated_by = ?,
+             deleted_by = CASE WHEN ? = 1 THEN NULL ELSE ? END,
+             deleted_at = CASE WHEN ? = 1 THEN NULL ELSE unixepoch() END,
+             updated_at = unixepoch()
+         WHERE parent_transaction_id = ? AND is_active = ?`
+      ).bind(newIsActive, actor?.id ?? null, newIsActive, actor?.id ?? null, newIsActive, id, existing.is_active)
     );
   }
 
@@ -601,6 +639,11 @@ app.put('/:id', async (c) => {
   }
 
   await c.env.DB.batch(statements);
+  await rebuildMonthlyBalancesFrom(
+    c.env.DB,
+    Math.min(existing.date, body.date ?? existing.date),
+    actor?.id ?? null
+  );
 
   const row = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();
 
@@ -608,6 +651,7 @@ app.put('/:id', async (c) => {
 });
 
 app.delete('/:id', async (c) => {
+  const actor = getCurrentUser(c);
   const id = c.req.param('id');
   const existing = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?')
     .bind(id)
@@ -638,16 +682,24 @@ app.delete('/:id', async (c) => {
   if (hard) {
     statements.push(c.env.DB.prepare('DELETE FROM transactions WHERE id = ?').bind(id));
     await c.env.DB.batch(statements);
+    await rebuildMonthlyBalancesFrom(c.env.DB, existing.date, actor?.id ?? null);
     return c.json({ id, deleted: true }, 200);
   }
 
   statements.push(
     c.env.DB.prepare(
-      "UPDATE transactions SET is_active = 0, updated_at = unixepoch() WHERE is_active = 1 AND (id = ? OR parent_transaction_id = ?)"
-    ).bind(id, id)
+      `UPDATE transactions
+       SET is_active = 0,
+           updated_by = ?,
+           deleted_by = ?,
+           deleted_at = unixepoch(),
+           updated_at = unixepoch()
+       WHERE is_active = 1 AND (id = ? OR parent_transaction_id = ?)`
+    ).bind(actor?.id ?? null, actor?.id ?? null, id, id)
   );
 
   await c.env.DB.batch(statements);
+  await rebuildMonthlyBalancesFrom(c.env.DB, existing.date, actor?.id ?? null);
 
   const row = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();
 
@@ -655,6 +707,7 @@ app.delete('/:id', async (c) => {
 });
 
 app.patch('/:id/pay', async (c) => {
+  const actor = getCurrentUser(c);
   const id = c.req.param('id');
   const existing = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?')
     .bind(id)
@@ -668,8 +721,10 @@ app.patch('/:id/pay', async (c) => {
     return c.json({ error: 'already paid' }, 409);
   }
 
-  await c.env.DB.prepare("UPDATE transactions SET paid_status = 'paid', updated_at = unixepoch() WHERE id = ?")
-    .bind(id)
+  await c.env.DB.prepare(
+    "UPDATE transactions SET paid_status = 'paid', updated_by = ?, updated_at = unixepoch() WHERE id = ?"
+  )
+    .bind(actor?.id ?? null, id)
     .run();
 
   const row = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();

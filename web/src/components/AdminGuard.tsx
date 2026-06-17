@@ -1,0 +1,18 @@
+import type { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
+import { getToken, getUser } from '../lib/api';
+
+export default function AdminGuard({ children }: { children: ReactNode }) {
+  const token = getToken();
+  const user = getUser();
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
