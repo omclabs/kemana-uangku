@@ -32,7 +32,9 @@ async function buildBudgetMonthResponse(db: D1Database, month: string) {
   const { results: categories } = await db.prepare(
     `SELECT id, name, parent_id, budget_monthly, is_active
      FROM categories
-     WHERE type = 'expense' AND is_active = 1
+     WHERE type = 'expense'
+       AND is_active = 1
+       AND id NOT IN ('cat-admin', 'cat-transfer')
      ORDER BY CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, parent_id ASC, name COLLATE NOCASE ASC`
   ).all<CategoryRow>();
 

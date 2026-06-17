@@ -1,5 +1,6 @@
 import { SELF } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { resetAndSeedTestAccounts, TEST_ACCOUNT_IDS } from './fixtures';
 
 const AUTH = { Authorization: 'Bearer test-token' };
 const JSON_HEADERS = { ...AUTH, 'Content-Type': 'application/json' };
@@ -18,35 +19,39 @@ async function postTransaction(body: Record<string, unknown>) {
 }
 
 describe('/balances', () => {
+  beforeEach(async () => {
+    await resetAndSeedTestAccounts();
+  });
+
   it('stores monthly income, expense, and running balance summaries', async () => {
     await postTransaction({
       date: JAN_2026,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-inc-salary',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: 'cat-income-salary',
       amount: 1000000,
       type: 'income',
     });
 
     await postTransaction({
       date: JAN_2026,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: 'cat-food-dining',
       amount: 250000,
       type: 'expense',
     });
 
     await postTransaction({
       date: FEB_2026,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-inc-bonus',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: 'cat-income-bonus',
       amount: 500000,
       type: 'income',
     });
 
     await postTransaction({
       date: FEB_2026,
-      account_id: 'acc-bank-bca',
-      transfer_to: 'acc-bank-cimb',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      transfer_to: TEST_ACCOUNT_IDS.bankSecondary,
       amount: 150000,
       type: 'transfer',
     });
@@ -82,8 +87,8 @@ describe('/balances', () => {
   it('rebuilds later months when an older transaction changes', async () => {
     const createRes = await postTransaction({
       date: MAR_2026,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: 'cat-food-dining',
       amount: 100000,
       type: 'expense',
     });
@@ -91,8 +96,8 @@ describe('/balances', () => {
 
     await postTransaction({
       date: APR_2026,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-inc-bonus',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: 'cat-income-bonus',
       amount: 200000,
       type: 'income',
     });
@@ -115,13 +120,13 @@ describe('/balances', () => {
       month_key: '2026-03',
       income: 0,
       expense: 400000,
-      balance: 850000,
+      balance: -400000,
     });
     expect(rows.find((row) => row.month_key === '2026-04')).toMatchObject({
       month_key: '2026-04',
       income: 200000,
       expense: 0,
-      balance: 1050000,
+      balance: -200000,
     });
   });
 });

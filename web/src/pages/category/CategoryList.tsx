@@ -61,7 +61,9 @@ export default function CategoryList() {
     };
   }, []);
 
-  const visibleCategories = categories.filter((category) => category.id !== 'cat-transfer');
+  const visibleCategories = categories.filter(
+    (category) => category.id !== 'cat-transfer' && category.id !== 'cat-admin'
+  );
   const childrenOf = (parentId: string) => visibleCategories.filter((category) => category.parent_id === parentId);
 
   const topLevel = visibleCategories.filter((category) => category.parent_id === null);

@@ -1,17 +1,22 @@
 import { SELF } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { resetFinanceData } from './fixtures';
 
 const AUTH = { Authorization: 'Bearer test-token' };
 const JSON_HEADERS = { ...AUTH, 'Content-Type': 'application/json' };
 
 describe('/budgets', () => {
+  beforeEach(async () => {
+    await resetFinanceData();
+  });
+
   it('GET /budgets returns template-backed monthly budgets with parent rollup totals', async () => {
     await SELF.fetch('https://example.com/categories/cat-food', {
       method: 'PUT',
       headers: JSON_HEADERS,
       body: JSON.stringify({ budget_monthly: 100000 }),
     });
-    await SELF.fetch('https://example.com/categories/cat-food-breakfast', {
+    await SELF.fetch('https://example.com/categories/cat-food-dining', {
       method: 'PUT',
       headers: JSON_HEADERS,
       body: JSON.stringify({ budget_monthly: 25000 }),
@@ -37,7 +42,7 @@ describe('/budgets', () => {
     expect(body.total_budget).toBeGreaterThanOrEqual(125000);
 
     const parent = body.items.find((item) => item.category_id === 'cat-food');
-    const child = body.items.find((item) => item.category_id === 'cat-food-breakfast');
+    const child = body.items.find((item) => item.category_id === 'cat-food-dining');
 
     expect(parent).toMatchObject({
       category_id: 'cat-food',
@@ -46,7 +51,7 @@ describe('/budgets', () => {
       is_saved: false,
     });
     expect(child).toMatchObject({
-      category_id: 'cat-food-breakfast',
+      category_id: 'cat-food-dining',
       own_amount: 25000,
       total_amount: 25000,
       is_saved: false,
@@ -58,7 +63,7 @@ describe('/budgets', () => {
       method: 'PUT',
       headers: JSON_HEADERS,
       body: JSON.stringify({
-        items: [{ category_id: 'cat-inc-salary', amount: 100000 }],
+        items: [{ category_id: 'cat-income-salary', amount: 100000 }],
       }),
     });
     expect(badRes.status).toBe(400);
@@ -69,8 +74,8 @@ describe('/budgets', () => {
       body: JSON.stringify({
         items: [
           { category_id: 'cat-food', amount: 200000 },
-          { category_id: 'cat-food-breakfast', amount: 50000 },
-          { category_id: 'cat-bills', amount: 300000 },
+          { category_id: 'cat-food-dining', amount: 50000 },
+          { category_id: 'cat-housing', amount: 300000 },
         ],
       }),
     });
@@ -87,8 +92,8 @@ describe('/budgets', () => {
     };
 
     const food = saved.items.find((item) => item.category_id === 'cat-food');
-    const breakfast = saved.items.find((item) => item.category_id === 'cat-food-breakfast');
-    const bills = saved.items.find((item) => item.category_id === 'cat-bills');
+    const breakfast = saved.items.find((item) => item.category_id === 'cat-food-dining');
+    const bills = saved.items.find((item) => item.category_id === 'cat-housing');
 
     expect(food).toMatchObject({
       category_id: 'cat-food',
@@ -97,13 +102,13 @@ describe('/budgets', () => {
       is_saved: true,
     });
     expect(breakfast).toMatchObject({
-      category_id: 'cat-food-breakfast',
+      category_id: 'cat-food-dining',
       own_amount: 50000,
       total_amount: 50000,
       is_saved: true,
     });
     expect(bills).toMatchObject({
-      category_id: 'cat-bills',
+      category_id: 'cat-housing',
       own_amount: 300000,
       total_amount: 300000,
       is_saved: true,

@@ -86,7 +86,10 @@ export default function CategoryForm() {
     return <p className="p-4 text-center text-muted">Loading...</p>;
   }
 
-  const topLevelCategories = categories.filter(
+  const visibleCategories = categories.filter(
+    (c) => c.id !== 'cat-transfer' && c.id !== 'cat-admin'
+  );
+  const topLevelCategories = visibleCategories.filter(
     (c) => c.parent_id === null && c.id !== id && c.is_active === 1
   );
   const parentOptions = topLevelCategories.filter((c) => c.type === type);
@@ -103,7 +106,7 @@ export default function CategoryForm() {
       hint: category.type.charAt(0).toUpperCase() + category.type.slice(1),
     })),
   ];
-  const children = categories.filter((c) => c.parent_id === id);
+  const children = visibleCategories.filter((c) => c.parent_id === id);
   const hasActiveChildren = children.some((c) => c.is_active === 1);
   const previewVisual = categoryVisual(name || type);
 

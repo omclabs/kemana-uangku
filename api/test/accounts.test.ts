@@ -1,10 +1,21 @@
 import { SELF } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { resetFinanceData } from './fixtures';
 
 const AUTH = { Authorization: 'Bearer test-token' };
 const JSON_HEADERS = { ...AUTH, 'Content-Type': 'application/json' };
 
 describe('/accounts', () => {
+  beforeEach(async () => {
+    await resetFinanceData();
+  });
+
+  it('GET /accounts returns empty on a fresh database', async () => {
+    const res = await SELF.fetch('https://example.com/accounts', { headers: AUTH });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([]);
+  });
+
   it('POST /accounts with invalid type returns 400', async () => {
     const res = await SELF.fetch('https://example.com/accounts', {
       method: 'POST',

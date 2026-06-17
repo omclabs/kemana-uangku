@@ -1,158 +1,85 @@
--- Seed default accounts and categories, ported from ExpenseTracker's
--- gas/SetupService.js (_seedAccounts / _seedCategories).
---
--- accounts.type mapping (gas -> schema enum):
---   Bank -> bank, Cash -> cash, Autodebet -> autodebet,
---   Credit Card -> credit_card, Prepaid -> prepaid, Savings -> savings,
---   Investment -> investment, Loan -> loan
---
--- categories.type (income/expense) maps directly, no transform.
--- gas parent_id '' -> SQL NULL.
+-- Seed default categories only.
+-- Fresh installs intentionally start with zero accounts.
 
--- ── accounts (20, all top-level) ───────────────────────────────────────────
-INSERT INTO accounts (id, name, type, credit_limit, billing_date) VALUES
-  -- Bank
-  ('acc-bank-bca',             'Bank BCA',            'bank',        NULL, NULL),
-  ('acc-bank-blu',              'Blu BCA',             'bank',        NULL, NULL),
-  ('acc-bank-cimb',             'Bank CIMB Niaga',     'bank',        NULL, NULL),
-  ('acc-bank-ocbc',             'Bank OCBC NISP',      'bank',        NULL, NULL),
-  ('acc-bank-mandiri',          'Bank Mandiri',        'bank',        NULL, NULL),
-  ('acc-bank-seabank',          'Seabank',             'bank',        NULL, NULL),
-  -- Cash
-  ('acc-cash',                  'Cash',                'cash',        NULL, NULL),
-  -- Autodebet
-  ('acc-autodebet-kendali',     'OCBC Kendali',        'autodebet',   NULL, NULL),
-  ('acc-autodebet-360s',        'OCBC 360s',           'autodebet',   NULL, NULL),
-  -- Credit Card (credit_limit is a placeholder -- update via PUT /accounts/acc-cc-cimb)
-  ('acc-cc-cimb',               'CIMB Niaga Platinum', 'credit_card', 10000000, 19),
-  -- Prepaid
-  ('acc-ovo',                   'OVO',                 'prepaid',     NULL, NULL),
-  ('acc-gopay',                 'GoPay',               'prepaid',     NULL, NULL),
-  ('acc-shopeepay',             'ShopeePay',           'prepaid',     NULL, NULL),
-  ('acc-emoney',                'e-Money',             'prepaid',     NULL, NULL),
-  -- Savings
-  ('acc-savings-alena',         'Alena',               'savings',     NULL, NULL),
-  ('acc-savings-arvano',        'Arvano',              'savings',     NULL, NULL),
-  -- Investment
-  ('acc-invest-bpjs-crewdible', 'BPJS Crewdible',      'investment',  NULL, NULL),
-  ('acc-invest-bpjs-99',        'BPJS 99.co',          'investment',  NULL, NULL),
-  ('acc-invest-rdn',            'RDN',                 'investment',  NULL, NULL),
-  -- Loan
-  ('acc-loan-kpr-ocbc',         'KPR OCBC',            'loan',        NULL, NULL);
-
--- ── categories (87: 19 top-level + 68 children) ────────────────────────────
 INSERT INTO categories (id, name, type, parent_id) VALUES
-  -- Income top-level
-  ('cat-inc-transfer-in', 'Transfer In',     'income', NULL),
-  ('cat-inc-salary',      'Salary',          'income', NULL),
-  ('cat-inc-bonus',       'Bonus',           'income', NULL),
-  ('cat-inc-voucher',     'Voucher',         'income', NULL),
-  ('cat-inc-refund',      'Refund',          'income', NULL),
+  -- Income
+  ('cat-income-salary',        'Salary',            'income',  NULL),
+  ('cat-income-bonus',         'Bonus',             'income',  NULL),
+  ('cat-income-freelance',     'Freelance',         'income',  NULL),
+  ('cat-income-business',      'Business',          'income',  NULL),
+  ('cat-income-investment',    'Investment Income', 'income',  NULL),
+  ('cat-income-refund',        'Refund',            'income',  NULL),
+  ('cat-income-cashback',      'Cashback',          'income',  NULL),
+  ('cat-income-gift',          'Gift Received',     'income',  NULL),
+  ('cat-income-asset-sale',    'Asset Sale',        'income',  NULL),
+  ('cat-income-other',         'Other Income',      'income',  NULL),
 
-  -- Expense top-level
-  ('cat-food',        'Food',          'expense', NULL),
-  ('cat-apparel',     'Apparel',       'expense', NULL),
-  ('cat-babies',      'Babies',        'expense', NULL),
-  ('cat-beauty',      'Beauty',        'expense', NULL),
-  ('cat-bills',       'Bills',         'expense', NULL),
-  ('cat-entertain',   'Entertainment', 'expense', NULL),
-  ('cat-edu',         'Education',     'expense', NULL),
-  ('cat-gift',        'Gift',          'expense', NULL),
-  ('cat-health',      'Health',        'expense', NULL),
-  ('cat-household',   'Household',     'expense', NULL),
-  ('cat-transport',   'Transport',     'expense', NULL),
-  ('cat-admin',       'Admin Fees',    'expense', NULL),
-  ('cat-mortgage',    'Mortgage',      'expense', NULL),
-  ('cat-transfer',    'Transfer',      'expense', NULL),
+  -- Expense parents
+  ('cat-food',                 'Food',              'expense', NULL),
+  ('cat-transport',            'Transport',         'expense', NULL),
+  ('cat-housing',              'Housing',           'expense', NULL),
+  ('cat-personal',             'Personal',          'expense', NULL),
+  ('cat-household',            'Household',         'expense', NULL),
+  ('cat-health',               'Health',            'expense', NULL),
+  ('cat-family',               'Family',            'expense', NULL),
+  ('cat-entertainment',        'Entertainment',     'expense', NULL),
+  ('cat-finance',              'Finance',           'expense', NULL),
+  ('cat-shopping',             'Shopping',          'expense', NULL),
+  ('cat-travel',               'Travel',            'expense', NULL),
+  ('cat-other',                'Other',             'expense', NULL),
 
-  -- Food children
-  ('cat-food-breakfast',  'Breakfast',  'expense', 'cat-food'),
-  ('cat-food-lunch',      'Lunch',      'expense', 'cat-food'),
-  ('cat-food-dinner',     'Dinner',     'expense', 'cat-food'),
-  ('cat-food-eatingout',  'Eating Out', 'expense', 'cat-food'),
-  ('cat-food-beverages',  'Beverages',  'expense', 'cat-food'),
-  ('cat-food-coffee',     'Coffee',     'expense', 'cat-food'),
-  ('cat-food-seasoning',  'Seasoning',  'expense', 'cat-food'),
-  ('cat-food-vegetables', 'Vegetables', 'expense', 'cat-food'),
-  ('cat-food-meats',      'Meats',      'expense', 'cat-food'),
-  ('cat-food-fruits',     'Fruits',     'expense', 'cat-food'),
-  ('cat-food-grabfood',   'GrabFood',   'expense', 'cat-food'),
+  -- Reserved internal categories
+  ('cat-admin',                'Admin Fees',        'expense', NULL),
+  ('cat-transfer',             'Transfer',          'expense', NULL),
 
-  -- Apparel children
-  ('cat-apparel-clothing', 'Clothing', 'expense', 'cat-apparel'),
-  ('cat-apparel-shoes',    'Shoes',    'expense', 'cat-apparel'),
-  ('cat-apparel-laundry',  'Laundry',  'expense', 'cat-apparel'),
+  -- Food
+  ('cat-food-groceries',       'Groceries',         'expense', 'cat-food'),
+  ('cat-food-dining',          'Dining Out',        'expense', 'cat-food'),
+  ('cat-food-coffee',          'Coffee & Snacks',   'expense', 'cat-food'),
 
-  -- Babies children
-  ('cat-babies-daily', 'Daily', 'expense', 'cat-babies'),
+  -- Transport
+  ('cat-transport-fuel',       'Fuel',              'expense', 'cat-transport'),
+  ('cat-transport-public',     'Public Transit',    'expense', 'cat-transport'),
+  ('cat-transport-rides',      'Ride Hailing',      'expense', 'cat-transport'),
+  ('cat-transport-parking',    'Parking & Tolls',   'expense', 'cat-transport'),
 
-  -- Beauty children
-  ('cat-beauty-cosmetic',    'Cosmetic',    'expense', 'cat-beauty'),
-  ('cat-beauty-accessories', 'Accessories', 'expense', 'cat-beauty'),
-  ('cat-beauty-hairdo',      'Hairdo',      'expense', 'cat-beauty'),
-  ('cat-beauty-skincare',    'Skincare',    'expense', 'cat-beauty'),
+  -- Housing
+  ('cat-housing-rent',         'Rent / Mortgage',   'expense', 'cat-housing'),
+  ('cat-housing-utilities',    'Utilities',         'expense', 'cat-housing'),
+  ('cat-housing-maintenance',  'Maintenance',       'expense', 'cat-housing'),
 
-  -- Bills children
-  ('cat-bills-kpr',       'KPR',       'expense', 'cat-bills'),
-  ('cat-bills-indihome',  'IndiHome',  'expense', 'cat-bills'),
-  ('cat-bills-telkomsel', 'Telkomsel', 'expense', 'cat-bills'),
-  ('cat-bills-ipl',       'IPL',       'expense', 'cat-bills'),
-  ('cat-bills-pbb',       'PBB',       'expense', 'cat-bills'),
-  ('cat-bills-gcs',       'GCS',       'expense', 'cat-bills'),
-  ('cat-bills-netflix',   'Netflix',   'expense', 'cat-bills'),
-  ('cat-bills-bitwarden', 'Bitwarden', 'expense', 'cat-bills'),
-  ('cat-bills-ai',        'AI',        'expense', 'cat-bills'),
+  -- Personal
+  ('cat-personal-care',        'Personal Care',     'expense', 'cat-personal'),
+  ('cat-personal-education',   'Education',         'expense', 'cat-personal'),
 
-  -- Entertainment children
-  ('cat-entertain-books', 'Books', 'expense', 'cat-entertain'),
-  ('cat-entertain-movie', 'Movie', 'expense', 'cat-entertain'),
-  ('cat-entertain-apps',  'Apps',  'expense', 'cat-entertain'),
-  ('cat-entertain-music', 'Music', 'expense', 'cat-entertain'),
-  ('cat-entertain-hobby', 'Hobby', 'expense', 'cat-entertain'),
+  -- Household
+  ('cat-household-supplies',   'Home Supplies',     'expense', 'cat-household'),
 
-  -- Education children
-  ('cat-edu-schooling',       'Schooling',        'expense', 'cat-edu'),
-  ('cat-edu-supplies',        'School Supplies',  'expense', 'cat-edu'),
-  ('cat-edu-textbook',        'Textbook',         'expense', 'cat-edu'),
-  ('cat-edu-tpa',             'TPA',              'expense', 'cat-edu'),
-  ('cat-edu-extracurricular', 'Extra Curricular', 'expense', 'cat-edu'),
+  -- Health
+  ('cat-health-medical',       'Medical',           'expense', 'cat-health'),
+  ('cat-health-pharmacy',      'Pharmacy',          'expense', 'cat-health'),
+  ('cat-health-fitness',       'Fitness',           'expense', 'cat-health'),
 
-  -- Health children
-  ('cat-health-gym',        'Gym',        'expense', 'cat-health'),
-  ('cat-health-hospital',   'Hospital',   'expense', 'cat-health'),
-  ('cat-health-supplement', 'Supplement', 'expense', 'cat-health'),
-  ('cat-health-medicine',   'Medicine',   'expense', 'cat-health'),
-  ('cat-health-therapy',    'Therapy',    'expense', 'cat-health'),
+  -- Family
+  ('cat-family-children',      'Child Care',        'expense', 'cat-family'),
+  ('cat-family-support',       'Family Support',    'expense', 'cat-family'),
 
-  -- Household children
-  ('cat-household-kitchen',     'Kitchen',      'expense', 'cat-household'),
-  ('cat-household-toiletries',  'Toiletries',   'expense', 'cat-household'),
-  ('cat-household-furniture',   'Furniture',    'expense', 'cat-household'),
-  ('cat-household-appliance',   'Appliance',    'expense', 'cat-household'),
-  ('cat-household-electricity', 'Electricity',  'expense', 'cat-household'),
-  ('cat-household-phonedata',   'Phone & Data', 'expense', 'cat-household'),
-  ('cat-household-laundry',     'Laundry',      'expense', 'cat-household'),
+  -- Entertainment
+  ('cat-entertainment-hobbies','Hobbies',           'expense', 'cat-entertainment'),
+  ('cat-entertainment-subs',   'Subscriptions',     'expense', 'cat-entertainment'),
 
-  -- Transport children
-  ('cat-transport-commuter',    'Commuter',    'expense', 'cat-transport'),
-  ('cat-transport-bus',         'Bus',         'expense', 'cat-transport'),
-  ('cat-transport-parking',     'Parking',     'expense', 'cat-transport'),
-  ('cat-transport-gasoline',    'Gasoline',    'expense', 'cat-transport'),
-  ('cat-transport-maintenance', 'Maintenance', 'expense', 'cat-transport'),
-  ('cat-transport-toll',        'Toll',        'expense', 'cat-transport'),
-  ('cat-transport-delivery',    'Delivery',    'expense', 'cat-transport'),
+  -- Finance
+  ('cat-finance-fees',         'Fees',              'expense', 'cat-finance'),
+  ('cat-finance-insurance',    'Insurance',         'expense', 'cat-finance'),
+  ('cat-finance-interest',     'Interest',          'expense', 'cat-finance'),
 
-  -- Admin Fees children (one per bank + prepaid account)
-  ('cat-admin-bca',       'Admin Bank BCA',   'expense', 'cat-admin'),
-  ('cat-admin-blu',       'Admin Blu BCA',    'expense', 'cat-admin'),
-  ('cat-admin-cimb',      'Admin CIMB Niaga', 'expense', 'cat-admin'),
-  ('cat-admin-ocbc',      'Admin OCBC NISP',  'expense', 'cat-admin'),
-  ('cat-admin-mandiri',   'Admin Mandiri',    'expense', 'cat-admin'),
-  ('cat-admin-seabank',   'Admin Seabank',    'expense', 'cat-admin'),
-  ('cat-admin-ovo',       'Admin OVO',        'expense', 'cat-admin'),
-  ('cat-admin-gopay',     'Admin GoPay',      'expense', 'cat-admin'),
-  ('cat-admin-shopeepay', 'Admin ShopeePay',  'expense', 'cat-admin'),
-  ('cat-admin-emoney',    'Admin e-Money',    'expense', 'cat-admin'),
+  -- Shopping
+  ('cat-shopping-clothing',    'Clothing',          'expense', 'cat-shopping'),
+  ('cat-shopping-electronics', 'Electronics',       'expense', 'cat-shopping'),
 
-  -- Mortgage children
-  ('cat-mortgage-interest', 'Interest', 'expense', 'cat-mortgage');
+  -- Travel
+  ('cat-travel-transport',     'Travel Transport',  'expense', 'cat-travel'),
+  ('cat-travel-stay',          'Accommodation',     'expense', 'cat-travel'),
+
+  -- Other
+  ('cat-other-misc',           'Miscellaneous',     'expense', 'cat-other');

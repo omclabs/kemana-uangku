@@ -1,10 +1,15 @@
 import { SELF, env } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { resetAndSeedTestAccounts, TEST_ACCOUNT_IDS } from './fixtures';
 
 const AUTH = { Authorization: 'Bearer test-token' };
 const JSON_HEADERS = { ...AUTH, 'Content-Type': 'application/json' };
 
 describe('/config', () => {
+  beforeEach(async () => {
+    await resetAndSeedTestAccounts();
+  });
+
   it('GET /config without Authorization header returns 401', async () => {
     const res = await SELF.fetch('https://example.com/config');
     expect(res.status).toBe(401);
@@ -49,8 +54,8 @@ describe('/config', () => {
       ).bind(
         'tx-clear-data',
         Math.floor(new Date('2026-06-01T00:00:00Z').getTime() / 1000),
-        'acc-bank-bca',
-        'cat-food-breakfast',
+        TEST_ACCOUNT_IDS.bankPrimary,
+        'cat-food-dining',
         125000,
         'expense',
         'Reset me',
@@ -92,7 +97,7 @@ describe('/config', () => {
         'Clear Data Child',
         'bank',
         12345,
-        'acc-bank-bca',
+        TEST_ACCOUNT_IDS.bankPrimary,
         1,
         'user-admin',
         'user-admin'

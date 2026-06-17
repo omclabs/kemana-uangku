@@ -1,10 +1,19 @@
 import { SELF } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { resetAndSeedTestAccounts, TEST_ACCOUNT_IDS } from './fixtures';
 
 const AUTH = { Authorization: 'Bearer test-token' };
 const JSON_HEADERS = { ...AUTH, 'Content-Type': 'application/json' };
 
 const BASE_DATE = Math.floor(new Date('2026-01-15T00:00:00Z').getTime() / 1000);
+const CATEGORY_IDS = {
+  incomeSalary: 'cat-income-salary',
+  incomeBonus: 'cat-income-bonus',
+  expenseParent: 'cat-food',
+  expenseLeaf: 'cat-food-dining',
+  expenseCoffee: 'cat-food-coffee',
+  financeFees: 'cat-finance-fees',
+} as const;
 
 type TxRow = {
   id: string;
@@ -48,10 +57,14 @@ async function listTransactions() {
 }
 
 describe('/transactions', () => {
+  beforeEach(async () => {
+    await resetAndSeedTestAccounts();
+  });
+
   it('POST income without category_id returns 400', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
       amount: 1000,
       type: 'income',
     });
@@ -61,11 +74,11 @@ describe('/transactions', () => {
   it('POST expense with transfer_to returns 400', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
       amount: 1000,
       type: 'expense',
-      transfer_to: 'acc-cash',
+      transfer_to: TEST_ACCOUNT_IDS.cash,
     });
     expect(res.status).toBe(400);
   });
@@ -73,8 +86,8 @@ describe('/transactions', () => {
   it('POST expense with fee returns 400', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
       amount: 1000,
       type: 'expense',
       fee: 100,
@@ -85,7 +98,7 @@ describe('/transactions', () => {
   it('POST transfer without transfer_to returns 400', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
       amount: 1000,
       type: 'transfer',
     });
@@ -95,10 +108,10 @@ describe('/transactions', () => {
   it('POST transfer to itself returns 400', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
       amount: 1000,
       type: 'transfer',
-      transfer_to: 'acc-bank-bca',
+      transfer_to: TEST_ACCOUNT_IDS.bankPrimary,
     });
     expect(res.status).toBe(400);
   });
@@ -106,8 +119,8 @@ describe('/transactions', () => {
   it('POST expense with a category that has active children returns 400', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-food', // has children (cat-food-breakfast, ...)
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseParent, // has children
       amount: 1000,
       type: 'expense',
     });
@@ -117,8 +130,8 @@ describe('/transactions', () => {
   it('POST expense with an income category returns 400', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-inc-salary',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.incomeSalary,
       amount: 1000,
       type: 'expense',
     });
@@ -128,8 +141,8 @@ describe('/transactions', () => {
   it('POST installment with amount < occurrence count returns 400', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
       amount: 2,
       type: 'expense',
       recurring: { mode: 'installment', total: 3 },
@@ -138,12 +151,12 @@ describe('/transactions', () => {
   });
 
   it('POST income increases account balance and sets paid_status=paid for a bank account', async () => {
-    const before = await getAccountBalance('acc-bank-bca');
+    const before = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
 
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-inc-salary',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.incomeSalary,
       amount: 1000000,
       type: 'income',
       note: 'Salary',
@@ -155,34 +168,34 @@ describe('/transactions', () => {
     expect(rows[0].type).toBe('income');
     expect(rows[0].created_by).toBe('user-admin');
 
-    const after = await getAccountBalance('acc-bank-bca');
+    const after = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(after - before).toBeCloseTo(1000000, 5);
   });
 
   it('POST expense decreases account balance', async () => {
-    const before = await getAccountBalance('acc-bank-bca');
+    const before = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
 
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
       amount: 50000,
       type: 'expense',
     });
     expect(res.status).toBe(201);
 
-    const after = await getAccountBalance('acc-bank-bca');
+    const after = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(after - before).toBeCloseTo(-50000, 5);
   });
 
   it('POST transfer moves balance from -> to, category_id stays null', async () => {
-    const fromBefore = await getAccountBalance('acc-bank-bca');
-    const toBefore = await getAccountBalance('acc-bank-cimb');
+    const fromBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const toBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankSecondary);
 
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      transfer_to: 'acc-bank-cimb',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      transfer_to: TEST_ACCOUNT_IDS.bankSecondary,
       amount: 200000,
       type: 'transfer',
     });
@@ -192,20 +205,20 @@ describe('/transactions', () => {
     expect(rows[0].type).toBe('transfer');
     expect(rows[0].category_id).toBeNull();
 
-    const fromAfter = await getAccountBalance('acc-bank-bca');
-    const toAfter = await getAccountBalance('acc-bank-cimb');
+    const fromAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const toAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankSecondary);
     expect(fromAfter - fromBefore).toBeCloseTo(-200000, 5);
     expect(toAfter - toBefore).toBeCloseTo(200000, 5);
   });
 
   it('POST transfer with fee creates a linked fee row and applies both deltas', async () => {
-    const fromBefore = await getAccountBalance('acc-bank-bca');
-    const toBefore = await getAccountBalance('acc-bank-cimb');
+    const fromBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const toBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankSecondary);
 
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      transfer_to: 'acc-bank-cimb',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      transfer_to: TEST_ACCOUNT_IDS.bankSecondary,
       amount: 100000,
       fee: 5000,
       type: 'transfer',
@@ -221,20 +234,20 @@ describe('/transactions', () => {
     expect(feeRow.amount).toBe(5000);
     expect(feeRow.parent_transaction_id).toBe(main.id);
 
-    const fromAfter = await getAccountBalance('acc-bank-bca');
-    const toAfter = await getAccountBalance('acc-bank-cimb');
+    const fromAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const toAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankSecondary);
     expect(fromAfter - fromBefore).toBeCloseTo(-105000, 5);
     expect(toAfter - toBefore).toBeCloseTo(100000, 5);
   });
 
   it('POST transfer to a credit_card account is reclassified to expense with cat-transfer', async () => {
-    const fromBefore = await getAccountBalance('acc-bank-bca');
-    const ccBefore = await getAccountBalance('acc-cc-cimb');
+    const fromBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const ccBefore = await getAccountBalance(TEST_ACCOUNT_IDS.creditCard);
 
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      transfer_to: 'acc-cc-cimb',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      transfer_to: TEST_ACCOUNT_IDS.creditCard,
       amount: 50000,
       type: 'transfer',
     });
@@ -243,11 +256,11 @@ describe('/transactions', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].type).toBe('expense');
     expect(rows[0].category_id).toBe('cat-transfer');
-    expect(rows[0].transfer_to).toBe('acc-cc-cimb');
+    expect(rows[0].transfer_to).toBe(TEST_ACCOUNT_IDS.creditCard);
     expect(rows[0].paid_status).toBe('paid'); // from-account (bank) drives paid_status
 
-    const fromAfter = await getAccountBalance('acc-bank-bca');
-    const ccAfter = await getAccountBalance('acc-cc-cimb');
+    const fromAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const ccAfter = await getAccountBalance(TEST_ACCOUNT_IDS.creditCard);
     expect(fromAfter - fromBefore).toBeCloseTo(-50000, 5);
     expect(ccAfter - ccBefore).toBeCloseTo(50000, 5); // debt reduced
   });
@@ -255,8 +268,8 @@ describe('/transactions', () => {
   it('POST expense from a credit_card account sets paid_status=settle', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-cc-cimb',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.creditCard,
+      category_id: CATEGORY_IDS.expenseLeaf,
       amount: 20000,
       type: 'expense',
     });
@@ -266,12 +279,12 @@ describe('/transactions', () => {
   });
 
   it('recurring: pre-generates N rows with the same amount, one per month', async () => {
-    const before = await getAccountBalance('acc-bank-bca');
+    const before = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
 
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-inc-salary',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.incomeSalary,
       amount: 100000,
       type: 'income',
       recurring: { mode: 'recurring', total: 3 },
@@ -292,17 +305,17 @@ describe('/transactions', () => {
     expect(new Date(rows[1].date * 1000).getUTCMonth()).toBe(1); // Feb
     expect(new Date(rows[2].date * 1000).getUTCMonth()).toBe(2); // Mar
 
-    const after = await getAccountBalance('acc-bank-bca');
+    const after = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(after - before).toBeCloseTo(300000, 5);
   });
 
   it('installment: splits amount across N rows, remainder on the last row', async () => {
-    const before = await getAccountBalance('acc-bank-bca');
+    const before = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
 
     const res = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
       amount: 100000,
       type: 'expense',
       recurring: { mode: 'installment', total: 3 },
@@ -316,15 +329,15 @@ describe('/transactions', () => {
     expect(rows[2].amount).toBe(33334);
     expect(rows[0].amount + rows[1].amount + rows[2].amount).toBe(100000);
 
-    const after = await getAccountBalance('acc-bank-bca');
+    const after = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(after - before).toBeCloseTo(-100000, 5);
   });
 
   it('PATCH /:id/pay flips settle -> paid, and 409s if already paid', async () => {
     const createRes = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-cc-cimb',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.creditCard,
+      category_id: CATEGORY_IDS.expenseLeaf,
       amount: 15000,
       type: 'expense',
     });
@@ -348,18 +361,18 @@ describe('/transactions', () => {
   });
 
   it('PUT amount change adjusts the balance by the diff', async () => {
-    const before = await getAccountBalance('acc-bank-bca');
+    const before = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
 
     const createRes = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-inc-salary',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.incomeSalary,
       amount: 100000,
       type: 'income',
     });
     const [row] = (await createRes.json()) as TxRow[];
 
-    const afterCreate = await getAccountBalance('acc-bank-bca');
+    const afterCreate = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(afterCreate - before).toBeCloseTo(100000, 5);
 
     const putRes = await SELF.fetch(`https://example.com/transactions/${row.id}`, {
@@ -369,23 +382,23 @@ describe('/transactions', () => {
     });
     expect(putRes.status).toBe(200);
 
-    const afterPut = await getAccountBalance('acc-bank-bca');
+    const afterPut = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(afterPut - before).toBeCloseTo(150000, 5);
   });
 
   it('DELETE (soft) reverses the balance and sets is_active=0', async () => {
-    const before = await getAccountBalance('acc-bank-bca');
+    const before = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
 
     const createRes = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      category_id: 'cat-food-breakfast',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
       amount: 30000,
       type: 'expense',
     });
     const [row] = (await createRes.json()) as TxRow[];
 
-    const afterCreate = await getAccountBalance('acc-bank-bca');
+    const afterCreate = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(afterCreate - before).toBeCloseTo(-30000, 5);
 
     const deleteRes = await SELF.fetch(`https://example.com/transactions/${row.id}`, {
@@ -397,18 +410,18 @@ describe('/transactions', () => {
     expect(deleted.is_active).toBe(0);
     expect(deleted.deleted_by).toBe('user-admin');
 
-    const afterDelete = await getAccountBalance('acc-bank-bca');
+    const afterDelete = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(afterDelete - before).toBeCloseTo(0, 5);
   });
 
   it('DELETE ?hard=true on a transfer with a fee row cascades and reverses both deltas', async () => {
-    const fromBefore = await getAccountBalance('acc-bank-bca');
-    const toBefore = await getAccountBalance('acc-bank-cimb');
+    const fromBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const toBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankSecondary);
 
     const createRes = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      transfer_to: 'acc-bank-cimb',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      transfer_to: TEST_ACCOUNT_IDS.bankSecondary,
       amount: 100000,
       fee: 5000,
       type: 'transfer',
@@ -423,8 +436,8 @@ describe('/transactions', () => {
     });
     expect(hardDeleteRes.status).toBe(200);
 
-    const fromAfter = await getAccountBalance('acc-bank-bca');
-    const toAfter = await getAccountBalance('acc-bank-cimb');
+    const fromAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const toAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankSecondary);
     expect(fromAfter - fromBefore).toBeCloseTo(0, 5);
     expect(toAfter - toBefore).toBeCloseTo(0, 5);
 
@@ -436,13 +449,13 @@ describe('/transactions', () => {
   });
 
   it('PUT is_active cascades to a fee row, reversing and re-applying both deltas', async () => {
-    const fromBefore = await getAccountBalance('acc-bank-bca');
-    const toBefore = await getAccountBalance('acc-bank-cimb');
+    const fromBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const toBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankSecondary);
 
     const createRes = await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-bank-bca',
-      transfer_to: 'acc-bank-cimb',
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      transfer_to: TEST_ACCOUNT_IDS.bankSecondary,
       amount: 100000,
       fee: 5000,
       type: 'transfer',
@@ -458,8 +471,8 @@ describe('/transactions', () => {
     });
     expect(disableRes.status).toBe(200);
 
-    let fromAfter = await getAccountBalance('acc-bank-bca');
-    let toAfter = await getAccountBalance('acc-bank-cimb');
+    let fromAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    let toAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankSecondary);
     expect(fromAfter - fromBefore).toBeCloseTo(0, 5);
     expect(toAfter - toBefore).toBeCloseTo(0, 5);
 
@@ -473,8 +486,8 @@ describe('/transactions', () => {
     });
     expect(restoreRes.status).toBe(200);
 
-    fromAfter = await getAccountBalance('acc-bank-bca');
-    toAfter = await getAccountBalance('acc-bank-cimb');
+    fromAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    toAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankSecondary);
     expect(fromAfter - fromBefore).toBeCloseTo(-105000, 5);
     expect(toAfter - toBefore).toBeCloseTo(100000, 5);
 
@@ -485,20 +498,20 @@ describe('/transactions', () => {
   it('GET /transactions supports filtering by type and account_id', async () => {
     await postTransaction({
       date: BASE_DATE,
-      account_id: 'acc-cash',
-      category_id: 'cat-inc-bonus',
+      account_id: TEST_ACCOUNT_IDS.cash,
+      category_id: CATEGORY_IDS.incomeBonus,
       amount: 10000,
       type: 'income',
     });
 
-    const res = await SELF.fetch('https://example.com/transactions?account_id=acc-cash&type=income', {
+    const res = await SELF.fetch(`https://example.com/transactions?account_id=${TEST_ACCOUNT_IDS.cash}&type=income`, {
       headers: AUTH,
     });
     expect(res.status).toBe(200);
     const rows = (await res.json()) as TxRow[];
     expect(rows.length).toBeGreaterThan(0);
     rows.forEach((row) => {
-      expect(row.account_id).toBe('acc-cash');
+      expect(row.account_id).toBe(TEST_ACCOUNT_IDS.cash);
       expect(row.type).toBe('income');
     });
   });
@@ -506,7 +519,7 @@ describe('/transactions', () => {
   it('POST /import-receipt/parse returns draft rows from csv without creating transactions', async () => {
     const before = await listTransactions();
     const form = new FormData();
-    form.set('account_id', 'acc-bank-bca');
+    form.set('account_id', TEST_ACCOUNT_IDS.bankPrimary);
     form.set(
       'file',
       new File(
@@ -551,7 +564,7 @@ describe('/transactions', () => {
 
   it('POST /import-receipt/parse rejects csv without required headers', async () => {
     const form = new FormData();
-    form.set('account_id', 'acc-bank-bca');
+    form.set('account_id', TEST_ACCOUNT_IDS.bankPrimary);
     form.set(
       'file',
       new File([['description,total', 'Nasi Goreng,30000'].join('\n')], 'invalid.csv', { type: 'text/csv' })
@@ -574,7 +587,7 @@ describe('/transactions', () => {
 
   it('POST /import-receipt/commit creates bulk expense rows and applies voucher balance math', async () => {
     const parseForm = new FormData();
-    parseForm.set('account_id', 'acc-bank-bca');
+    parseForm.set('account_id', TEST_ACCOUNT_IDS.bankPrimary);
     parseForm.set(
       'file',
       new File(
@@ -613,7 +626,7 @@ describe('/transactions', () => {
       }>;
     };
 
-    const before = await getAccountBalance('acc-bank-bca');
+    const before = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     const commitRes = await SELF.fetch('https://example.com/transactions/import-receipt/commit', {
       method: 'POST',
       headers: JSON_HEADERS,
@@ -622,16 +635,16 @@ describe('/transactions', () => {
         draft_items: [
           {
             ...draft.draft_items[0],
-            category_id: 'cat-food-breakfast',
+            category_id: CATEGORY_IDS.expenseLeaf,
           },
           {
             ...draft.draft_items[1],
             note: 'Kopi susu panas',
-            category_id: 'cat-food-coffee',
+            category_id: CATEGORY_IDS.expenseCoffee,
           },
           {
             ...draft.draft_items[2],
-            category_id: 'cat-admin-bca',
+            category_id: CATEGORY_IDS.financeFees,
           },
           {
             id: 'manual-row-1',
@@ -639,7 +652,7 @@ describe('/transactions', () => {
             note: 'Service charge',
             amount: 2000,
             date: draft.draft_items[0].date,
-            category_id: 'cat-admin-bca',
+            category_id: CATEGORY_IDS.financeFees,
             included: true,
             origin: 'manual',
             confidence: 1,
@@ -656,14 +669,14 @@ describe('/transactions', () => {
     created.forEach((row) => {
       expect(row.source).toBe('bulk');
       expect(row.type).toBe('expense');
-      expect(row.account_id).toBe('acc-bank-bca');
+      expect(row.account_id).toBe(TEST_ACCOUNT_IDS.bankPrimary);
     });
 
     const voucherRow = created.find((row) => row.amount < 0)!;
     expect(voucherRow.amount).toBe(-5000);
-    expect(voucherRow.category_id).toBe('cat-admin-bca');
+    expect(voucherRow.category_id).toBe(CATEGORY_IDS.financeFees);
 
-    const after = await getAccountBalance('acc-bank-bca');
+    const after = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(after - before).toBeCloseTo(-27000, 5);
   });
 });

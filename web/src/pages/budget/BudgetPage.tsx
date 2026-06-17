@@ -158,6 +158,7 @@ export default function BudgetPage() {
         style={{
           display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: 12,
           marginBottom: 18,
           padding: '16px',
@@ -193,7 +194,7 @@ export default function BudgetPage() {
           />
         </div>
 
-        <div style={{ minWidth: 120, textAlign: 'right' }}>
+        <div style={{ minWidth: 120, marginLeft: 'auto', textAlign: 'right' }}>
           <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)' }}>Overall budget</div>
           <div style={{ marginTop: 6, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>
             {idr.format(totalBudget)}
@@ -222,7 +223,7 @@ export default function BudgetPage() {
                   overflow: 'hidden',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '14px 16px' }}>
                   <span
                     style={{
                       width: 44,
@@ -248,7 +249,7 @@ export default function BudgetPage() {
                     </div>
                   </div>
 
-                  <div style={{ width: 132 }}>
+                  <div style={{ width: '100%', maxWidth: 132, marginLeft: 'auto' }}>
                     <label style={{ display: 'block', marginBottom: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
                       Own budget
                     </label>
@@ -280,6 +281,7 @@ export default function BudgetPage() {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
+                      flexWrap: 'wrap',
                       gap: 12,
                       padding: '12px 16px 12px 28px',
                       borderTop: '1px solid var(--line)',
@@ -293,7 +295,7 @@ export default function BudgetPage() {
                       </div>
                     </div>
 
-                    <div style={{ width: 132 }}>
+                    <div style={{ width: '100%', maxWidth: 132, marginLeft: 'auto' }}>
                       <input
                         type="number"
                         min="0"
