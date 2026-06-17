@@ -8,7 +8,7 @@ CREATE TABLE config (
 );
 
 INSERT INTO config (id, version, default_timezone, currency, last_updated)
-VALUES (1, '1.0.0', 'Asia/Jakarta', 'IDR', unixepoch());
+VALUES (1, '0.1.0', 'Asia/Jakarta', 'IDR', unixepoch());
 
 -- categories: parent/child, depth <= 1 (enforced in API)
 CREATE TABLE categories (
