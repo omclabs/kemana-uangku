@@ -23,6 +23,9 @@ function LogoutIcon() {
 function UserIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>;
 }
+function TrashIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>;
+}
 function ChevronRight() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
 }
@@ -42,6 +45,11 @@ export default function Config() {
   const [version, setVersion] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearValue, setClearValue] = useState('');
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [clearMessage, setClearMessage] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,12 +72,44 @@ export default function Config() {
     navigate('/login', { replace: true });
   }
 
+  async function handleClearData() {
+    if (clearValue.trim().toLowerCase() !== 'confirm') {
+      setClearError('Type confirm to continue.');
+      return;
+    }
+
+    setClearing(true);
+    setClearError(null);
+
+    try {
+      const result = await apiFetch<{
+        ok: boolean;
+        cleared: { transactions: number; budgets: number; monthly_balances: number; accounts: number };
+      }>('/config/clear-data', { method: 'POST' });
+
+      if (result.ok) {
+        setClearMessage(
+          `Data cleared: ${result.cleared.transactions} transactions, ${result.cleared.budgets} budgets, ${result.cleared.monthly_balances} monthly balances, ${result.cleared.accounts} accounts.`
+        );
+        setClearOpen(false);
+        setClearValue('');
+      }
+    } catch (err) {
+      setClearError(err instanceof ApiError ? err.message : 'Failed to clear data');
+    } finally {
+      setClearing(false);
+    }
+  }
+
   return (
     <PageContainer>
       <PageHeader title="Config" subtitle="App settings, access, and session controls" />
 
       {error && (
         <p style={{ marginBottom: 16, fontSize: 13, color: 'var(--expense)' }}>{error}</p>
+      )}
+      {clearMessage && (
+        <p style={{ marginBottom: 16, fontSize: 13, color: 'var(--accent)' }}>{clearMessage}</p>
       )}
 
       {loading ? (
@@ -166,6 +206,40 @@ export default function Config() {
             </Link>
           )}
 
+          {user?.role === 'admin' && (
+            <button
+              type="button"
+              onClick={() => {
+                setClearMessage(null);
+                setClearError(null);
+                setClearValue('');
+                setClearOpen(true);
+              }}
+              style={{
+                ...cardStyle,
+                width: '100%',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              <span style={{
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                background: 'var(--expense-soft)', color: 'var(--expense)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <TrashIcon />
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Clear Data</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                  Delete transactions, budgets, monthly summaries, and accounts
+                </span>
+              </span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleLogout}
@@ -191,6 +265,108 @@ export default function Config() {
 
       {!loading && (
         <p style={{ marginTop: 24, fontSize: 11.5, color: 'var(--muted)' }}>Schema version: {version}</p>
+      )}
+
+      {clearOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.32)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            zIndex: 30,
+          }}
+        >
+          <div style={{
+            width: '100%',
+            maxWidth: 420,
+            borderRadius: 24,
+            border: '1px solid var(--line)',
+            background: 'var(--surface)',
+            boxShadow: '0 20px 50px rgba(15, 23, 42, 0.18)',
+            padding: 20,
+          }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>Clear Data</h2>
+            <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5, color: 'var(--muted)' }}>
+              This removes all transactions, budgets, monthly balances, and every account.
+            </p>
+            <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5, color: 'var(--muted)' }}>
+              Type <strong>confirm</strong> to execute.
+            </p>
+
+            <input
+              value={clearValue}
+              onChange={(event) => {
+                setClearValue(event.target.value);
+                if (clearError) setClearError(null);
+              }}
+              placeholder="confirm"
+              autoFocus
+              style={{
+                width: '100%',
+                marginTop: 14,
+                borderRadius: 14,
+                border: '1px solid var(--line)',
+                padding: '12px 14px',
+                fontSize: 14,
+                outline: 'none',
+                background: 'var(--background)',
+                color: 'var(--ink)',
+              }}
+            />
+
+            {clearError && (
+              <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--expense)' }}>{clearError}</p>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (clearing) return;
+                  setClearOpen(false);
+                  setClearValue('');
+                  setClearError(null);
+                }}
+                style={{
+                  flex: 1,
+                  borderRadius: 14,
+                  border: '1px solid var(--line)',
+                  background: 'var(--surface)',
+                  color: 'var(--ink)',
+                  padding: '12px 14px',
+                  fontWeight: 600,
+                  cursor: clearing ? 'default' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={clearing}
+                onClick={handleClearData}
+                style={{
+                  flex: 1,
+                  borderRadius: 14,
+                  border: '1px solid var(--expense)',
+                  background: 'var(--expense)',
+                  color: '#fff',
+                  padding: '12px 14px',
+                  fontWeight: 700,
+                  cursor: clearing ? 'progress' : 'pointer',
+                  opacity: clearing ? 0.7 : 1,
+                }}
+              >
+                {clearing ? 'Clearing…' : 'Clear Data'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </PageContainer>
   );

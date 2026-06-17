@@ -4,6 +4,17 @@ import { configUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+function requireAdmin(c: {
+  get(name: 'currentUser'): unknown;
+  json: (body: unknown, status?: number) => Response;
+}): Response | null {
+  const user = getCurrentUser(c);
+  if (!user || user.role !== 'admin') {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+  return null;
+}
+
 app.get('/', async (c) => {
   const row = await c.env.DB.prepare('SELECT * FROM config WHERE id = 1').first();
   return c.json(row, 200);
@@ -35,6 +46,48 @@ app.put('/', async (c) => {
 
   const row = await c.env.DB.prepare('SELECT * FROM config WHERE id = 1').first();
   return c.json(row, 200);
+});
+
+app.post('/clear-data', async (c) => {
+  const forbidden = requireAdmin(c);
+  if (forbidden) return forbidden;
+
+  const actor = getCurrentUser(c);
+
+  const [transactions, budgets, monthlyBalances, accounts] = await Promise.all([
+    c.env.DB.prepare('SELECT COUNT(*) AS count FROM transactions').first<{ count: number }>(),
+    c.env.DB.prepare('SELECT COUNT(*) AS count FROM budgets').first<{ count: number }>(),
+    c.env.DB.prepare('SELECT COUNT(*) AS count FROM monthly_balances').first<{ count: number }>(),
+    c.env.DB.prepare('SELECT COUNT(*) AS count FROM accounts').first<{ count: number }>(),
+  ]);
+
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM budgets'),
+    c.env.DB.prepare('DELETE FROM monthly_balances'),
+    c.env.DB.prepare('DELETE FROM transactions'),
+    c.env.DB.prepare(
+      `UPDATE accounts
+       SET deleted_by = ?,
+           deleted_at = unixepoch(),
+           updated_by = ?,
+           updated_at = unixepoch()`
+    ).bind(actor?.id ?? null, actor?.id ?? null),
+    c.env.DB.prepare('DELETE FROM accounts WHERE parent_id IS NOT NULL'),
+    c.env.DB.prepare('DELETE FROM accounts WHERE parent_id IS NULL'),
+  ]);
+
+  return c.json(
+    {
+      ok: true,
+      cleared: {
+        transactions: transactions?.count ?? 0,
+        budgets: budgets?.count ?? 0,
+        monthly_balances: monthlyBalances?.count ?? 0,
+        accounts: accounts?.count ?? 0,
+      },
+    },
+    200
+  );
 });
 
 app.post('/', (c) => c.json({ error: 'Method Not Allowed' }, 405));
