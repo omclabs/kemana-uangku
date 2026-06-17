@@ -263,10 +263,10 @@ function TransactionRow({
   const isDeposit = t.type === 'income';
   const categoryLabel = categoryName(t.category_id);
   const visual = categoryVisual(isTransfer ? 'transfer' : categoryLabel);
-  const label = isTransfer
-    ? `${accountName(t.account_id)} → ${accountName(t.transfer_to)}`
-    : t.note || categoryLabel || 'Transaction';
-  const sublabel = isTransfer ? 'Transfer' : `${categoryLabel} - ${accountName(t.account_id)}`;
+  const label = t.note ?? '';
+  const sublabel = isTransfer
+    ? `Transfer - ${accountName(t.account_id)}`
+    : `${categoryLabel} - ${accountName(t.account_id)}`;
 
   return (
     <div
@@ -298,7 +298,6 @@ function TransactionRow({
         </span>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          {sublabel && <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{sublabel}</div>}
           <div
             style={{
               fontSize: 13,
@@ -311,6 +310,7 @@ function TransactionRow({
           >
             {label}
           </div>
+          {sublabel && <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{sublabel}</div>}
         </div>
 
         <div style={{ textAlign: 'right', flexShrink: 0 }}>

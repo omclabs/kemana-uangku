@@ -429,7 +429,6 @@ export default function AccountTransactions() {
 
   const monthTitle = selectedMonth.toLocaleString('en', { month: 'short', year: 'numeric' });
   const catMap = new Map(categories.map((category) => [category.id, category]));
-  const acctMap = new Map(accounts.map((item) => [item.id, item]));
 
   const tabStyle = (active: boolean): CSSProperties => ({
     flex: 1,
@@ -655,16 +654,12 @@ export default function AccountTransactions() {
 
                     {group.items.map((transaction) => {
                       const category = catMap.get(transaction.category_id ?? '');
-                      const toAccount = acctMap.get(transaction.transfer_to ?? '');
                       const isDeposit = id ? classifyTx(transaction, id) === 'deposit' : false;
                       const visual = categoryVisual(transaction.type === 'transfer' ? 'transfer' : category?.name);
-                      const label =
-                        transaction.type === 'transfer'
-                          ? isDeposit
-                            ? `${acctMap.get(transaction.account_id)?.name ?? '?'} → ${account.name}`
-                            : `${account.name} → ${toAccount?.name ?? '?'}`
-                          : transaction.note || category?.name || 'Transaction';
-                      const sublabel = transaction.type === 'transfer' ? 'Transfer' : category?.name ?? '';
+                      const label = transaction.note ?? '';
+                      const sublabel = transaction.type === 'transfer'
+                        ? 'Transfer'
+                        : category?.name ?? '';
 
                       return (
                         <div
@@ -697,10 +692,10 @@ export default function AccountTransactions() {
                           </div>
 
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            {sublabel && <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{sublabel}</div>}
                             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {label}
                             </div>
+                            {sublabel && <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{sublabel}</div>}
                           </div>
 
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
