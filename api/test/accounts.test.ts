@@ -16,6 +16,40 @@ describe('/accounts', () => {
     expect(await res.json()).toEqual([]);
   });
 
+  it('GET /accounts sorts by type then name ascending', async () => {
+    await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Zulu Bank', type: 'bank', balance: 0 }),
+    });
+    await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Alpha Bank', type: 'bank', balance: 0 }),
+    });
+    await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Bravo Cash', type: 'cash', balance: 0 }),
+    });
+    await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Alpha Cash', type: 'cash', balance: 0 }),
+    });
+
+    const res = await SELF.fetch('https://example.com/accounts?include_inactive=true', { headers: AUTH });
+    expect(res.status).toBe(200);
+
+    const rows = (await res.json()) as Array<{ type: string; name: string }>;
+    expect(rows.map((row) => `${row.type}:${row.name}`)).toEqual([
+      'bank:Alpha Bank',
+      'bank:Zulu Bank',
+      'cash:Alpha Cash',
+      'cash:Bravo Cash',
+    ]);
+  });
+
   it('POST /accounts with invalid type returns 400', async () => {
     const res = await SELF.fetch('https://example.com/accounts', {
       method: 'POST',
@@ -325,5 +359,115 @@ describe('/accounts', () => {
       body: JSON.stringify({ parent_id: otherParent.id }),
     });
     expect(reparentRes.status).toBe(400);
+  });
+
+  it('PUT /accounts/:id balance increase creates an income transaction and monthly balance entry', async () => {
+    const createRes = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'BCA', type: 'bank', balance: 0 }),
+    });
+    expect(createRes.status).toBe(201);
+    const created = (await createRes.json()) as { id: string; balance: number };
+    expect(created.balance).toBe(0);
+
+    const updateRes = await SELF.fetch(`https://example.com/accounts/${created.id}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ balance: 100000 }),
+    });
+    expect(updateRes.status).toBe(200);
+
+    const updated = (await updateRes.json()) as { balance: number };
+    expect(updated.balance).toBe(100000);
+
+    const txRes = await SELF.fetch(`https://example.com/transactions?account_id=${created.id}`, {
+      headers: AUTH,
+    });
+    expect(txRes.status).toBe(200);
+    const transactions = (await txRes.json()) as Array<{
+      category_id: string | null;
+      amount: number;
+      note: string | null;
+      type: 'income' | 'expense' | 'transfer';
+    }>;
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0]).toMatchObject({
+      type: 'income',
+      category_id: 'cat-income-other',
+      amount: 100000,
+      note: 'Account balance adjustment',
+    });
+
+    const monthKey = new Date().toISOString().slice(0, 7);
+    const balancesRes = await SELF.fetch('https://example.com/balances?limit=12', { headers: AUTH });
+    expect(balancesRes.status).toBe(200);
+    const rows = (await balancesRes.json()) as Array<{
+      month_key: string;
+      income: number;
+      expense: number;
+      balance: number;
+    }>;
+    expect(rows.find((row) => row.month_key === monthKey)).toMatchObject({
+      month_key: monthKey,
+      income: 100000,
+      expense: 0,
+      balance: 100000,
+    });
+  });
+
+  it('PUT /accounts/:id balance decrease creates an expense transaction and updates monthly balance', async () => {
+    const createRes = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Wallet', type: 'cash', balance: 150000 }),
+    });
+    expect(createRes.status).toBe(201);
+    const created = (await createRes.json()) as { id: string; balance: number };
+    expect(created.balance).toBe(150000);
+
+    const updateRes = await SELF.fetch(`https://example.com/accounts/${created.id}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ balance: 50000 }),
+    });
+    expect(updateRes.status).toBe(200);
+
+    const updated = (await updateRes.json()) as { balance: number };
+    expect(updated.balance).toBe(50000);
+
+    const txRes = await SELF.fetch(`https://example.com/transactions?account_id=${created.id}`, {
+      headers: AUTH,
+    });
+    expect(txRes.status).toBe(200);
+    const transactions = (await txRes.json()) as Array<{
+      category_id: string | null;
+      amount: number;
+      note: string | null;
+      type: 'income' | 'expense' | 'transfer';
+    }>;
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0]).toMatchObject({
+      type: 'expense',
+      category_id: 'cat-other-misc',
+      amount: 100000,
+      note: 'Account balance adjustment',
+    });
+
+    const monthKey = new Date().toISOString().slice(0, 7);
+    const balancesRes = await SELF.fetch('https://example.com/balances?limit=12', { headers: AUTH });
+    expect(balancesRes.status).toBe(200);
+    const rows = (await balancesRes.json()) as Array<{
+      month_key: string;
+      income: number;
+      expense: number;
+      balance: number;
+    }>;
+    expect(rows.find((row) => row.month_key === monthKey)).toMatchObject({
+      month_key: monthKey,
+      income: 0,
+      expense: 100000,
+      balance: -100000,
+    });
   });
 });

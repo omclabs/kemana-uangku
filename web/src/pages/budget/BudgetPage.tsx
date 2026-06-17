@@ -128,7 +128,7 @@ export default function BudgetPage() {
       <PageHeader
         title="Budgets"
         backTo="/config"
-        subtitle="Set month-specific budget targets for expense categories"
+        info="Set month-specific budget targets for expense categories."
         actions={(
           <button
             type="button"

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageContainer from '../../components/PageContainer';
+import PageHeader from '../../components/PageHeader';
 import { PlusIcon } from '../../components/icons';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
@@ -73,23 +74,24 @@ export default function CategoryList() {
 
   return (
     <PageContainer>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
-          Categories
-        </h1>
-        <Link
-          to="/config/categories/new"
-          aria-label="Add category"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 40, height: 40, borderRadius: 13,
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-            color: '#fff', boxShadow: '0 8px 16px -6px var(--accent)',
-          }}
-        >
-          <PlusIcon className="h-5 w-5" />
-        </Link>
-      </div>
+      <PageHeader
+        title="Categories"
+        backTo="/config"
+        actions={(
+          <Link
+            to="/config/categories/new"
+            aria-label="Add category"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 40, height: 40, borderRadius: 13,
+              background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+              color: '#fff', boxShadow: '0 8px 16px -6px var(--accent)',
+            }}
+          >
+            <PlusIcon className="h-5 w-5" />
+          </Link>
+        )}
+      />
 
       {loading && <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>Loading…</p>}
       {error && <p style={{ textAlign: 'center', color: 'var(--expense)', padding: '32px 0' }}>{error}</p>}

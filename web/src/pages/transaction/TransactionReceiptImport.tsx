@@ -201,7 +201,19 @@ export default function TransactionReceiptImport() {
 
   return (
     <PageContainer>
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div
+        className="mb-5 flex items-center justify-between gap-3"
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 15,
+          padding: '10px 0 12px',
+          background: 'color-mix(in srgb, var(--bg) 84%, transparent)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          borderBottom: '1px solid color-mix(in srgb, var(--line) 75%, transparent)',
+        }}
+      >
         <div>
           <h1 className="text-xl font-semibold text-ink">Import Receipt</h1>
           <p className="text-sm text-muted">Upload one CSV file, review the rows, then commit the final expenses.</p>

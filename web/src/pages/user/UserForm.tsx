@@ -140,7 +140,7 @@ export default function UserForm() {
       <PageHeader
         title={isEdit ? 'Edit User' : 'Add User'}
         backTo="/config/users"
-        subtitle={isEdit ? 'Update access and role details' : 'Create a new app user'}
+        info={isEdit ? 'Update access and role details.' : 'Create a new app user.'}
       />
 
       <form onSubmit={handleSubmit}>

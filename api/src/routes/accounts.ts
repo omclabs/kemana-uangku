@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
+import { adjustBalanceStatement, transactionBalanceOps } from '../lib/balance';
+import { rebuildMonthlyBalancesFrom } from '../lib/month-balance';
 import { accountCreate, accountUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -46,6 +48,9 @@ const CREDIT_CARD_FIELDS_ERROR =
   'credit_limit and billing_date required for credit_card and must be null otherwise';
 
 const PARENT_TYPE_MISMATCH_ERROR = 'parent and child must have same type';
+const ACCOUNT_ADJUSTMENT_INCOME_CATEGORY_ID = 'cat-income-other';
+const ACCOUNT_ADJUSTMENT_EXPENSE_CATEGORY_ID = 'cat-other-misc';
+const ACCOUNT_ADJUSTMENT_NOTE = 'Account balance adjustment';
 
 function creditCardFieldsValid(
   type: AccountRow['type'],
@@ -82,6 +87,7 @@ app.get('/', async (c) => {
   if (conditions.length > 0) {
     query += ` WHERE ${conditions.join(' AND ')}`;
   }
+  query += ' ORDER BY a.type ASC, a.name COLLATE NOCASE ASC';
 
   const { results } = await c.env.DB.prepare(query)
     .bind(...values)
@@ -234,6 +240,9 @@ app.put('/:id', async (c) => {
 
   const fields: string[] = [];
   const values: unknown[] = [];
+  const targetBalance = body.balance;
+  const currentBalance = existing.balance;
+  const balanceDelta = targetBalance !== undefined ? targetBalance - currentBalance : 0;
 
   if (body.name !== undefined) {
     fields.push('name = ?');
@@ -242,10 +251,6 @@ app.put('/:id', async (c) => {
   if (body.type !== undefined) {
     fields.push('type = ?');
     values.push(body.type);
-  }
-  if (body.balance !== undefined) {
-    fields.push('balance = ?');
-    values.push(body.balance);
   }
   if (body.parent_id !== undefined) {
     fields.push('parent_id = ?');
@@ -290,6 +295,46 @@ app.put('/:id', async (c) => {
     )
       .bind(actor?.id ?? null, id)
       .run();
+  }
+
+  if (targetBalance !== undefined && balanceDelta !== 0) {
+    const adjustmentType = balanceDelta > 0 ? 'income' : 'expense';
+    const adjustmentAmount = Math.abs(balanceDelta);
+    const adjustmentDate = Math.floor(Date.now() / 1000);
+    const adjustmentCategoryId =
+      adjustmentType === 'income'
+        ? ACCOUNT_ADJUSTMENT_INCOME_CATEGORY_ID
+        : ACCOUNT_ADJUSTMENT_EXPENSE_CATEGORY_ID;
+    const paidStatus = existing.type === 'credit_card' ? 'settle' : 'paid';
+
+    const statements: D1PreparedStatement[] = [
+      c.env.DB.prepare(
+        `INSERT INTO transactions
+          (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'single', ?, NULL, NULL, NULL, NULL, NULL, ?, ?)`
+      ).bind(
+        crypto.randomUUID(),
+        adjustmentDate,
+        id,
+        adjustmentCategoryId,
+        adjustmentAmount,
+        ACCOUNT_ADJUSTMENT_NOTE,
+        adjustmentType,
+        paidStatus,
+        actor?.id ?? null,
+        actor?.id ?? null
+      ),
+    ];
+
+    for (const op of transactionBalanceOps(
+      { account_id: id, transfer_to: null, type: adjustmentType, amount: adjustmentAmount },
+      1
+    )) {
+      statements.push(adjustBalanceStatement(c.env.DB, op));
+    }
+
+    await c.env.DB.batch(statements);
+    await rebuildMonthlyBalancesFrom(c.env.DB, adjustmentDate, actor?.id ?? null);
   }
 
   const row = await c.env.DB.prepare(`${SELECT_WITH_BALANCE} WHERE a.id = ?`).bind(id).first();

@@ -50,7 +50,7 @@ export default function UserList() {
       <PageHeader
         title="Users"
         backTo="/config"
-        subtitle="Manage app access and roles"
+        info="Manage app access and roles."
         actions={(
           <Link
             to="/config/users/new"

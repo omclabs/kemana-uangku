@@ -31,7 +31,7 @@ function shortFmt(value: number): string {
   const abs = Math.abs(value);
   const sign = value < 0 ? '−' : '';
   if (abs >= 1_000_000) return `${sign}Rp ${trimCompactDecimals(abs / 1_000_000, 2)} jt`;
-  if (abs >= 1_000)     return `${sign}Rp ${Math.round(abs / 1_000)}rb`;
+  if (abs >= 1_000)     return `${sign}Rp ${Math.round(abs / 1_000)} rb`;
   return fmt.format(value);
 }
 
@@ -149,7 +149,20 @@ export default function AccountList() {
 
   return (
     <PageContainer>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 20,
+        position: 'sticky',
+        top: 0,
+        zIndex: 15,
+        padding: '10px 0 12px',
+        background: 'color-mix(in srgb, var(--bg) 84%, transparent)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderBottom: '1px solid color-mix(in srgb, var(--line) 75%, transparent)',
+      }}>
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
           Accounts
         </h1>
@@ -244,7 +257,7 @@ export default function AccountList() {
                   {items.map((account) => {
                     const children  = childrenOf(account.id);
                     const hasKids   = children.length > 0;
-                    const totalBal  = account.computed_balance +
+                    const totalBal  = account.balance +
                       children.reduce((s, c) => s + c.computed_balance, 0);
                     const visual    = categoryVisual(account.name);
                     const isNeg     = totalBal < 0;
@@ -302,7 +315,7 @@ export default function AccountList() {
                               <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>
                                 {account.type === 'credit_card' && account.credit_limit != null
                                   ? `avail. ${shortFmt(account.credit_limit + account.computed_balance)}`
-                                  : `own ${shortFmt(account.computed_balance)}`}
+                                  : `own ${shortFmt(account.balance)}`}
                               </p>
                             )}
                           </div>

@@ -21,7 +21,7 @@ function trimCompactDecimals(value: number, digits: number): string {
 
 function shortCurrency(value: number): string {
   if (value >= 1_000_000) return `Rp ${trimCompactDecimals(value / 1_000_000, 1)} jt`;
-  if (value >= 1_000)     return `Rp ${Math.round(value / 1_000)}rb`;
+  if (value >= 1_000)     return `Rp ${Math.round(value / 1_000)} rb`;
   return idr.format(value);
 }
 

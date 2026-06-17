@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import StyledSelect from '../../components/StyledSelect';
+import PageHeader from '../../components/PageHeader';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
 import { CATEGORY_TYPES, type Category, type CategoryInput, type CategoryType } from '../../lib/types';
@@ -112,9 +113,10 @@ export default function CategoryForm() {
 
   return (
     <PageContainer>
-      <h1 className="mb-4 text-xl font-semibold text-ink">
-        {isEdit ? 'Edit Category' : 'Add Category'}
-      </h1>
+      <PageHeader
+        title={isEdit ? 'Edit Category' : 'Add Category'}
+        backTo="/config/categories"
+      />
 
       <div className="mb-4 flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-[0_4px_16px_-6px_rgba(60,45,110,.12)]">
         <span

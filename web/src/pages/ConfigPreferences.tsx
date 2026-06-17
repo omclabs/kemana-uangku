@@ -79,7 +79,7 @@ export default function ConfigPreferences() {
       <PageHeader
         title="General Settings"
         backTo="/config"
-        subtitle="Currency and default timezone preferences"
+        info="Currency and default timezone preferences."
         marginBottom={22}
       />
 

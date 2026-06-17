@@ -103,7 +103,7 @@ export default function Config() {
 
   return (
     <PageContainer>
-      <PageHeader title="Config" subtitle="App settings, access, and session controls" />
+      <PageHeader title="Config" backTo="/" info="App settings, access, and session controls." />
 
       {error && (
         <p style={{ marginBottom: 16, fontSize: 13, color: 'var(--expense)' }}>{error}</p>

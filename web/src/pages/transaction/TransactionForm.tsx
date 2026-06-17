@@ -97,6 +97,8 @@ export default function TransactionForm() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
+  const [deleting,   setDeleting]   = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
   const [activeLookup,     setActiveLookup]     = useState<LookupTarget | null>(null);
@@ -192,13 +194,40 @@ export default function TransactionForm() {
     }
   }
 
+  async function handleDelete() {
+    if (!isEdit || !id) return;
+
+    setError(null);
+    setDeleting(true);
+    try {
+      await apiFetch(`/transactions/${id}`, { method: 'DELETE' });
+      navigate('/transactions');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to delete');
+      setDeleting(false);
+    }
+  }
+
   if (loading) return <p style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>Loading…</p>;
 
   return (
     <PageContainer>
 
       {/* ── Back + title ─────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 22,
+        position: 'sticky',
+        top: 0,
+        zIndex: 15,
+        padding: '10px 0 12px',
+        background: 'color-mix(in srgb, var(--bg) 84%, transparent)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderBottom: '1px solid color-mix(in srgb, var(--line) 75%, transparent)',
+      }}>
         <button type="button" onClick={() => navigate('/transactions')} style={{
           width: 38, height: 38, borderRadius: 12, flexShrink: 0,
           border: '1px solid var(--line)', background: 'var(--surface)',
@@ -484,27 +513,46 @@ export default function TransactionForm() {
               <div style={{
                 position: 'absolute', inset: 4, borderRadius: 14,
                 background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-                filter: 'blur(12px)', opacity: saving ? 0.3 : 0.5, transition: 'opacity .2s',
+                filter: 'blur(12px)', opacity: saving || deleting ? 0.3 : 0.5, transition: 'opacity .2s',
               }} />
-              <button type="submit" disabled={saving} style={{
+              <button type="submit" disabled={saving || deleting} style={{
                 position: 'relative', width: '100%', border: 'none', borderRadius: 16, padding: '14px 0',
                 background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
                 color: '#fff', fontSize: 15, fontWeight: 800, fontFamily: 'inherit',
-                cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1,
+                cursor: saving || deleting ? 'wait' : 'pointer', opacity: saving || deleting ? 0.7 : 1,
                 boxShadow: '0 8px 20px -6px var(--accent)', transition: 'opacity .2s',
               }}>
                 {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add transaction'}
               </button>
             </div>
-            <button type="button" onClick={() => navigate('/transactions')} style={{
+            <button type="button" disabled={saving || deleting} onClick={() => navigate('/transactions')} style={{
               flex: 1, borderRadius: 16, padding: '14px 0',
               border: '1.5px solid var(--line)', background: 'var(--surface)',
               color: 'var(--muted)', fontSize: 15, fontWeight: 700,
-              fontFamily: 'inherit', cursor: 'pointer',
+              fontFamily: 'inherit', cursor: saving || deleting ? 'wait' : 'pointer',
+              opacity: saving || deleting ? 0.7 : 1,
             }}>
               Cancel
             </button>
           </div>
+
+          {isEdit && (
+            <button type="button" disabled={saving || deleting} onClick={() => setDeleteOpen(true)} style={{
+              width: '100%',
+              borderRadius: 16,
+              padding: '13px 0',
+              border: '1px solid color-mix(in srgb, var(--expense) 28%, transparent)',
+              background: 'var(--expense-soft)',
+              color: 'var(--expense)',
+              fontSize: 14,
+              fontWeight: 800,
+              fontFamily: 'inherit',
+              cursor: saving || deleting ? 'wait' : 'pointer',
+              opacity: saving || deleting ? 0.7 : 1,
+            }}>
+              {deleting ? 'Deleting…' : 'Delete transaction'}
+            </button>
+          )}
 
         </div>
       </form>
@@ -534,6 +582,85 @@ export default function TransactionForm() {
         <Calculator initialValue={fee ?? undefined}
           onConfirm={(v) => { setFee(v); setActiveCalculator(null); }}
           onClose={() => setActiveCalculator(null)} />
+      )}
+
+      {deleteOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.32)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            zIndex: 30,
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 420,
+              borderRadius: 24,
+              border: '1px solid var(--line)',
+              background: 'var(--surface)',
+              boxShadow: '0 20px 50px rgba(15, 23, 42, 0.18)',
+              padding: 20,
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>
+              Delete Transaction
+            </h2>
+            <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5, color: 'var(--muted)' }}>
+              This will remove the transaction from the active ledger and automatically update the account balance and monthly summaries.
+            </p>
+            <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5, color: 'var(--muted)' }}>
+              This action can be reversed later from the database only, not from the current app UI.
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (deleting) return;
+                  setDeleteOpen(false);
+                }}
+                style={{
+                  flex: 1,
+                  borderRadius: 14,
+                  border: '1px solid var(--line)',
+                  background: 'var(--surface)',
+                  color: 'var(--ink)',
+                  padding: '12px 14px',
+                  fontWeight: 600,
+                  cursor: deleting ? 'default' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDelete}
+                style={{
+                  flex: 1,
+                  borderRadius: 14,
+                  border: '1px solid var(--expense)',
+                  background: 'var(--expense)',
+                  color: '#fff',
+                  padding: '12px 14px',
+                  fontWeight: 700,
+                  cursor: deleting ? 'progress' : 'pointer',
+                  opacity: deleting ? 0.7 : 1,
+                }}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </PageContainer>
   );

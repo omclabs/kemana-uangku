@@ -185,7 +185,20 @@ export default function AccountForm() {
 
   return (
     <PageContainer>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 24,
+        position: 'sticky',
+        top: 0,
+        zIndex: 15,
+        padding: '10px 0 12px',
+        background: 'color-mix(in srgb, var(--bg) 84%, transparent)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderBottom: '1px solid color-mix(in srgb, var(--line) 75%, transparent)',
+      }}>
         <button
           type="button"
           onClick={() => navigate('/accounts')}
