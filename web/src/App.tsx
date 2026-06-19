@@ -12,6 +12,7 @@ import ConfigPreferences from './pages/ConfigPreferences';
 import BudgetPage from './pages/budget/BudgetPage';
 import AccountList from './pages/account/AccountList';
 import AccountForm from './pages/account/AccountForm';
+import AccountPayment from './pages/account/AccountPayment';
 import AccountTransactions from './pages/account/AccountTransactions';
 import CategoryList from './pages/category/CategoryList';
 import CategoryForm from './pages/category/CategoryForm';
@@ -140,6 +141,26 @@ export default function App() {
             <AuthGuard>
               <AuthLayout>
                 <AccountTransactions />
+              </AuthLayout>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/account/:id/payment"
+          element={
+            <AuthGuard>
+              <AuthLayout>
+                <AccountPayment />
+              </AuthLayout>
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/accounts/:id/payment"
+          element={
+            <AuthGuard>
+              <AuthLayout>
+                <AccountPayment />
               </AuthLayout>
             </AuthGuard>
           }

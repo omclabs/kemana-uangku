@@ -82,7 +82,7 @@ export const transactionCreate = z
     date: z.number().int(),
     account_id: z.string().min(1),
     category_id: z.string().min(1).nullable().optional(),
-    amount: z.number().positive(),
+    amount: z.number().refine((value) => value !== 0, { message: 'amount must not be zero' }),
     note: z.string().optional(),
     type: z.enum(['income', 'expense', 'transfer']),
     transfer_to: z.string().min(1).nullable().optional(),
@@ -94,7 +94,7 @@ export const transactionCreate = z
       })
       .optional(),
   })
-  .refine((data) => data.recurring?.mode !== 'installment' || data.amount >= data.recurring.total, {
+  .refine((data) => data.recurring?.mode !== 'installment' || Math.abs(data.amount) >= data.recurring.total, {
     message: 'amount must be >= installment count',
     path: ['recurring', 'total'],
   });
@@ -102,10 +102,16 @@ export const transactionCreate = z
 export const transactionUpdate = z.object({
   date: z.number().int().optional(),
   category_id: z.string().min(1).nullable().optional(),
-  amount: z.number().positive().optional(),
+  amount: z.number().refine((value) => value !== 0, { message: 'amount must not be zero' }).optional(),
   note: z.string().optional(),
   is_active: z.boolean().optional(),
   paid_status: z.enum(['paid', 'settle']).optional(),
+});
+
+export const accountPaymentCreate = z.object({
+  payment_account_id: z.string().min(1),
+  transaction_ids: z.array(z.string().min(1)).min(1),
+  anchor_month: monthKey,
 });
 
 export const receiptImportWarning = z.object({
@@ -155,6 +161,7 @@ export type AuthLogin = z.infer<typeof authLogin>;
 export type ChangePassword = z.infer<typeof changePassword>;
 export type TransactionCreate = z.infer<typeof transactionCreate>;
 export type TransactionUpdate = z.infer<typeof transactionUpdate>;
+export type AccountPaymentCreate = z.infer<typeof accountPaymentCreate>;
 export type ReceiptImportWarning = z.infer<typeof receiptImportWarning>;
 export type ReceiptImportDraftItem = z.infer<typeof receiptImportDraftItem>;
 export type ReceiptImportCommitInput = z.infer<typeof receiptImportCommitInput>;

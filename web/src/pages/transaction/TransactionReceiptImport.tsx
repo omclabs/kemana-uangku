@@ -77,8 +77,11 @@ export default function TransactionReceiptImport() {
     };
   }, []);
 
+  const byName = <T extends { name: string }>(left: T, right: T) =>
+    left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+  const sortedAccounts = useMemo(() => [...accounts].sort(byName), [accounts]);
   const expenseCategories = useMemo(
-    () => categories.filter((category) => isLeafExpenseCategory(categories, category)),
+    () => categories.filter((category) => isLeafExpenseCategory(categories, category)).sort(byName),
     [categories]
   );
   const includedTotal = (draft?.draft_items ?? [])
@@ -240,7 +243,7 @@ export default function TransactionReceiptImport() {
               className="w-full rounded-2xl border border-line bg-surface-2 px-3 py-2 text-base text-ink"
             >
               <option value="">Select account</option>
-              {accounts.map((account) => (
+              {sortedAccounts.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
                 </option>

@@ -38,6 +38,7 @@ type TransactionRow = {
   installment_index: number | null;
   installment_total: number | null;
   parent_transaction_id: string | null;
+  payment_transaction_id: string | null;
   is_active: number;
   created_at: number;
   updated_at: number;
@@ -289,6 +290,9 @@ app.post('/import-receipt/commit', async (c) => {
   if (!account) {
     return c.json({ error: 'account_id not found or inactive' }, 400);
   }
+  if (body.type === 'transfer' && account.type === 'credit_card') {
+    return c.json({ error: 'credit card account cannot be a transfer source' }, 400);
+  }
 
   const includedRows = body.draft_items.filter((row) => row.included);
   if (includedRows.length === 0) {
@@ -355,6 +359,9 @@ app.post('/', async (c) => {
   const account = await loadActiveAccount(c.env.DB, body.account_id);
   if (!account) {
     return c.json({ error: 'account_id not found or inactive' }, 400);
+  }
+  if (body.type === 'transfer' && account.type === 'credit_card') {
+    return c.json({ error: 'credit card account cannot be a transfer source' }, 400);
   }
 
   let transferToAccount: AccountRow | null = null;
@@ -719,6 +726,11 @@ app.patch('/:id/pay', async (c) => {
 
   if (existing.paid_status === 'paid') {
     return c.json({ error: 'already paid' }, 409);
+  }
+
+  const sourceAccount = await loadActiveAccount(c.env.DB, existing.account_id);
+  if (sourceAccount?.type === 'credit_card') {
+    return c.json({ error: 'use the credit card payment flow to settle this transaction' }, 400);
   }
 
   await c.env.DB.prepare(

@@ -18,8 +18,17 @@ function formatNumber(value: number): string {
 
 export function pressDigit(state: CalculatorState, digit: string): CalculatorState {
   if (digit === '.' && state.current.includes('.')) return state;
+  if (digit === '.' && state.current === '') {
+    return { ...state, current: '0.' };
+  }
+  if (digit === '.' && state.current === '-') {
+    return { ...state, current: '-0.' };
+  }
   if (digit !== '.' && state.current === '0') {
     return { ...state, current: digit };
+  }
+  if (digit !== '.' && state.current === '-0') {
+    return { ...state, current: `-${digit}` };
   }
   return { ...state, current: state.current + digit };
 }
@@ -75,6 +84,30 @@ export function evaluate(state: CalculatorState): number {
 
 export function pressEqual(state: CalculatorState): CalculatorState {
   return { tokens: [], current: formatNumber(evaluate(state)) };
+}
+
+export function backspace(state: CalculatorState): CalculatorState {
+  if (state.current !== '') {
+    const nextCurrent = state.current.slice(0, -1);
+    return { ...state, current: nextCurrent === '-' ? '' : nextCurrent };
+  }
+
+  if (state.tokens.length === 0) {
+    return state;
+  }
+
+  return { ...state, tokens: state.tokens.slice(0, -1) };
+}
+
+export function toggleSign(state: CalculatorState): CalculatorState {
+  if (state.current === '') {
+    return { ...state, current: '-' };
+  }
+
+  return {
+    ...state,
+    current: state.current.startsWith('-') ? state.current.slice(1) : `-${state.current}`,
+  };
 }
 
 export function reset(): CalculatorState {

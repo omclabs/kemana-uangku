@@ -152,6 +152,7 @@ export interface Transaction {
   installment_index: number | null;
   installment_total: number | null;
   parent_transaction_id: string | null;
+  payment_transaction_id: string | null;
   is_active: number;
   created_at: number;
   updated_at: number;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  backspace,
   displayValue,
   evaluate,
   initialCalculatorState,
@@ -7,6 +8,7 @@ import {
   pressEqual,
   pressOperator,
   reset,
+  toggleSign,
   type CalculatorState,
   type Operator,
 } from '../lib/calculator';
@@ -78,11 +80,13 @@ export default function Calculator({ initialValue, onConfirm, onClose }: Calcula
           <CalcButton label="-" variant="operator" onClick={() => handleOperator('-')} />
 
           <CalcButton label="C" variant="clear" onClick={() => setState(reset())} />
-          <CalcButton label="0" onClick={() => handleDigit('0')} />
-          <CalcButton label="." onClick={() => handleDigit('.')} />
+          <CalcButton label="⌫" variant="clear" onClick={() => setState((s) => backspace(s))} />
+          <CalcButton label="+/-" variant="operator" onClick={() => setState((s) => toggleSign(s))} />
           <CalcButton label="+" variant="operator" onClick={() => handleOperator('+')} />
 
-          <CalcButton label="=" variant="equal" className="col-span-4" onClick={handleEqual} />
+          <CalcButton label="0" onClick={() => handleDigit('0')} />
+          <CalcButton label="." onClick={() => handleDigit('.')} />
+          <CalcButton label="=" variant="equal" className="col-span-2" onClick={handleEqual} />
         </div>
 
         <button

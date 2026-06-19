@@ -31,6 +31,7 @@ type TxRow = {
   installment_index: number | null;
   installment_total: number | null;
   parent_transaction_id: string | null;
+  payment_transaction_id: string | null;
   is_active: number;
   created_by?: string | null;
   updated_by?: string | null;
@@ -265,6 +266,17 @@ describe('/transactions', () => {
     expect(ccAfter - ccBefore).toBeCloseTo(50000, 5); // debt reduced
   });
 
+  it('POST transfer from a credit_card account returns 400', async () => {
+    const res = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.creditCard,
+      transfer_to: TEST_ACCOUNT_IDS.bankPrimary,
+      amount: 10000,
+      type: 'transfer',
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('POST expense from a credit_card account sets paid_status=settle', async () => {
     const res = await postTransaction({
       date: BASE_DATE,
@@ -333,7 +345,7 @@ describe('/transactions', () => {
     expect(after - before).toBeCloseTo(-100000, 5);
   });
 
-  it('PATCH /:id/pay flips settle -> paid, and 409s if already paid', async () => {
+  it('PATCH /:id/pay rejects credit-card settle rows to force the payment flow', async () => {
     const createRes = await postTransaction({
       date: BASE_DATE,
       account_id: TEST_ACCOUNT_IDS.creditCard,
@@ -348,16 +360,93 @@ describe('/transactions', () => {
       method: 'PATCH',
       headers: AUTH,
     });
-    expect(payRes.status).toBe(200);
-    const paid = (await payRes.json()) as TxRow;
-    expect(paid.paid_status).toBe('paid');
-    expect(paid.updated_by).toBe('user-admin');
+    expect(payRes.status).toBe(400);
+  });
 
-    const againRes = await SELF.fetch(`https://example.com/transactions/${row.id}/pay`, {
-      method: 'PATCH',
-      headers: AUTH,
+  it('POST /accounts/:id/payments settles selected rows and creates one linked payment transfer', async () => {
+    const txDates = [
+      Math.floor(new Date('2026-05-21T00:00:00Z').getTime() / 1000),
+      Math.floor(new Date('2026-06-20T00:00:00Z').getTime() / 1000),
+      Math.floor(new Date('2026-07-10T00:00:00Z').getTime() / 1000),
+    ];
+
+    const createdRows: TxRow[] = [];
+    for (const [index, date] of txDates.entries()) {
+      const createRes = await postTransaction({
+        date,
+        account_id: TEST_ACCOUNT_IDS.creditCard,
+        category_id: CATEGORY_IDS.expenseLeaf,
+        amount: (index + 1) * 10000,
+        type: 'expense',
+      });
+      expect(createRes.status).toBe(201);
+      createdRows.push(...((await createRes.json()) as TxRow[]));
+    }
+
+    const bankBefore = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const creditCardBefore = await getAccountBalance(TEST_ACCOUNT_IDS.creditCard);
+
+    const paymentRes = await SELF.fetch(`https://example.com/accounts/${TEST_ACCOUNT_IDS.creditCard}/payments`, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        payment_account_id: TEST_ACCOUNT_IDS.bankPrimary,
+        transaction_ids: createdRows.map((row) => row.id),
+        anchor_month: '2026-06',
+      }),
     });
-    expect(againRes.status).toBe(409);
+    expect(paymentRes.status).toBe(201);
+    const paymentBody = (await paymentRes.json()) as {
+      payment: TxRow;
+      settled_transaction_ids: string[];
+      total_amount: number;
+    };
+    expect(paymentBody.settled_transaction_ids).toEqual(createdRows.map((row) => row.id));
+    expect(paymentBody.total_amount).toBe(60000);
+    expect(paymentBody.payment).toMatchObject({
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      transfer_to: TEST_ACCOUNT_IDS.creditCard,
+      type: 'expense',
+      category_id: 'cat-transfer',
+      amount: 60000,
+      paid_status: 'paid',
+    });
+
+    const txRes = await SELF.fetch('https://example.com/transactions?include_inactive=true', { headers: AUTH });
+    const allRows = (await txRes.json()) as TxRow[];
+    const updatedRows = allRows.filter((row) => createdRows.some((created) => created.id === row.id));
+    updatedRows.forEach((row) => {
+      expect(row.paid_status).toBe('paid');
+      expect(row.payment_transaction_id).toBe(paymentBody.payment.id);
+    });
+
+    const bankAfter = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
+    const creditCardAfter = await getAccountBalance(TEST_ACCOUNT_IDS.creditCard);
+    expect(bankAfter - bankBefore).toBeCloseTo(-60000, 5);
+    expect(creditCardAfter - creditCardBefore).toBeCloseTo(60000, 5);
+  });
+
+  it('POST /accounts/:id/payments rejects rows outside previous/current/next statement windows', async () => {
+    const createRes = await postTransaction({
+      date: Math.floor(new Date('2026-05-19T00:00:00Z').getTime() / 1000),
+      account_id: TEST_ACCOUNT_IDS.creditCard,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 15000,
+      type: 'expense',
+    });
+    expect(createRes.status).toBe(201);
+    const [row] = (await createRes.json()) as TxRow[];
+
+    const paymentRes = await SELF.fetch(`https://example.com/accounts/${TEST_ACCOUNT_IDS.creditCard}/payments`, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        payment_account_id: TEST_ACCOUNT_IDS.bankPrimary,
+        transaction_ids: [row.id],
+        anchor_month: '2026-06',
+      }),
+    });
+    expect(paymentRes.status).toBe(400);
   });
 
   it('PUT amount change adjusts the balance by the diff', async () => {

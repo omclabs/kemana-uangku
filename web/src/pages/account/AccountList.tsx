@@ -130,11 +130,12 @@ export default function AccountList() {
     return () => { cancelled = true; };
   }, []);
 
-  const childrenOf = (parentId: string) => accounts.filter((a) => a.parent_id === parentId);
+  const byName = (left: Account, right: Account) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+  const childrenOf = (parentId: string) => accounts.filter((a) => a.parent_id === parentId).sort(byName);
 
-  const topLevel = accounts.filter((a) => a.parent_id === null);
+  const topLevel = accounts.filter((a) => a.parent_id === null).sort(byName);
   const groups = ACCOUNT_TYPES
-    .map((type) => ({ type, items: topLevel.filter((a) => a.type === type) }))
+    .map((type) => ({ type, items: topLevel.filter((a) => a.type === type).sort(byName) }))
     .filter((g) => g.items.length > 0);
 
   const included = topLevel.filter((a) => a.include_in_total === 1);
@@ -152,7 +153,6 @@ export default function AccountList() {
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
         marginBottom: 20,
         position: 'sticky',
         top: 0,
@@ -166,63 +166,46 @@ export default function AccountList() {
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
           Accounts
         </h1>
-        <Link
-          to="/accounts/new"
-          aria-label="Add account"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 40, height: 40, borderRadius: 13,
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-            color: '#fff', boxShadow: '0 8px 16px -6px var(--accent)',
-          }}
-        >
-          <PlusIcon className="h-5 w-5" />
-        </Link>
       </div>
 
       {!loading && !error && (
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-          <div style={{
-            flex: 1, background: 'var(--surface)', border: '1px solid var(--line)',
-            borderRadius: 18, padding: '13px 14px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                width: 30, height: 30, borderRadius: 10,
-                background: 'var(--income-soft)', color: 'var(--income)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 19V5M12 5l-7 7M12 5l7 7"/>
-                </svg>
-              </span>
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)' }}>Assets</span>
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px', background: 'transparent', marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>&nbsp;</div>
+              <div style={{ marginTop: 1, fontSize: 17, fontWeight: 800, color: 'transparent', letterSpacing: '-.02em', userSelect: 'none' }}>.</div>
             </div>
-            <p style={{ margin: '9px 0 0', fontSize: 15.5, fontWeight: 800, color: 'var(--ink)' }}>
-              {fmt.format(totalAssets)}
-            </p>
-          </div>
-          <div style={{
-            flex: 1, background: 'var(--surface)', border: '1px solid var(--line)',
-            borderRadius: 18, padding: '13px 14px',
-          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                width: 30, height: 30, borderRadius: 10,
-                background: 'var(--expense-soft)', color: 'var(--expense)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 5v14M12 19l-7-7M12 19l7-7"/>
-                </svg>
-              </span>
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)' }}>Liabilities</span>
+              <Link
+                to="/accounts/new"
+                aria-label="Add account"
+                style={{
+                  width: 40, height: 40, borderRadius: 13, flexShrink: 0,
+                  background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
+                }}
+              >
+                <PlusIcon className="h-5 w-5" />
+              </Link>
             </div>
-            <p style={{ margin: '9px 0 0', fontSize: 15.5, fontWeight: 800, color: 'var(--ink)' }}>
-              {fmt.format(totalLiabilities)}
-            </p>
           </div>
-        </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', marginBottom: 24 }}>
+            <div style={{ padding: '13px 16px', borderRight: '1px solid var(--line)', minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>Assets</div>
+              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {fmt.format(totalAssets)}
+              </div>
+            </div>
+            <div style={{ padding: '13px 16px', minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>Liabilities</div>
+              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 800, color: 'var(--expense)', letterSpacing: '-.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {fmt.format(totalLiabilities)}
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {loading && <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>Loading…</p>}

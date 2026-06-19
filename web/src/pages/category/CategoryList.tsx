@@ -62,14 +62,15 @@ export default function CategoryList() {
     };
   }, []);
 
+  const byName = (left: Category, right: Category) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
   const visibleCategories = categories.filter(
     (category) => category.id !== 'cat-transfer' && category.id !== 'cat-admin'
   );
-  const childrenOf = (parentId: string) => visibleCategories.filter((category) => category.parent_id === parentId);
+  const childrenOf = (parentId: string) => visibleCategories.filter((category) => category.parent_id === parentId).sort(byName);
 
-  const topLevel = visibleCategories.filter((category) => category.parent_id === null);
+  const topLevel = visibleCategories.filter((category) => category.parent_id === null).sort(byName);
   const groups = CATEGORY_TYPES
-    .map((type) => ({ type, items: topLevel.filter((category) => category.type === type) }))
+    .map((type) => ({ type, items: topLevel.filter((category) => category.type === type).sort(byName) }))
     .filter((group) => group.items.length > 0);
 
   return (

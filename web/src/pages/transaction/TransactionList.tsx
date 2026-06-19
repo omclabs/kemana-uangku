@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { categoryVisual } from '../../lib/categories';
 import { ApiError, apiFetch } from '../../lib/api';
@@ -16,6 +17,33 @@ const monthFmt = new Intl.DateTimeFormat('id-ID', {
   month: 'long', year: 'numeric',
 });
 
+function statFmt(value: number): string {
+  return new Intl.NumberFormat('id-ID').format(Math.round(Math.abs(value)));
+}
+
+function signedFmt(value: number): string {
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}Rp ${statFmt(value)}`;
+}
+
+function cellFmt(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(2).replace('.', ',')}jt`;
+  if (abs >= 1_000) return statFmt(value);
+  return statFmt(value);
+}
+
+function toDatePreset(unix: number): string {
+  const d = new Date(unix * 1000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function toMonthPreset(unix: number): string {
+  const d = new Date(unix * 1000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function dateKey(unix: number): string {
   const d = new Date(unix * 1000);
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -32,10 +60,259 @@ function groupByDate(txs: Transaction[]) {
   return groups;
 }
 
+type Tab = 'daily' | 'calendar' | 'monthly';
+
+interface DayCell {
+  date: Date;
+  day: number;
+  inMonth: boolean;
+  isToday: boolean;
+  income: number;
+  expense: number;
+}
+
+interface WeekRange {
+  key: string;
+  label: string;
+  start: Date;
+  end: Date;
+  income: number;
+  expense: number;
+}
+
+interface YearMonth {
+  year: number;
+  month: number;
+  label: string;
+  range: string;
+  income: number;
+  expense: number;
+  weeks: WeekRange[];
+}
+
+const DAY_MS = 86_400_000;
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function sameDay(left: Date, right: Date): boolean {
+  return left.getFullYear() === right.getFullYear()
+    && left.getMonth() === right.getMonth()
+    && left.getDate() === right.getDate();
+}
+
+function weekStart(date: Date): Date {
+  const start = startOfDay(date);
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
+function fmtMD(date: Date): string {
+  return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function txIncome(transaction: Transaction): number {
+  return transaction.type === 'income' ? transaction.amount : 0;
+}
+
+function txExpense(transaction: Transaction): number {
+  return transaction.type === 'income' ? 0 : transaction.amount;
+}
+
+function CalendarView({
+  cells,
+  summary,
+}: {
+  cells: DayCell[];
+  summary: { income: number; expense: number };
+}) {
+  const total = summary.income - summary.expense;
+  const weeks: DayCell[][] = [];
+  for (let index = 0; index < cells.length; index += 7) {
+    weeks.push(cells.slice(index, index + 7));
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', padding: '10px 16px 9px', borderBottom: '1px solid var(--line)' }}>
+        <div>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Income</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--income)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(summary.income)}</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Expenses</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--expense)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(summary.expense)}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Total</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: total >= 0 ? 'var(--income)' : 'var(--muted)', letterSpacing: '-.025em', marginTop: 2 }}>
+            {signedFmt(total).replace('Rp ', '')}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+        {WEEKDAYS.map((weekday, index) => (
+          <div key={weekday} style={{ flex: 1, textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: index === 6 ? 'var(--accent)' : 'var(--muted)', padding: '5px 0' }}>
+            {weekday}
+          </div>
+        ))}
+      </div>
+
+      {weeks.map((week, weekIndex) => (
+        <div key={weekIndex} style={{ display: 'flex', borderBottom: '1px solid var(--line)' }}>
+          {week.map((cell, cellIndex) => {
+            const net = cell.income - cell.expense;
+            return (
+              <div
+                key={cellIndex}
+                style={{
+                  flex: 1,
+                  padding: '3px 2px',
+                  minHeight: 70,
+                  overflow: 'hidden',
+                  borderRight: cellIndex < 6 ? '1px solid var(--line)' : 'none',
+                  opacity: cell.inMonth ? 1 : 0.42,
+                  background: cell.isToday ? 'color-mix(in srgb, var(--accent) 9%, transparent)' : 'transparent',
+                }}
+              >
+                {cell.isToday ? (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, background: 'var(--accent)', borderRadius: 4, fontSize: 11, fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+                    {cell.day}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 11, fontWeight: cell.inMonth ? 700 : 500, color: cellIndex === 6 ? 'var(--accent)' : cell.inMonth ? 'var(--ink)' : 'var(--muted)' }}>
+                    {cell.day}
+                  </div>
+                )}
+                {cell.income > 0 && (
+                  <div style={{ fontSize: 6, fontWeight: 700, color: 'var(--income)', textAlign: 'right', marginTop: 2, lineHeight: 1.4 }}>
+                    {cellFmt(cell.income)}
+                  </div>
+                )}
+                {cell.expense > 0 && (
+                  <div style={{ fontSize: 6, fontWeight: 700, color: 'var(--expense)', textAlign: 'right', lineHeight: 1.4 }}>
+                    {cellFmt(cell.expense)}
+                  </div>
+                )}
+                {cell.income > 0 && cell.expense > 0 && (
+                  <div style={{ fontSize: 5.5, color: 'var(--muted)', textAlign: 'right', lineHeight: 1.4 }}>
+                    {signedFmt(net).replace('Rp ', '')}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MonthlyView({
+  months,
+  expandedMonth,
+}: {
+  months: YearMonth[];
+  expandedMonth: number;
+}) {
+  const totalIncome = months.reduce((sum, month) => sum + month.income, 0);
+  const totalExpenses = months.reduce((sum, month) => sum + month.expense, 0);
+  const totalNet = totalIncome - totalExpenses;
+  const today = new Date();
+
+  const monthRow = (month: YearMonth, expanded: boolean) => {
+    const net = month.income - month.expense;
+    return (
+      <div style={{ display: 'flex', alignItems: 'flex-start', padding: '10px 14px', borderBottom: '1px solid var(--line)', background: expanded ? 'var(--surface-2)' : 'transparent' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: expanded ? 800 : 700, color: 'var(--ink)' }}>{month.label}</div>
+          {expanded && <div style={{ fontSize: 8.5, color: 'var(--muted)', marginTop: 1 }}>{month.range}</div>}
+        </div>
+        <div style={{ width: 105, textAlign: 'right', fontSize: 10, fontWeight: 700, color: month.income > 0 ? 'var(--income)' : 'var(--muted)' }}>
+          Rp {statFmt(month.income)}
+        </div>
+        <div style={{ width: 105, textAlign: 'right' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: month.expense > 0 ? 'var(--expense)' : 'var(--muted)' }}>Rp {statFmt(month.expense)}</div>
+          <div style={{ fontSize: 8.5, fontWeight: 600, color: net >= 0 && net !== 0 ? 'var(--income)' : 'var(--muted)' }}>{signedFmt(net)}</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', padding: '10px 14px 9px', borderBottom: '1px solid var(--line)' }}>
+        <div>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Income</div>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--income)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(totalIncome)}</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Expenses</div>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--expense)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(totalExpenses)}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Total</div>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: totalNet >= 0 ? 'var(--income)' : 'var(--expense)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(totalNet)}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', padding: '5px 14px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+        <div style={{ flex: 1 }} />
+        <div style={{ width: 105, textAlign: 'right', fontSize: 8.5, fontWeight: 700, color: 'var(--muted)' }}>Income</div>
+        <div style={{ width: 105, textAlign: 'right', fontSize: 8.5, fontWeight: 700, color: 'var(--muted)' }}>Expenses · Total</div>
+      </div>
+
+      {months.map((month) => {
+        const expanded = month.month === expandedMonth;
+        if (!expanded) {
+          return <div key={month.month}>{monthRow(month, false)}</div>;
+        }
+        return (
+          <div key={month.month}>
+            {monthRow(month, true)}
+            {month.weeks.map((week) => {
+              const net = week.income - week.expense;
+              const current = today >= week.start && today <= week.end;
+              return (
+                <div
+                  key={week.key}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px 14px 8px 22px',
+                    borderBottom: '1px solid var(--line)',
+                    background: current ? 'color-mix(in srgb, var(--expense) 13%, var(--bg))' : 'transparent',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 10, fontWeight: current ? 700 : 600, color: current ? 'var(--ink)' : 'var(--muted)', whiteSpace: 'nowrap' }}>
+                    {week.label}
+                  </div>
+                  <div style={{ width: 105, textAlign: 'right', fontSize: 10, fontWeight: 700, color: week.income > 0 ? 'var(--income)' : 'var(--muted)' }}>
+                    Rp {statFmt(week.income)}
+                  </div>
+                  <div style={{ width: 105, textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: week.expense > 0 ? 'var(--expense)' : 'var(--ink)' }}>Rp {statFmt(week.expense)}</div>
+                    <div style={{ fontSize: 8.5, fontWeight: 600, color: 'var(--muted)' }}>{signedFmt(net)}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function TransactionList() {
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts,     setAccounts]     = useState<Account[]>([]);
   const [categories,   setCategories]   = useState<Category[]>([]);
+  const [tab, setTab] = useState<Tab>('daily');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
@@ -62,36 +339,150 @@ export default function TransactionList() {
   const accountName  = (id: string | null) => id ? (accounts.find((a) => a.id === id)?.name ?? 'Unknown') : '';
   const categoryName = (id: string | null) => id ? (categories.find((c) => c.id === id)?.name ?? 'Unknown') : '';
 
-  async function markPaid(id: string) {
-    try {
-      const updated = await apiFetch<Transaction>(`/transactions/${id}/pay`, { method: 'PATCH' });
-      setTransactions((prev) => prev.map((t) => (t.id === id ? updated : t)));
-    } catch (err) { setError(err instanceof ApiError ? err.message : 'Failed'); }
+  function markPaid(transaction: Transaction) {
+    navigate(`/account/${transaction.account_id}/payment?month=${encodeURIComponent(toMonthPreset(transaction.date))}`);
   }
 
   // ── Derived ──────────────────────────────────────────────────────
-  const visible = transactions.filter((t) => {
+  const visible = useMemo(() => transactions.filter((t) => {
     const d = new Date(t.date * 1000);
     return d.getMonth() === selectedMonth.getMonth() && d.getFullYear() === selectedMonth.getFullYear();
-  });
-  const groups       = groupByDate(visible);
+  }), [transactions, selectedMonth]);
+  const groups = useMemo(() => groupByDate(visible), [visible]);
   const summary = visible.reduce(
     (acc, transaction) => {
-      if (transaction.type === 'income') acc.income += transaction.amount;
-      else acc.expense += transaction.amount;
+      acc.income += txIncome(transaction);
+      acc.expense += txExpense(transaction);
       acc.total = acc.income - acc.expense;
       return acc;
     },
     { income: 0, expense: 0, total: 0 },
   );
   const now          = new Date();
-  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const canGoNext    = selectedMonth.getTime() < currentMonth;
+  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const canGoNext = tab === 'monthly'
+    ? selectedMonth.getFullYear() < currentMonth.getFullYear()
+    : selectedMonth.getTime() < currentMonth.getTime();
+  const calendar = useMemo(() => {
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth();
+    const today = new Date();
+    const dayMap = new Map<string, { income: number; expense: number }>();
+    let income = 0;
+    let expense = 0;
+
+    for (const transaction of visible) {
+      const date = new Date(transaction.date * 1000);
+      const key = String(date.getDate());
+      const entry = dayMap.get(key) ?? { income: 0, expense: 0 };
+      entry.income += txIncome(transaction);
+      entry.expense += txExpense(transaction);
+      income += txIncome(transaction);
+      expense += txExpense(transaction);
+      dayMap.set(key, entry);
+    }
+
+    const first = weekStart(new Date(year, month, 1));
+    const cells: DayCell[] = [];
+    for (let index = 0; index < 42; index += 1) {
+      const date = new Date(first.getTime() + index * DAY_MS);
+      const inMonth = date.getMonth() === month && date.getFullYear() === year;
+      const entry = inMonth ? dayMap.get(String(date.getDate())) ?? { income: 0, expense: 0 } : { income: 0, expense: 0 };
+      cells.push({
+        date,
+        day: date.getDate(),
+        inMonth,
+        isToday: sameDay(date, today),
+        income: entry.income,
+        expense: entry.expense,
+      });
+    }
+
+    const trimmed = cells.length === 42 && cells.slice(35).every((cell) => !cell.inMonth) ? cells.slice(0, 35) : cells;
+    return { cells: trimmed, summary: { income, expense } };
+  }, [visible, selectedMonth]);
+  const yearMonths = useMemo<YearMonth[]>(() => {
+    const year = selectedMonth.getFullYear();
+    const buckets: YearMonth[] = Array.from({ length: 12 }, (_, month) => ({
+      year,
+      month,
+      label: new Date(year, month, 1).toLocaleString('en', { month: 'short' }),
+      range: `${month + 1}.1 ~ ${month + 1}.${new Date(year, month + 1, 0).getDate()}`,
+      income: 0,
+      expense: 0,
+      weeks: [],
+    }));
+
+    for (const transaction of transactions) {
+      const date = new Date(transaction.date * 1000);
+      if (date.getFullYear() !== year) continue;
+      const bucket = buckets[date.getMonth()];
+      bucket.income += txIncome(transaction);
+      bucket.expense += txExpense(transaction);
+    }
+
+    const month = selectedMonth.getMonth();
+    const monthStartDate = new Date(year, month, 1);
+    const monthEndDate = new Date(year, month + 1, 0);
+    const weeks: WeekRange[] = [];
+    let cursor = weekStart(monthStartDate);
+    while (cursor <= monthEndDate) {
+      const end = new Date(cursor.getTime() + 6 * DAY_MS);
+      weeks.push({
+        key: cursor.toISOString(),
+        label: `${fmtMD(cursor)} ~ ${fmtMD(end)}`,
+        start: startOfDay(cursor),
+        end: new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59),
+        income: 0,
+        expense: 0,
+      });
+      cursor = new Date(cursor.getTime() + 7 * DAY_MS);
+    }
+
+    for (const transaction of transactions) {
+      const date = new Date(transaction.date * 1000);
+      const week = weeks.find((entry) => date >= entry.start && date <= entry.end);
+      if (!week || date.getFullYear() !== year) continue;
+      week.income += txIncome(transaction);
+      week.expense += txExpense(transaction);
+    }
+
+    buckets[month].weeks = weeks.reverse();
+    return buckets
+      .filter((bucket) => bucket.month <= month || bucket.income > 0 || bucket.expense > 0)
+      .sort((left, right) => right.month - left.month);
+  }, [transactions, selectedMonth]);
+  const statementLabel = useMemo(() => {
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth();
+    const yearShort = String(year).slice(2);
+    const monthPadded = String(month + 1).padStart(2, '0');
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    if (tab === 'daily' || tab === 'calendar') return `${monthPadded}.1.${yearShort} ~ ${monthPadded}.${lastDay}.${yearShort}`;
+    return String(year);
+  }, [selectedMonth, tab]);
+  const periodTitle = tab === 'monthly'
+    ? String(selectedMonth.getFullYear())
+    : monthFmt.format(selectedMonth);
   const summaryItems = [
     { label: 'Income', value: summary.income, color: 'var(--income)' },
     { label: 'Expense', value: summary.expense, color: 'var(--expense)' },
     { label: 'Total', value: summary.total, color: 'var(--ink)' },
   ] as const;
+  const tabStyle = (active: boolean): CSSProperties => ({
+    flex: 1,
+    textAlign: 'center',
+    padding: '11px 0',
+    fontSize: 13,
+    fontWeight: active ? 700 : 500,
+    color: active ? 'var(--ink)' : 'var(--muted)',
+    background: 'none',
+    border: 'none',
+    borderBottom: active ? '2.5px solid var(--accent)' : '2.5px solid transparent',
+    marginBottom: -1,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+  });
 
   return (
     <PageContainer>
@@ -101,7 +492,7 @@ export default function TransactionList() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 20,
+        marginBottom: 14,
         position: 'sticky',
         top: 0,
         zIndex: 15,
@@ -114,9 +505,40 @@ export default function TransactionList() {
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
           Transactions
         </h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+          <button type="button" onClick={() => setSelectedMonth((m) => tab === 'monthly' ? new Date(m.getFullYear() - 1, m.getMonth(), 1) : new Date(m.getFullYear(), m.getMonth() - 1, 1))} style={{
+            width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8,
+          }}>
+            <ChevronLeft />
+          </button>
+          <span style={{ minWidth: 76, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+            {periodTitle}
+          </span>
+          <button type="button" onClick={() => setSelectedMonth((m) => tab === 'monthly' ? new Date(m.getFullYear() + 1, m.getMonth(), 1) : new Date(m.getFullYear(), m.getMonth() + 1, 1))} disabled={!canGoNext}
+            style={{
+              width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', cursor: canGoNext ? 'pointer' : 'not-allowed', opacity: canGoNext ? 1 : 0.35, borderRadius: 8,
+            }}>
+            <ChevronRight />
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', padding: '0 6px', borderBottom: '1px solid var(--line)', background: 'var(--surface)', flexShrink: 0, marginBottom: 14 }}>
+        <button style={tabStyle(tab === 'daily')} onClick={() => setTab('daily')}>Daily</button>
+        <button style={tabStyle(tab === 'calendar')} onClick={() => setTab('calendar')}>Calendar</button>
+        <button style={tabStyle(tab === 'monthly')} onClick={() => setTab('monthly')}>Monthly</button>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px', background: 'transparent', flexShrink: 0 }}>
+        <div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Statement</div>
+          <div style={{ marginTop: 1, fontSize: 17, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.02em' }}>{statementLabel}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Link to="/transactions/import" style={{
-            display: 'flex', alignItems: 'center',
+            display: 'inline-flex', alignItems: 'center',
             borderRadius: 13, border: '1px solid var(--line)', background: 'var(--surface)',
             padding: '8px 12px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)',
             textDecoration: 'none', whiteSpace: 'nowrap',
@@ -132,37 +554,6 @@ export default function TransactionList() {
             <PlusIcon />
           </Link>
         </div>
-      </div>
-
-      {/* ── Month navigator ───────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface)', border: '1px solid var(--line)',
-        borderRadius: 18, padding: '10px 12px', marginBottom: 14,
-        boxShadow: '0 2px 10px rgba(0,0,0,.04)',
-      }}>
-        <button type="button" onClick={() => setSelectedMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))} style={{
-          width: 38, height: 38, borderRadius: 12, border: '1px solid var(--line)',
-          background: 'var(--surface)', color: 'var(--muted)', display: 'flex',
-          alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-        }}>
-          <ChevronLeft />
-        </button>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
-            {monthFmt.format(selectedMonth)}
-          </p>
-        </div>
-        <button type="button" onClick={() => setSelectedMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-          disabled={!canGoNext}
-          style={{
-            width: 38, height: 38, borderRadius: 12, border: '1px solid var(--line)',
-            background: 'var(--surface)', color: 'var(--muted)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            cursor: canGoNext ? 'pointer' : 'not-allowed', opacity: canGoNext ? 1 : 0.35,
-          }}>
-          <ChevronRight />
-        </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', marginBottom: 20 }}>
@@ -199,8 +590,7 @@ export default function TransactionList() {
       {loading && <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>Loading…</p>}
       {error   && <p style={{ textAlign: 'center', color: 'var(--expense)', padding: '32px 0' }}>{error}</p>}
 
-      {/* ── Transaction groups ────────────────────────────────────── */}
-      {!loading && !error && (
+      {!loading && !error && tab === 'daily' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {groups.map((group) => {
             const groupDate = new Date(group.date * 1000);
@@ -216,7 +606,22 @@ export default function TransactionList() {
             }, 0);
             return (
               <section key={group.key}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 16px 9px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/transactions/new?date=${encodeURIComponent(toDatePreset(group.date))}`)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '11px 16px 9px',
+                    background: 'var(--surface-2)',
+                    border: 'none',
+                    borderBottom: '1px solid var(--line)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                >
                   <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)', lineHeight: 1, minWidth: 30 }}>
                     {String(groupDate.getDate()).padStart(2, '0')}
                   </span>
@@ -236,7 +641,7 @@ export default function TransactionList() {
                       Rp {new Intl.NumberFormat('id-ID').format(withdrawalTotal)}
                     </span>
                   )}
-                </div>
+                </button>
                 <div>
                   {group.items.map((t) => (
                     <TransactionRow
@@ -258,6 +663,8 @@ export default function TransactionList() {
           )}
         </div>
       )}
+      {!loading && !error && tab === 'calendar' && <CalendarView cells={calendar.cells} summary={calendar.summary} />}
+      {!loading && !error && tab === 'monthly' && <MonthlyView months={yearMonths} expandedMonth={selectedMonth.getMonth()} />}
     </PageContainer>
   );
 }
@@ -268,7 +675,7 @@ function TransactionRow({
   transaction: Transaction;
   accountName: (id: string | null) => string;
   categoryName: (id: string | null) => string;
-  onMarkPaid: (id: string) => void;
+  onMarkPaid: (transaction: Transaction) => void;
 }) {
   const navigate = useNavigate();
 
@@ -335,7 +742,7 @@ function TransactionRow({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onMarkPaid(t.id);
+                onMarkPaid(t);
               }}
               style={{
                 display: 'inline-flex',
@@ -352,7 +759,7 @@ function TransactionRow({
                 cursor: 'pointer',
               }}
             >
-              <CheckIcon /> Settle
+              <CheckIcon /> Payment
             </button>
           )}
         </div>

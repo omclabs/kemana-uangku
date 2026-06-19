@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
 import { adjustBalanceStatement, transactionBalanceOps } from '../lib/balance';
 import { rebuildMonthlyBalancesFrom } from '../lib/month-balance';
-import { accountCreate, accountUpdate } from '../lib/validation';
+import { accountCreate, accountPaymentCreate, accountUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -51,6 +51,31 @@ const PARENT_TYPE_MISMATCH_ERROR = 'parent and child must have same type';
 const ACCOUNT_ADJUSTMENT_INCOME_CATEGORY_ID = 'cat-income-other';
 const ACCOUNT_ADJUSTMENT_EXPENSE_CATEGORY_ID = 'cat-other-misc';
 const ACCOUNT_ADJUSTMENT_NOTE = 'Account balance adjustment';
+const CREDIT_CARD_PAYMENT_CATEGORY_ID = 'cat-transfer';
+const LIABILITY_ACCOUNT_TYPES = ['credit_card', 'loan'] as const;
+
+type TransactionRow = {
+  id: string;
+  date: number;
+  account_id: string;
+  category_id: string | null;
+  amount: number;
+  note: string | null;
+  type: 'income' | 'expense' | 'transfer';
+  transfer_to: string | null;
+  fee: number | null;
+  source: 'single' | 'bulk';
+  paid_status: 'paid' | 'settle';
+  recurring_group_id: string | null;
+  recurring_mode: 'recurring' | 'installment' | null;
+  installment_index: number | null;
+  installment_total: number | null;
+  parent_transaction_id: string | null;
+  payment_transaction_id: string | null;
+  is_active: number;
+  created_at: number;
+  updated_at: number;
+};
 
 function creditCardFieldsValid(
   type: AccountRow['type'],
@@ -61,6 +86,28 @@ function creditCardFieldsValid(
     return creditLimit !== null && billingDate !== null;
   }
   return creditLimit === null && billingDate === null;
+}
+
+function statementCycleStart(year: number, month: number, billingDate: number): Date {
+  return new Date(year, month, billingDate + 1, 0, 0, 0, 0);
+}
+
+function nextStatementCycleStart(start: Date, billingDate: number): Date {
+  return new Date(start.getFullYear(), start.getMonth() + 1, billingDate + 1, 0, 0, 0, 0);
+}
+
+function statementWindowForOffset(anchorYear: number, anchorMonth: number, billingDate: number, offset: number) {
+  const start = statementCycleStart(anchorYear, anchorMonth + offset, billingDate);
+  const endExclusive = nextStatementCycleStart(start, billingDate);
+  return {
+    start: Math.floor(start.getTime() / 1000),
+    endExclusive: Math.floor(endExclusive.getTime() / 1000),
+  };
+}
+
+function parseAnchorMonth(value: string): { year: number; month: number } {
+  const [yearRaw, monthRaw] = value.split('-');
+  return { year: Number(yearRaw), month: Number(monthRaw) - 1 };
 }
 
 app.get('/', async (c) => {
@@ -105,6 +152,126 @@ app.get('/:id', async (c) => {
   }
 
   return c.json(row, 200);
+});
+
+app.post('/:id/payments', async (c) => {
+  const actor = getCurrentUser(c);
+  const creditCardId = c.req.param('id');
+  const body = accountPaymentCreate.parse(await c.req.json());
+  const creditCard = await c.env.DB.prepare('SELECT * FROM accounts WHERE id = ?')
+    .bind(creditCardId)
+    .first<AccountRow>();
+
+  if (!creditCard || creditCard.is_active !== 1) {
+    return c.json({ error: 'credit card account not found or inactive' }, 404);
+  }
+  if (creditCard.type !== 'credit_card' || creditCard.billing_date === null) {
+    return c.json({ error: 'account must be an active credit card' }, 400);
+  }
+
+  const paymentAccount = await c.env.DB.prepare('SELECT * FROM accounts WHERE id = ?')
+    .bind(body.payment_account_id)
+    .first<AccountRow>();
+  if (!paymentAccount || paymentAccount.is_active !== 1) {
+    return c.json({ error: 'payment account not found or inactive' }, 400);
+  }
+  if (paymentAccount.id === creditCardId) {
+    return c.json({ error: 'payment account must differ from credit card account' }, 400);
+  }
+  if (LIABILITY_ACCOUNT_TYPES.includes(paymentAccount.type)) {
+    return c.json({ error: 'payment account must not be a liability account' }, 400);
+  }
+
+  const uniqueIds = [...new Set(body.transaction_ids)];
+  const placeholders = uniqueIds.map(() => '?').join(',');
+  const { results } = await c.env.DB.prepare(
+    `SELECT * FROM transactions WHERE id IN (${placeholders})`
+  )
+    .bind(...uniqueIds)
+    .all<TransactionRow>();
+  const transactions = results ?? [];
+  if (transactions.length !== uniqueIds.length) {
+    return c.json({ error: 'one or more transactions were not found' }, 400);
+  }
+
+  const { year, month } = parseAnchorMonth(body.anchor_month);
+  const allowedWindows = [
+    statementWindowForOffset(year, month, creditCard.billing_date, -1),
+    statementWindowForOffset(year, month, creditCard.billing_date, 0),
+    statementWindowForOffset(year, month, creditCard.billing_date, 1),
+  ];
+
+  for (const transaction of transactions) {
+    if (transaction.is_active !== 1) {
+      return c.json({ error: `transaction ${transaction.id} is inactive` }, 400);
+    }
+    if (transaction.account_id !== creditCardId) {
+      return c.json({ error: `transaction ${transaction.id} does not belong to this credit card` }, 400);
+    }
+    if (transaction.paid_status !== 'settle') {
+      return c.json({ error: `transaction ${transaction.id} is not pending settlement` }, 409);
+    }
+    const inAllowedWindow = allowedWindows.some((window) => (
+      transaction.date >= window.start && transaction.date < window.endExclusive
+    ));
+    if (!inAllowedWindow) {
+      return c.json({ error: `transaction ${transaction.id} is outside the allowed statement windows` }, 400);
+    }
+  }
+
+  const paymentAmount = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  if (paymentAmount === 0) {
+    return c.json({ error: 'selected transactions total must not be zero' }, 400);
+  }
+
+  const paymentId = crypto.randomUUID();
+  const paymentDate = Math.floor(Date.now() / 1000);
+  const paymentNote = `Credit card payment to ${creditCard.name}`;
+  const statements: D1PreparedStatement[] = [
+    c.env.DB.prepare(
+      `INSERT INTO transactions
+        (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, payment_transaction_id, created_by, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, 'expense', ?, NULL, 'single', 'paid', NULL, NULL, NULL, NULL, NULL, NULL, ?, ?)`
+    ).bind(
+      paymentId,
+      paymentDate,
+      paymentAccount.id,
+      CREDIT_CARD_PAYMENT_CATEGORY_ID,
+      paymentAmount,
+      paymentNote,
+      creditCardId,
+      actor?.id ?? null,
+      actor?.id ?? null
+    ),
+    c.env.DB.prepare(
+      `UPDATE transactions
+       SET paid_status = 'paid',
+           payment_transaction_id = ?,
+           updated_by = ?,
+           updated_at = unixepoch()
+       WHERE id IN (${placeholders})`
+    ).bind(paymentId, actor?.id ?? null, ...uniqueIds),
+  ];
+
+  for (const op of transactionBalanceOps(
+    { account_id: paymentAccount.id, transfer_to: creditCardId, type: 'expense', amount: paymentAmount },
+    1
+  )) {
+    statements.push(adjustBalanceStatement(c.env.DB, op));
+  }
+
+  await c.env.DB.batch(statements);
+  await rebuildMonthlyBalancesFrom(c.env.DB, paymentDate, actor?.id ?? null);
+
+  const paymentRow = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?')
+    .bind(paymentId)
+    .first();
+
+  return c.json({
+    payment: paymentRow,
+    settled_transaction_ids: uniqueIds,
+    total_amount: paymentAmount,
+  }, 201);
 });
 
 app.post('/', async (c) => {

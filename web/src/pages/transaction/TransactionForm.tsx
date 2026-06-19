@@ -28,6 +28,20 @@ function toDatetimeLocal(unix: number): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+function normalizeDatePreset(value: string | null): string | null {
+  if (!value) return null;
+  const dateOnlyMatch = /^(\d{4}-\d{2}-\d{2})$/.exec(value);
+  if (dateOnlyMatch) return `${dateOnlyMatch[1]}T00:00`;
+  const datetimeMatch = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (datetimeMatch) return value;
+  return null;
+}
+
+function toDateOnly(value: string): string {
+  return value.split('T')[0];
+}
+
 function fromDatetimeLocal(v: string): number {
   return Math.floor(new Date(v).getTime() / 1000);
 }
@@ -77,9 +91,12 @@ export default function TransactionForm() {
   const isEdit   = Boolean(id);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const presetAccountId = searchParams.get('account_id');
+  const presetDate = normalizeDatePreset(searchParams.get('date'));
+  const continueMode = !isEdit && (presetDate !== null || presetAccountId !== null);
 
   const [type,       setType]       = useState<TransactionType>('expense');
-  const [date,       setDate]       = useState(() => toDatetimeLocal(Math.floor(Date.now() / 1000)));
+  const [date,       setDate]       = useState(() => presetDate ?? toDatetimeLocal(Math.floor(Date.now() / 1000)));
   const [accountId,  setAccountId]  = useState('');
   const [transferTo, setTransferTo] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -87,6 +104,7 @@ export default function TransactionForm() {
   const [note,       setNote]       = useState('');
   const [fee,        setFee]        = useState<number | null>(null);
   const [parentTxId, setParentTxId] = useState<string | null>(null);
+  const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
 
   const [recurringEnabled, setRecurringEnabled] = useState(false);
   const [recurringMode,    setRecurringMode]    = useState<RecurringMode>('recurring');
@@ -122,10 +140,13 @@ export default function TransactionForm() {
           setCategoryId(tx.category_id ?? ''); setAmount(tx.amount);
           setNote(tx.note ?? ''); setFee(tx.fee);
           setParentTxId(tx.parent_transaction_id);
+          setPaymentTransactionId(tx.payment_transaction_id);
         } else {
-          const presetAccountId = searchParams.get('account_id');
           if (presetAccountId && accts.some((account) => account.id === presetAccountId)) {
             setAccountId(presetAccountId);
+          }
+          if (presetDate) {
+            setDate(presetDate);
           }
         }
       } catch (err) {
@@ -136,21 +157,48 @@ export default function TransactionForm() {
     }
     load();
     return () => { cancelled = true; };
-  }, [id, searchParams]);
+  }, [id, presetDate, searchParams]);
 
   function handleTypeChange(t: TransactionType) {
     setType(t); setCategoryId('');
     if (t !== 'transfer') { setTransferTo(''); setFee(null); }
   }
 
-  const categoryLocked  = isEdit && (transferTo !== '' || parentTxId !== null);
-  const showTransferTo  = type === 'transfer' || (isEdit && transferTo !== '');
-  const showFee         = type === 'transfer' && (!isEdit || fee !== null);
+  const sourceAccount = accounts.find((account) => account.id === accountId) ?? null;
+  const transferLike = transferTo !== '';
+  const displayType: TransactionType = transferLike ? 'transfer' : type;
+  const categoryLocked  = isEdit && (transferLike || parentTxId !== null);
+  const showTransferTo  = displayType === 'transfer';
+  const showFee         = displayType === 'transfer' && (!isEdit || fee !== null);
   const categoryItems   = categories.filter((c) => c.type === type);
   const installmentBase = recurringTotal > 0 ? Math.floor(amount / recurringTotal) : 0;
 
   const accountName  = (v: string) => accounts.find((a) => a.id === v)?.name ?? '';
   const categoryName = (v: string) => categories.find((c) => c.id === v)?.name ?? '';
+  const hasAmount = amount !== 0;
+  const transferTypeOptions = !isEdit && sourceAccount?.type === 'credit_card'
+    ? TRANSACTION_TYPES.filter((transactionType) => transactionType !== 'transfer')
+    : TRANSACTION_TYPES;
+
+  useEffect(() => {
+    if (!isEdit && type === 'transfer' && sourceAccount?.type === 'credit_card') {
+      setType('expense');
+      setTransferTo('');
+      setFee(null);
+    }
+  }, [isEdit, sourceAccount?.type, type]);
+
+  function resetForContinue() {
+    setAmount(0);
+    setNote('');
+    setCategoryId('');
+    if (presetDate !== null) {
+      setDate(date);
+    }
+    if (presetAccountId !== null) {
+      setAccountId(accountId || presetAccountId);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -158,12 +206,13 @@ export default function TransactionForm() {
     if (!isEdit) {
       if (!accountId) { setError(type === 'transfer' ? 'Select a from account' : 'Select an account'); return; }
       if (type === 'transfer') {
+        if (sourceAccount?.type === 'credit_card') { setError('Credit card account cannot be a transfer source'); return; }
         if (!transferTo) { setError('Select a to account'); return; }
         if (transferTo === accountId) { setError('From and To accounts must differ'); return; }
       } else if (!categoryId) { setError('Select a category'); return; }
     }
-    if (amount <= 0) { setError('Enter an amount'); return; }
-    if (!isEdit && recurringEnabled && recurringMode === 'installment' && amount < recurringTotal) {
+    if (amount === 0) { setError('Enter an amount'); return; }
+    if (!isEdit && recurringEnabled && recurringMode === 'installment' && Math.abs(amount) < recurringTotal) {
       setError(`Amount must be at least ${recurringTotal} for installment`); return;
     }
     setSaving(true);
@@ -185,6 +234,18 @@ export default function TransactionForm() {
         }
         if (recurringEnabled) body.recurring = { mode: recurringMode, total: recurringTotal };
         await apiFetch('/transactions', { method: 'POST', body: JSON.stringify(body) });
+      }
+      if (continueMode && !isEdit) {
+        const nextSearchParams = new URLSearchParams();
+        if (presetDate) {
+          nextSearchParams.set('date', toDateOnly(date));
+        }
+        if (presetAccountId) {
+          nextSearchParams.set('account_id', accountId || presetAccountId);
+        }
+        resetForContinue();
+        navigate(`/transactions/new?${nextSearchParams.toString()}`, { replace: true });
+        return;
       }
       navigate('/transactions');
     } catch (err) {
@@ -252,7 +313,7 @@ export default function TransactionForm() {
               display: 'flex', background: 'var(--surface-2)',
               border: '1px solid var(--line)', borderRadius: 16, padding: 4, gap: 4,
             }}>
-              {TRANSACTION_TYPES.map((t) => (
+              {transferTypeOptions.map((t) => (
                 <button key={t} type="button" onClick={() => handleTypeChange(t)} style={{
                   flex: 1, border: 'none', borderRadius: 12, padding: '10px 0',
                   fontSize: 13.5, fontWeight: 700, fontFamily: 'inherit',
@@ -272,32 +333,32 @@ export default function TransactionForm() {
               borderRadius: 14, padding: '10px 14px',
               fontSize: 13.5, fontWeight: 600, color: 'var(--muted)',
             }}>
-              Type: <span style={{ color: 'var(--ink)', textTransform: 'capitalize', fontWeight: 700 }}>{type}</span>
+              Type: <span style={{ color: 'var(--ink)', textTransform: 'capitalize', fontWeight: 700 }}>{displayType}</span>
             </div>
           )}
 
           {/* ── Amount hero ──────────────────────────────────────── */}
           <button type="button" onClick={() => setActiveCalculator('amount')} style={{
-            background: 'var(--surface)', border: `1.5px solid ${amount > 0 ? 'var(--accent)' : 'var(--line)'}`,
+            background: 'var(--surface)', border: `1.5px solid ${hasAmount ? 'var(--accent)' : 'var(--line)'}`,
             borderRadius: 18, padding: '18px 20px', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            boxShadow: amount > 0 ? '0 4px 16px -6px var(--accent)' : 'none',
+            boxShadow: hasAmount ? '0 4px 16px -6px var(--accent)' : 'none',
             transition: 'all .15s',
           }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
               <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--muted)' }}>Rp</span>
               <span style={{
                 fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em',
-                color: amount > 0 ? 'var(--ink)' : 'var(--muted)',
+                color: hasAmount ? 'var(--ink)' : 'var(--muted)',
               }}>
-                {amount > 0 ? new Intl.NumberFormat('id-ID').format(amount) : '0'}
+                {hasAmount ? new Intl.NumberFormat('id-ID').format(amount) : '0'}
               </span>
             </div>
             <span style={{ color: 'var(--muted)' }}><CalcIcon /></span>
           </button>
 
           {/* ── Account ──────────────────────────────────────────── */}
-          <FieldRow icon={<WalletIcon />} label={type === 'transfer' ? 'From' : 'Account'}>
+          <FieldRow icon={<WalletIcon />} label={displayType === 'transfer' ? 'From' : 'Account'}>
             {isEdit ? (
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{accountName(accountId)}</span>
             ) : (
@@ -335,7 +396,7 @@ export default function TransactionForm() {
           )}
 
           {/* ── Category ─────────────────────────────────────────── */}
-          {type !== 'transfer' && (
+          {displayType !== 'transfer' && (
             <FieldRow icon={<TagIcon />} label="Category">
               {categoryLocked ? (
                 <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{categoryName(categoryId)}</span>
@@ -351,6 +412,27 @@ export default function TransactionForm() {
                   <span style={{ color: 'var(--muted)' }}><ChevronRight /></span>
                 </button>
               )}
+            </FieldRow>
+          )}
+
+          {paymentTransactionId && (
+            <FieldRow icon={<WalletIcon />} label="Paid by">
+              <button
+                type="button"
+                onClick={() => navigate(`/transactions/${paymentTransactionId}/edit`)}
+                style={{
+                  padding: 0,
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--accent)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {paymentTransactionId}
+              </button>
             </FieldRow>
           )}
 
@@ -509,6 +591,15 @@ export default function TransactionForm() {
 
           {/* ── Save / Cancel ─────────────────────────────────────── */}
           <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+            <button type="button" disabled={saving || deleting} onClick={() => navigate('/transactions')} style={{
+              flex: 1, borderRadius: 16, padding: '14px 0',
+              border: '1.5px solid var(--line)', background: 'var(--surface)',
+              color: 'var(--muted)', fontSize: 15, fontWeight: 700,
+              fontFamily: 'inherit', cursor: saving || deleting ? 'wait' : 'pointer',
+              opacity: saving || deleting ? 0.7 : 1,
+            }}>
+              Cancel
+            </button>
             <div style={{ flex: 1, position: 'relative' }}>
               <div style={{
                 position: 'absolute', inset: 4, borderRadius: 14,
@@ -522,18 +613,9 @@ export default function TransactionForm() {
                 cursor: saving || deleting ? 'wait' : 'pointer', opacity: saving || deleting ? 0.7 : 1,
                 boxShadow: '0 8px 20px -6px var(--accent)', transition: 'opacity .2s',
               }}>
-                {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add transaction'}
+                {saving ? 'Saving…' : isEdit ? 'Save changes' : continueMode ? 'Continue' : 'Add transaction'}
               </button>
             </div>
-            <button type="button" disabled={saving || deleting} onClick={() => navigate('/transactions')} style={{
-              flex: 1, borderRadius: 16, padding: '14px 0',
-              border: '1.5px solid var(--line)', background: 'var(--surface)',
-              color: 'var(--muted)', fontSize: 15, fontWeight: 700,
-              fontFamily: 'inherit', cursor: saving || deleting ? 'wait' : 'pointer',
-              opacity: saving || deleting ? 0.7 : 1,
-            }}>
-              Cancel
-            </button>
           </div>
 
           {isEdit && (

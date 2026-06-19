@@ -32,8 +32,14 @@ export default function TileLookup<T extends TileLookupItem>({
 }: TileLookupProps<T>) {
   const [drilled, setDrilled] = useState<T | null>(null);
 
+  function byName(left: T, right: T): number {
+    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+  }
+
   function childrenOf(parentId: string): T[] {
-    return items.filter((item) => item.parent_id === parentId && item.is_active === 1);
+    return items
+      .filter((item) => item.parent_id === parentId && item.is_active === 1)
+      .sort(byName);
   }
 
   function choose(id: string) {
@@ -41,7 +47,9 @@ export default function TileLookup<T extends TileLookupItem>({
     onClose();
   }
 
-  const topLevel = items.filter((item) => item.parent_id === null && item.is_active === 1);
+  const topLevel = items
+    .filter((item) => item.parent_id === null && item.is_active === 1)
+    .sort(byName);
   const children = drilled ? childrenOf(drilled.id) : [];
 
   return (

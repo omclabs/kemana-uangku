@@ -168,10 +168,11 @@ export default function AccountForm() {
 
   if (loading) return <p style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>Loading…</p>;
 
+  const byName = (left: Account, right: Account) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
   const topLevelAccounts = accounts.filter(
     (a) => a.parent_id === null && a.id !== id && a.is_active === 1,
-  );
-  const parentOptions   = topLevelAccounts.filter((a) => a.type === type);
+  ).sort(byName);
+  const parentOptions   = topLevelAccounts.filter((a) => a.type === type).sort(byName);
   const parentSelectOptions = [
     { value: '', label: 'None (top-level)', hint: 'Create this as a main account' },
     ...parentOptions.map((account) => ({
@@ -180,7 +181,7 @@ export default function AccountForm() {
       hint: TYPE_META[account.type].label,
     })),
   ];
-  const children        = accounts.filter((a) => a.parent_id === id);
+  const children        = accounts.filter((a) => a.parent_id === id).sort(byName);
   const hasActiveKids   = children.some((c) => c.is_active === 1);
 
   return (

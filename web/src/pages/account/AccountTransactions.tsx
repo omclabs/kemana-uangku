@@ -69,6 +69,11 @@ function statFmt(value: number): string {
   return new Intl.NumberFormat('id-ID').format(Math.round(Math.abs(value)));
 }
 
+function signedFmt(value: number): string {
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}Rp ${statFmt(value)}`;
+}
+
 function chartLabel(value: number): string {
   const abs = Math.abs(value);
   if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(1)}M`;
@@ -76,7 +81,14 @@ function chartLabel(value: number): string {
   return String(Math.round(abs));
 }
 
-type Tab = 'daily' | 'monthly' | 'annually';
+function cellFmt(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(2).replace('.', ',')}jt`;
+  if (abs >= 1_000) return statFmt(value);
+  return statFmt(value);
+}
+
+type Tab = 'daily' | 'calendar' | 'monthly';
 type View = 'chart' | 'list';
 
 interface MonthStat {
@@ -99,20 +111,100 @@ interface DayGroup {
   items: Transaction[];
 }
 
+interface DayCell {
+  date: Date;
+  day: number;
+  inMonth: boolean;
+  isToday: boolean;
+  deposit: number;
+  withdrawal: number;
+}
+
+interface WeekRange {
+  key: string;
+  label: string;
+  start: Date;
+  end: Date;
+  deposit: number;
+  withdrawal: number;
+}
+
+interface YearMonth {
+  year: number;
+  month: number;
+  label: string;
+  range: string;
+  deposit: number;
+  withdrawal: number;
+  weeks: WeekRange[];
+}
+
 function classifyTx(transaction: Transaction, accountId: string): 'deposit' | 'withdrawal' {
   if (
     (transaction.type === 'income' && transaction.account_id === accountId) ||
-    (transaction.type === 'transfer' && transaction.transfer_to === accountId)
+    transaction.transfer_to === accountId
   ) {
     return 'deposit';
   }
   return 'withdrawal';
 }
 
+const DAY_MS = 86_400_000;
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CHART_LEFT = 36;
 const CHART_WIDTH = 264;
 const CHART_HEIGHT = 110;
 const CHART_BOTTOM = 46;
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function sameDay(left: Date, right: Date): boolean {
+  return left.getFullYear() === right.getFullYear()
+    && left.getMonth() === right.getMonth()
+    && left.getDate() === right.getDate();
+}
+
+function weekStart(date: Date): Date {
+  const start = startOfDay(date);
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
+function fmtMD(date: Date): string {
+  return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function fmtMDY(date: Date): string {
+  return `${fmtMD(date)}.${String(date.getFullYear()).slice(2)}`;
+}
+
+function monthKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function dateKey(timestamp: number): string {
+  const date = new Date(timestamp * 1000);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function statementCycleStart(year: number, month: number, billingDay: number): Date {
+  return new Date(year, month, billingDay + 1, 0, 0, 0, 0);
+}
+
+function nextStatementCycleStart(start: Date, billingDay: number): Date {
+  return new Date(start.getFullYear(), start.getMonth() + 1, billingDay + 1, 0, 0, 0, 0);
+}
+
+function statementCycleEndInclusive(endExclusive: Date): Date {
+  return new Date(endExclusive.getFullYear(), endExclusive.getMonth(), endExclusive.getDate() - 1, 0, 0, 0, 0);
+}
+
+function periodTitleRange(start: Date, endExclusive: Date): string {
+  const endInclusive = statementCycleEndInclusive(endExclusive);
+  return `${start.toLocaleString('en', { month: 'short' })} ${start.getDate()} - ${endInclusive.toLocaleString('en', { month: 'short' })} ${endInclusive.getDate()}`;
+}
 
 function niceScale(max: number): number {
   if (max <= 0) return 1_000_000;
@@ -266,6 +358,193 @@ function BarChart({ stats }: { stats: MonthStat[] }) {
   );
 }
 
+function CalendarView({
+  cells,
+  summary,
+}: {
+  cells: DayCell[];
+  summary: { income: number; expense: number };
+}) {
+  const total = summary.income - summary.expense;
+  const weeks: DayCell[][] = [];
+  for (let index = 0; index < cells.length; index += 7) {
+    weeks.push(cells.slice(index, index + 7));
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', padding: '10px 16px 9px', borderBottom: '1px solid var(--line)' }}>
+        <div>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Income</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--income)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(summary.income)}</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Expenses</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--expense)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(summary.expense)}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Total</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: total >= 0 ? 'var(--income)' : 'var(--muted)', letterSpacing: '-.025em', marginTop: 2 }}>
+            {signedFmt(total).replace('Rp ', '')}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+        {WEEKDAYS.map((weekday, index) => (
+          <div key={weekday} style={{ flex: 1, textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: index === 6 ? 'var(--accent)' : 'var(--muted)', padding: '5px 0' }}>
+            {weekday}
+          </div>
+        ))}
+      </div>
+
+      {weeks.map((week, weekIndex) => (
+        <div key={weekIndex} style={{ display: 'flex', borderBottom: '1px solid var(--line)' }}>
+          {week.map((cell, cellIndex) => {
+            const net = cell.deposit - cell.withdrawal;
+            return (
+              <div
+                key={cellIndex}
+                style={{
+                  flex: 1,
+                  padding: '3px 2px',
+                  minHeight: 70,
+                  overflow: 'hidden',
+                  borderRight: cellIndex < 6 ? '1px solid var(--line)' : 'none',
+                  opacity: cell.inMonth ? 1 : 0.42,
+                  background: cell.isToday ? 'color-mix(in srgb, var(--accent) 9%, transparent)' : 'transparent',
+                }}
+              >
+                {cell.isToday ? (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, background: 'var(--accent)', borderRadius: 4, fontSize: 11, fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+                    {cell.day}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 11, fontWeight: cell.inMonth ? 700 : 500, color: cellIndex === 6 ? 'var(--accent)' : cell.inMonth ? 'var(--ink)' : 'var(--muted)' }}>
+                    {cell.day}
+                  </div>
+                )}
+                {cell.deposit > 0 && (
+                  <div style={{ fontSize: 6, fontWeight: 700, color: 'var(--income)', textAlign: 'right', marginTop: 2, lineHeight: 1.4 }}>
+                    {cellFmt(cell.deposit)}
+                  </div>
+                )}
+                {cell.withdrawal > 0 && (
+                  <div style={{ fontSize: 6, fontWeight: 700, color: 'var(--expense)', textAlign: 'right', lineHeight: 1.4 }}>
+                    {cellFmt(cell.withdrawal)}
+                  </div>
+                )}
+                {cell.deposit > 0 && cell.withdrawal > 0 && (
+                  <div style={{ fontSize: 5.5, color: 'var(--muted)', textAlign: 'right', lineHeight: 1.4 }}>
+                    {signedFmt(net).replace('Rp ', '')}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MonthlyView({
+  months,
+  expandedMonth,
+}: {
+  months: YearMonth[];
+  expandedMonth: number;
+}) {
+  const totalIncome = months.reduce((sum, month) => sum + month.deposit, 0);
+  const totalExpenses = months.reduce((sum, month) => sum + month.withdrawal, 0);
+  const totalNet = totalIncome - totalExpenses;
+  const today = new Date();
+
+  const monthRow = (month: YearMonth, expanded: boolean) => {
+    const net = month.deposit - month.withdrawal;
+    return (
+      <div style={{ display: 'flex', alignItems: 'flex-start', padding: '10px 14px', borderBottom: '1px solid var(--line)', background: expanded ? 'var(--surface-2)' : 'transparent' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: expanded ? 800 : 700, color: 'var(--ink)' }}>{month.label}</div>
+          {expanded && <div style={{ fontSize: 8.5, color: 'var(--muted)', marginTop: 1 }}>{month.range}</div>}
+        </div>
+        <div style={{ width: 105, textAlign: 'right', fontSize: 10, fontWeight: 700, color: month.deposit > 0 ? 'var(--income)' : 'var(--muted)' }}>
+          Rp {statFmt(month.deposit)}
+        </div>
+        <div style={{ width: 105, textAlign: 'right' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: month.withdrawal > 0 ? 'var(--expense)' : 'var(--muted)' }}>Rp {statFmt(month.withdrawal)}</div>
+          <div style={{ fontSize: 8.5, fontWeight: 600, color: net >= 0 && net !== 0 ? 'var(--income)' : 'var(--muted)' }}>{signedFmt(net)}</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', padding: '10px 14px 9px', borderBottom: '1px solid var(--line)' }}>
+        <div>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Income</div>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--income)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(totalIncome)}</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Expenses</div>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--expense)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(totalExpenses)}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 8.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Total</div>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: totalNet >= 0 ? 'var(--income)' : 'var(--expense)', letterSpacing: '-.025em', marginTop: 2 }}>{statFmt(totalNet)}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', padding: '5px 14px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+        <div style={{ flex: 1 }} />
+        <div style={{ width: 105, textAlign: 'right', fontSize: 8.5, fontWeight: 700, color: 'var(--muted)' }}>Income</div>
+        <div style={{ width: 105, textAlign: 'right', fontSize: 8.5, fontWeight: 700, color: 'var(--muted)' }}>Expenses · Total</div>
+      </div>
+
+      {months.map((month) => {
+        const expanded = month.month === expandedMonth;
+        if (!expanded) {
+          return <div key={month.month}>{monthRow(month, false)}</div>;
+        }
+
+        return (
+          <div key={month.month}>
+            {monthRow(month, true)}
+            {month.weeks.map((week) => {
+              const net = week.deposit - week.withdrawal;
+              const current = today >= week.start && today <= week.end;
+              return (
+                <div
+                  key={week.key}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px 14px 8px 22px',
+                    borderBottom: '1px solid var(--line)',
+                    background: current ? 'color-mix(in srgb, var(--expense) 13%, var(--bg))' : 'transparent',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 10, fontWeight: current ? 700 : 600, color: current ? 'var(--ink)' : 'var(--muted)', whiteSpace: 'nowrap' }}>
+                    {week.label}
+                  </div>
+                  <div style={{ width: 105, textAlign: 'right', fontSize: 10, fontWeight: 700, color: week.deposit > 0 ? 'var(--income)' : 'var(--muted)' }}>
+                    Rp {statFmt(week.deposit)}
+                  </div>
+                  <div style={{ width: 105, textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: week.withdrawal > 0 ? 'var(--expense)' : 'var(--ink)' }}>Rp {statFmt(week.withdrawal)}</div>
+                    <div style={{ fontSize: 8.5, fontWeight: 600, color: 'var(--muted)' }}>{signedFmt(net)}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AccountTransactions() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -316,6 +595,14 @@ export default function AccountTransactions() {
   }, [id]);
 
   const account = useMemo(() => accounts.find((item) => item.id === id) ?? null, [accounts, id]);
+  const billingDay = account?.type === 'credit_card' ? account.billing_date : null;
+  const isCreditCardStatement = billingDay !== null;
+  const statementRange = useMemo(() => {
+    if (!isCreditCardStatement || billingDay === null) return null;
+    const start = statementCycleStart(selectedMonth.getFullYear(), selectedMonth.getMonth(), billingDay);
+    const endExclusive = nextStatementCycleStart(start, billingDay);
+    return { start, endExclusive };
+  }, [billingDay, isCreditCardStatement, selectedMonth]);
 
   const accountTxs = useMemo(() => {
     if (!id) return [];
@@ -328,12 +615,13 @@ export default function AccountTransactions() {
     () =>
       accountTxs.filter((transaction) => {
         const date = new Date(transaction.date * 1000);
-        return (
-          date.getFullYear() === selectedMonth.getFullYear() &&
-          date.getMonth() === selectedMonth.getMonth()
-        );
+        if (statementRange) {
+          return date >= statementRange.start && date < statementRange.endExclusive;
+        }
+        return date.getFullYear() === selectedMonth.getFullYear()
+          && date.getMonth() === selectedMonth.getMonth();
       }),
-    [accountTxs, selectedMonth],
+    [accountTxs, selectedMonth, statementRange],
   );
 
   const summary = useMemo(() => {
@@ -415,19 +703,138 @@ export default function AccountTransactions() {
     return [...groups.values()].sort((left, right) => right.date.getTime() - left.date.getTime());
   }, [monthTxs, id]);
 
+  const calendar = useMemo(() => {
+    const today = new Date();
+    const dayMap = new Map<string, { deposit: number; withdrawal: number }>();
+    let income = 0;
+    let expense = 0;
+
+    if (id) {
+      for (const transaction of monthTxs) {
+        const key = dateKey(transaction.date);
+        const entry = dayMap.get(key) ?? { deposit: 0, withdrawal: 0 };
+        if (classifyTx(transaction, id) === 'deposit') {
+          entry.deposit += transaction.amount;
+          income += transaction.amount;
+        } else {
+          entry.withdrawal += transaction.amount;
+          expense += transaction.amount;
+        }
+        dayMap.set(key, entry);
+      }
+    }
+
+    const periodStart = statementRange?.start ?? new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+    const periodEndExclusive = statementRange?.endExclusive ?? new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1);
+    const first = weekStart(periodStart);
+    const cells: DayCell[] = [];
+    for (let index = 0; index < 42; index += 1) {
+      const date = new Date(first.getTime() + index * DAY_MS);
+      const inMonth = date >= periodStart && date < periodEndExclusive;
+      const entry = inMonth ? dayMap.get(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`) ?? { deposit: 0, withdrawal: 0 } : { deposit: 0, withdrawal: 0 };
+      cells.push({
+        date,
+        day: date.getDate(),
+        inMonth,
+        isToday: sameDay(date, today),
+        deposit: entry.deposit,
+        withdrawal: entry.withdrawal,
+      });
+    }
+
+    const trimmed = cells.length === 42 && cells.slice(35).every((cell) => !cell.inMonth) ? cells.slice(0, 35) : cells;
+    return { cells: trimmed, summary: { income, expense } };
+  }, [monthTxs, selectedMonth, id, statementRange]);
+
+  const yearMonths = useMemo<YearMonth[]>(() => {
+    const year = selectedMonth.getFullYear();
+    const buckets: YearMonth[] = Array.from({ length: 12 }, (_, month) => ({
+      year,
+      month,
+      label: new Date(year, month, 1).toLocaleString('en', { month: 'short' }),
+      range: isCreditCardStatement && billingDay !== null
+        ? `${fmtMD(statementCycleStart(year, month, billingDay))} ~ ${fmtMD(statementCycleEndInclusive(nextStatementCycleStart(statementCycleStart(year, month, billingDay), billingDay)))}`
+        : `${month + 1}.1 ~ ${month + 1}.${new Date(year, month + 1, 0).getDate()}`,
+      deposit: 0,
+      withdrawal: 0,
+      weeks: [],
+    }));
+
+    if (id) {
+      for (const transaction of accountTxs) {
+        const date = new Date(transaction.date * 1000);
+        const bucketIndex = isCreditCardStatement && billingDay !== null
+          ? buckets.findIndex((bucket) => {
+            const start = statementCycleStart(year, bucket.month, billingDay);
+            const endExclusive = nextStatementCycleStart(start, billingDay);
+            return date >= start && date < endExclusive;
+          })
+          : date.getFullYear() === year ? date.getMonth() : -1;
+        if (bucketIndex < 0) continue;
+        const bucket = buckets[bucketIndex];
+        if (classifyTx(transaction, id) === 'deposit') bucket.deposit += transaction.amount;
+        else bucket.withdrawal += transaction.amount;
+      }
+    }
+
+    const month = selectedMonth.getMonth();
+    const monthStartDate = isCreditCardStatement && billingDay !== null
+      ? statementCycleStart(year, month, billingDay)
+      : new Date(year, month, 1);
+    const monthEndExclusive = isCreditCardStatement && billingDay !== null
+      ? nextStatementCycleStart(monthStartDate, billingDay)
+      : new Date(year, month + 1, 1);
+    const weeks: WeekRange[] = [];
+    let cursor = weekStart(monthStartDate);
+    while (cursor < monthEndExclusive) {
+      const end = new Date(cursor.getTime() + 6 * DAY_MS);
+      weeks.push({
+        key: cursor.toISOString(),
+        label: `${fmtMD(cursor)} ~ ${fmtMD(end)}`,
+        start: startOfDay(cursor),
+        end: new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59),
+        deposit: 0,
+        withdrawal: 0,
+      });
+      cursor = new Date(cursor.getTime() + 7 * DAY_MS);
+    }
+
+    if (id) {
+      for (const transaction of accountTxs) {
+        const date = new Date(transaction.date * 1000);
+        if (date < monthStartDate || date >= monthEndExclusive) continue;
+        const week = weeks.find((entry) => date >= entry.start && date <= entry.end);
+        if (!week) continue;
+        if (classifyTx(transaction, id) === 'deposit') week.deposit += transaction.amount;
+        else week.withdrawal += transaction.amount;
+      }
+    }
+
+    buckets[month].weeks = weeks.reverse();
+    return buckets
+      .filter((bucket) => bucket.month <= month || bucket.deposit > 0 || bucket.withdrawal > 0)
+      .sort((left, right) => right.month - left.month);
+  }, [accountTxs, selectedMonth, id, billingDay, isCreditCardStatement]);
+
   const statementLabel = useMemo(() => {
+    if ((tab === 'daily' || tab === 'calendar') && statementRange) {
+      return `${fmtMDY(statementRange.start)} ~ ${fmtMDY(statementCycleEndInclusive(statementRange.endExclusive))}`;
+    }
     const year = selectedMonth.getFullYear();
     const month = selectedMonth.getMonth();
     const yearShort = String(year).slice(2);
     const monthPadded = String(month + 1).padStart(2, '0');
     const lastDay = new Date(year, month + 1, 0).getDate();
+    if (tab === 'daily' || tab === 'calendar') return `${monthPadded}.1.${yearShort} ~ ${monthPadded}.${lastDay}.${yearShort}`;
+    return String(year);
+  }, [selectedMonth, tab, statementRange]);
 
-    if (tab === 'daily') return `${monthPadded}.1.${yearShort} ~ ${monthPadded}.${lastDay}.${yearShort}`;
-    if (tab === 'monthly') return String(year);
-    return 'All time';
-  }, [selectedMonth, tab]);
-
-  const monthTitle = selectedMonth.toLocaleString('en', { month: 'short', year: 'numeric' });
+  const isYearScope = tab === 'monthly';
+  const periodTitle = isYearScope
+    ? String(selectedMonth.getFullYear())
+    : statementRange
+      ? periodTitleRange(statementRange.start, statementRange.endExclusive)
+      : selectedMonth.toLocaleString('en', { month: 'short', year: 'numeric' });
   const catMap = new Map(categories.map((category) => [category.id, category]));
 
   const tabStyle = (active: boolean): CSSProperties => ({
@@ -485,6 +892,8 @@ export default function AccountTransactions() {
     { label: 'Balance', value: statFmt(summary.balance), color: 'var(--accent)' },
   ] as const;
 
+  const showViewToggle = tab === 'daily';
+
   return (
     <div style={{ minHeight: '100%', background: 'var(--bg)' }}>
       <div style={{ margin: '0 auto', width: '100%', maxWidth: 768, display: 'flex', minHeight: '100%', flexDirection: 'column', position: 'relative' }}>
@@ -526,14 +935,14 @@ export default function AccountTransactions() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
             <button
-              onClick={() => setSelectedMonth((date) => new Date(date.getFullYear(), date.getMonth() - 1, 1))}
+              onClick={() => setSelectedMonth((date) => isYearScope ? new Date(date.getFullYear() - 1, date.getMonth(), 1) : new Date(date.getFullYear(), date.getMonth() - 1, 1))}
               style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8 }}
             >
               <ChevronLeft />
             </button>
-            <span style={{ minWidth: 76, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{monthTitle}</span>
+            <span style={{ minWidth: 76, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{periodTitle}</span>
             <button
-              onClick={() => setSelectedMonth((date) => new Date(date.getFullYear(), date.getMonth() + 1, 1))}
+              onClick={() => setSelectedMonth((date) => isYearScope ? new Date(date.getFullYear() + 1, date.getMonth(), 1) : new Date(date.getFullYear(), date.getMonth() + 1, 1))}
               style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8 }}
             >
               <ChevronRight />
@@ -543,8 +952,8 @@ export default function AccountTransactions() {
 
         <div style={{ display: 'flex', padding: '0 6px', borderBottom: '1px solid var(--line)', background: 'var(--surface)', flexShrink: 0 }}>
           <button style={tabStyle(tab === 'daily')} onClick={() => setTab('daily')}>Daily</button>
+          <button style={tabStyle(tab === 'calendar')} onClick={() => setTab('calendar')}>Calendar</button>
           <button style={tabStyle(tab === 'monthly')} onClick={() => setTab('monthly')}>Monthly</button>
-          <button style={tabStyle(tab === 'annually')} onClick={() => setTab('annually')}>Annually</button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 8px', background: 'var(--surface)', flexShrink: 0 }}>
@@ -553,13 +962,33 @@ export default function AccountTransactions() {
             <div style={{ marginTop: 1, fontSize: 17, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.02em' }}>{statementLabel}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              onClick={() => setView((current) => (current === 'chart' ? 'list' : 'chart'))}
-              style={{ ...iconButtonStyle, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}
-              title={view === 'chart' ? 'Switch to list' : 'Switch to chart'}
-            >
-              {view === 'chart' ? <ListIcon /> : <ChartBarIcon />}
-            </button>
+            {account.type === 'credit_card' && (
+              <button
+                onClick={() => navigate(`/account/${account.id}/payment?month=${encodeURIComponent(monthKey(selectedMonth))}`)}
+                style={{
+                  borderRadius: 13,
+                  border: '1px solid var(--line)',
+                  background: 'var(--surface)',
+                  padding: '8px 12px',
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: 'var(--ink)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Pay
+              </button>
+            )}
+            {showViewToggle && (
+              <button
+                onClick={() => setView((current) => (current === 'chart' ? 'list' : 'chart'))}
+                style={{ ...iconButtonStyle, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}
+                title={view === 'chart' ? 'Switch to list' : 'Switch to chart'}
+              >
+                {view === 'chart' ? <ListIcon /> : <ChartBarIcon />}
+              </button>
+            )}
             <button
               onClick={() => navigate(`/accounts/${account.id}/edit`)}
               style={{ ...iconButtonStyle, background: 'transparent', color: 'var(--muted)' }}
@@ -602,115 +1031,121 @@ export default function AccountTransactions() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 84 }}>
-          {view === 'chart' ? (
-            <div style={{ padding: '16px 14px 32px' }}>
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ marginBottom: 10, fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
-                  Balance Trend
-                </div>
-                <LineChart stats={monthStats} />
-              </div>
-              <div>
-                <div style={{ marginBottom: 10, fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
-                  Deposit &amp; Withdrawal
-                </div>
-                <BarChart stats={monthStats} />
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--income)', opacity: 0.85 }} />
-                    <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>Deposit</span>
+          {tab === 'daily' && (
+            view === 'chart' ? (
+              <div style={{ padding: '16px 14px 32px' }}>
+                <div style={{ marginBottom: 28 }}>
+                  <div style={{ marginBottom: 10, fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                    Balance Trend
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--expense)', opacity: 0.85 }} />
-                    <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>Withdrawal</span>
+                  <LineChart stats={monthStats} />
+                </div>
+                <div>
+                  <div style={{ marginBottom: 10, fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                    Deposit &amp; Withdrawal
                   </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div>
-              {dayGroups.length === 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 56, color: 'var(--muted)', fontSize: 14 }}>
-                  No transactions this month
-                </div>
-              ) : (
-                dayGroups.map((group) => (
-                  <div key={group.key}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 16px 9px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
-                      <span style={{ minWidth: 30, fontSize: 22, fontWeight: 800, color: 'var(--ink)', lineHeight: 1 }}>
-                        {String(group.day).padStart(2, '0')}
-                      </span>
-                      <span style={{ flexShrink: 0, borderRadius: 5, background: 'var(--accent)', color: '#fff', padding: '2px 6px', fontSize: 9.5, fontWeight: 700 }}>
-                        {group.dayLabel}
-                      </span>
-                      <span style={{ flex: 1, fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>{group.dateStr}</span>
-                      {group.deposit > 0 && <span style={{ whiteSpace: 'nowrap', fontSize: 11, fontWeight: 700, color: 'var(--income)' }}>Rp {statFmt(group.deposit)}</span>}
-                      {group.withdrawal > 0 && (
-                        <span style={{ whiteSpace: 'nowrap', marginLeft: group.deposit > 0 ? 6 : 0, fontSize: 11, fontWeight: 700, color: 'var(--expense)' }}>
-                          Rp {statFmt(group.withdrawal)}
-                        </span>
-                      )}
+                  <BarChart stats={monthStats} />
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--income)', opacity: 0.85 }} />
+                      <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>Deposit</span>
                     </div>
-
-                    {group.items.map((transaction) => {
-                      const category = catMap.get(transaction.category_id ?? '');
-                      const isDeposit = id ? classifyTx(transaction, id) === 'deposit' : false;
-                      const visual = categoryVisual(transaction.type === 'transfer' ? 'transfer' : category?.name);
-                      const label = transaction.note ?? '';
-                      const sublabel = transaction.type === 'transfer'
-                        ? 'Transfer'
-                        : category?.name ?? '';
-
-                      return (
-                        <div
-                          key={transaction.id}
-                          style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 16px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}
-                          onClick={() => navigate(`/transactions/${transaction.id}/edit`)}
-                        >
-                          <div
-                            style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: 11,
-                              background: visual.soft,
-                              color: visual.color,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                              fontWeight: 700,
-                              fontSize: 15,
-                            }}
-                          >
-                            {transaction.type === 'transfer' ? (
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                <path d={isDeposit ? 'M5 12h14M15 6l6 6-6 6' : 'M19 12H5M9 6l-6 6 6 6'} />
-                              </svg>
-                            ) : (
-                              (category?.name ?? 'T').trim()[0].toUpperCase()
-                            )}
-                          </div>
-
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {label}
-                            </div>
-                            {sublabel && <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{sublabel}</div>}
-                          </div>
-
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: isDeposit ? 'var(--income)' : 'var(--expense)' }}>
-                              {isDeposit ? '+' : '−'}Rp {statFmt(transaction.amount)}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--expense)', opacity: 0.85 }} />
+                      <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>Withdrawal</span>
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {dayGroups.length === 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 56, color: 'var(--muted)', fontSize: 14 }}>
+                    No transactions this month
+                  </div>
+                ) : (
+                  dayGroups.map((group) => (
+                    <div key={group.key}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 16px 9px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+                        <span style={{ minWidth: 30, fontSize: 22, fontWeight: 800, color: 'var(--ink)', lineHeight: 1 }}>
+                          {String(group.day).padStart(2, '0')}
+                        </span>
+                        <span style={{ flexShrink: 0, borderRadius: 5, background: 'var(--accent)', color: '#fff', padding: '2px 6px', fontSize: 9.5, fontWeight: 700 }}>
+                          {group.dayLabel}
+                        </span>
+                        <span style={{ flex: 1, fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>{group.dateStr}</span>
+                        {group.deposit > 0 && <span style={{ whiteSpace: 'nowrap', fontSize: 11, fontWeight: 700, color: 'var(--income)' }}>Rp {statFmt(group.deposit)}</span>}
+                        {group.withdrawal > 0 && (
+                          <span style={{ whiteSpace: 'nowrap', marginLeft: group.deposit > 0 ? 6 : 0, fontSize: 11, fontWeight: 700, color: 'var(--expense)' }}>
+                            Rp {statFmt(group.withdrawal)}
+                          </span>
+                        )}
+                      </div>
+
+                      {group.items.map((transaction) => {
+                        const category = catMap.get(transaction.category_id ?? '');
+                        const isDeposit = id ? classifyTx(transaction, id) === 'deposit' : false;
+                        const visual = categoryVisual(transaction.type === 'transfer' ? 'transfer' : category?.name);
+                        const label = transaction.note ?? '';
+                        const sublabel = transaction.type === 'transfer'
+                          ? 'Transfer'
+                          : category?.name ?? '';
+
+                        return (
+                          <div
+                            key={transaction.id}
+                            style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 16px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}
+                            onClick={() => navigate(`/transactions/${transaction.id}/edit`)}
+                          >
+                            <div
+                              style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: 11,
+                                background: visual.soft,
+                                color: visual.color,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                fontWeight: 700,
+                                fontSize: 15,
+                              }}
+                            >
+                              {transaction.type === 'transfer' ? (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                  <path d={isDeposit ? 'M5 12h14M15 6l6 6-6 6' : 'M19 12H5M9 6l-6 6 6 6'} />
+                                </svg>
+                              ) : (
+                                (category?.name ?? 'T').trim()[0].toUpperCase()
+                              )}
+                            </div>
+
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {label}
+                              </div>
+                              {sublabel && <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{sublabel}</div>}
+                            </div>
+
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 800, color: isDeposit ? 'var(--income)' : 'var(--expense)' }}>
+                                {isDeposit ? '+' : '−'}Rp {statFmt(transaction.amount)}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))
+                )}
+              </div>
+            )
           )}
+
+          {tab === 'calendar' && <CalendarView cells={calendar.cells} summary={calendar.summary} />}
+
+          {tab === 'monthly' && <MonthlyView months={yearMonths} expandedMonth={selectedMonth.getMonth()} />}
         </div>
 
         <button
