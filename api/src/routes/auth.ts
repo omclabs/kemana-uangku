@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import bcrypt from 'bcryptjs';
 import type { Bindings } from '../middleware/auth';
 import { authLogin } from '../lib/validation';
+import { assertRequiredBindings, isDefaultAdminPasswordHash } from '../lib/security';
 import { hashToken, newSessionToken, SESSION_TTL_SECONDS } from '../lib/session';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -15,6 +16,8 @@ type UserAuthRow = {
 };
 
 app.post('/login', async (c) => {
+  assertRequiredBindings(c.env);
+
   const body = authLogin.parse(await c.req.json());
 
   const row = await c.env.DB.prepare(
@@ -33,6 +36,9 @@ app.post('/login', async (c) => {
     return c.json({ error: 'Invalid credentials' }, 401);
   }
 
+  const mustChangePassword =
+    row.role === 'admin' && row.id === 'user-admin' && isDefaultAdminPasswordHash(row.password_hash);
+
   const token = newSessionToken();
   const tokenHash = await hashToken(token);
   const sessionId = crypto.randomUUID();
@@ -45,7 +51,7 @@ app.post('/login', async (c) => {
     .bind(sessionId, row.id, tokenHash, expiresAt)
     .run();
 
-  return c.json({ token, user: { id: row.id, username: row.username, role: row.role } }, 200);
+  return c.json({ token, must_change_password: mustChangePassword, user: { id: row.id, username: row.username, role: row.role } }, 200);
 });
 
 export default app;

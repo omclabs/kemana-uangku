@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
-import { configUpdate } from '../lib/validation';
+import bcrypt from 'bcryptjs';
+import { configClearData, configUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -53,6 +54,20 @@ app.post('/clear-data', async (c) => {
   if (forbidden) return forbidden;
 
   const actor = getCurrentUser(c);
+  const body = configClearData.parse(await c.req.json());
+
+  const existing = await c.env.DB.prepare('SELECT password_hash FROM users WHERE id = ?')
+    .bind(actor?.id ?? null)
+    .first<{ password_hash: string }>();
+
+  if (!existing) {
+    return c.json({ error: 'Admin account not found' }, 404);
+  }
+
+  const valid = await bcrypt.compare(body.current_password, existing.password_hash);
+  if (!valid) {
+    return c.json({ error: 'Current password is incorrect' }, 401);
+  }
 
   const [transactions, budgets, monthlyBalances, accounts] = await Promise.all([
     c.env.DB.prepare('SELECT COUNT(*) AS count FROM transactions').first<{ count: number }>(),

@@ -47,6 +47,7 @@ export default function Config() {
   const [error, setError] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const [clearValue, setClearValue] = useState('');
+  const [clearPassword, setClearPassword] = useState('');
   const [clearError, setClearError] = useState<string | null>(null);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
@@ -77,6 +78,10 @@ export default function Config() {
       setClearError('Type confirm to continue.');
       return;
     }
+    if (!clearPassword) {
+      setClearError('Enter your current password to continue.');
+      return;
+    }
 
     setClearing(true);
     setClearError(null);
@@ -85,7 +90,13 @@ export default function Config() {
       const result = await apiFetch<{
         ok: boolean;
         cleared: { transactions: number; budgets: number; monthly_balances: number; accounts: number };
-      }>('/config/clear-data', { method: 'POST' });
+      }>('/config/clear-data', {
+        method: 'POST',
+        body: JSON.stringify({
+          confirmation: 'CLEAR ALL DATA',
+          current_password: clearPassword,
+        }),
+      });
 
       if (result.ok) {
         setClearMessage(
@@ -93,6 +104,7 @@ export default function Config() {
         );
         setClearOpen(false);
         setClearValue('');
+        setClearPassword('');
       }
     } catch (err) {
       setClearError(err instanceof ApiError ? err.message : 'Failed to clear data');
@@ -213,6 +225,7 @@ export default function Config() {
                 setClearMessage(null);
                 setClearError(null);
                 setClearValue('');
+                setClearPassword('');
                 setClearOpen(true);
               }}
               style={{
@@ -298,6 +311,9 @@ export default function Config() {
             <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5, color: 'var(--muted)' }}>
               Type <strong>confirm</strong> to execute.
             </p>
+            <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5, color: 'var(--muted)' }}>
+              Your current password is required for this action.
+            </p>
 
             <input
               value={clearValue}
@@ -320,6 +336,27 @@ export default function Config() {
               }}
             />
 
+            <input
+              type="password"
+              value={clearPassword}
+              onChange={(event) => {
+                setClearPassword(event.target.value);
+                if (clearError) setClearError(null);
+              }}
+              placeholder="Current password"
+              style={{
+                width: '100%',
+                marginTop: 10,
+                borderRadius: 14,
+                border: '1px solid var(--line)',
+                padding: '12px 14px',
+                fontSize: 14,
+                outline: 'none',
+                background: 'var(--background)',
+                color: 'var(--ink)',
+              }}
+            />
+
             {clearError && (
               <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--expense)' }}>{clearError}</p>
             )}
@@ -331,6 +368,7 @@ export default function Config() {
                   if (clearing) return;
                   setClearOpen(false);
                   setClearValue('');
+                  setClearPassword('');
                   setClearError(null);
                 }}
                 style={{

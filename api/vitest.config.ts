@@ -8,7 +8,12 @@ export default defineConfig({
     cloudflareTest({
       wrangler: { configPath: './wrangler.toml' },
       miniflare: {
-        bindings: { API_TOKEN: 'test-token', TEST_MIGRATIONS: migrations },
+        bindings: {
+          API_TOKEN: 'test-token',
+          ALLOW_API_TOKEN_AUTH: 'true',
+          ALLOWED_ORIGINS: 'http://localhost:5173,http://127.0.0.1:5173',
+          TEST_MIGRATIONS: migrations,
+        },
       },
     }),
   ],

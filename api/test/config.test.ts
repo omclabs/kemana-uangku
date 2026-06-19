@@ -106,7 +106,11 @@ describe('/config', () => {
 
     const res = await SELF.fetch('https://example.com/config/clear-data', {
       method: 'POST',
-      headers: AUTH,
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        confirmation: 'CLEAR ALL DATA',
+        current_password: 'admin',
+      }),
     });
     expect(res.status).toBe(200);
 
@@ -179,9 +183,29 @@ describe('/config', () => {
 
     const res = await SELF.fetch('https://example.com/config/clear-data', {
       method: 'POST',
-      headers: { Authorization: 'Bearer test-session-token' },
+      headers: {
+        Authorization: 'Bearer test-session-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        confirmation: 'CLEAR ALL DATA',
+        current_password: 'password1',
+      }),
     });
 
     expect(res.status).toBe(403);
+  });
+
+  it('POST /config/clear-data rejects wrong admin password', async () => {
+    const res = await SELF.fetch('https://example.com/config/clear-data', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        confirmation: 'CLEAR ALL DATA',
+        current_password: 'wrong-password',
+      }),
+    });
+
+    expect(res.status).toBe(401);
   });
 });

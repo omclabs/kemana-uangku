@@ -5,6 +5,8 @@ declare global {
     interface Env {
       DB: D1Database;
       API_TOKEN: string;
+      ALLOW_API_TOKEN_AUTH: string;
+      ALLOWED_ORIGINS: string;
       TEST_MIGRATIONS: { name: string; queries: string[] }[];
     }
   }

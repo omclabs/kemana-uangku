@@ -43,15 +43,23 @@ database_id = "REPLACE_WITH_REAL_ID"
 ### Set the Worker secret
 
 ```bash
-npx wrangler secret put API_TOKEN
+make deploy-api-secret
 ```
 
 Use a long random value. The app returns this token after a successful `/auth/login`, and every protected API request uses it as bearer auth.
 
+### Set the allowed frontend origins
+
+```bash
+make deploy-api-origins ALLOWED_ORIGINS=https://kemana-uangku.pages.dev,https://app.example.com
+```
+
+Set only your real frontend origins. Do not include `localhost` in production.
+
 ### Apply remote migrations
 
 ```bash
-npx wrangler d1 migrations apply kemana-uangku-db --remote
+make deploy-api-migrate
 ```
 
 This will:
@@ -72,7 +80,7 @@ Change the admin password immediately after first login.
 ### Deploy the Worker
 
 ```bash
-npx wrangler deploy
+make deploy-api
 ```
 
 After deploy, note the Worker URL, for example:
@@ -92,7 +100,7 @@ From `web/`:
 ```bash
 cd web
 npm install
-VITE_API_BASE_URL="https://kemana-uangku-api.<subdomain>.workers.dev" npm run build
+make deploy-web API_BASE_URL="https://kemana-uangku-api.<subdomain>.workers.dev"
 ```
 
 This creates the production bundle in `web/dist/`.
@@ -129,6 +137,8 @@ Deploy flow:
 4. Add `VITE_API_BASE_URL`.
 5. Deploy.
 
+If you build manually first, `make deploy-web API_BASE_URL=...` prepares the exact `dist/` directory to upload.
+
 ### Option B: Any static host
 
 If you use another static host:
@@ -161,15 +171,19 @@ After both sides are deployed:
 From `api/`:
 
 ```bash
-npx wrangler d1 migrations apply kemana-uangku-db --remote
-npx wrangler deploy
+make deploy-api-migrate
+make deploy-api
 ```
 
 Run the migrations command first whenever schema or seed migrations changed.
 
 ### Web code changes
 
-Rebuild and redeploy `web/dist` with the same `VITE_API_BASE_URL`.
+Rebuild and redeploy `web/dist` with the same `VITE_API_BASE_URL`:
+
+```bash
+make deploy-web API_BASE_URL="https://kemana-uangku-api.<subdomain>.workers.dev"
+```
 
 ## Notes
 

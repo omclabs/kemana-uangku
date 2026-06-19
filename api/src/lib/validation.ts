@@ -51,6 +51,11 @@ export const configUpdate = z.object({
   currency: z.string().optional(),
 });
 
+export const configClearData = z.object({
+  confirmation: z.literal('CLEAR ALL DATA'),
+  current_password: z.string().min(1),
+});
+
 export const userCreate = z.object({
   username: z.string().min(3),
   email: z.string().email(),
@@ -143,6 +148,7 @@ export type BudgetUpsert = z.infer<typeof budgetUpsert>;
 export type AccountCreate = z.infer<typeof accountCreate>;
 export type AccountUpdate = z.infer<typeof accountUpdate>;
 export type ConfigUpdate = z.infer<typeof configUpdate>;
+export type ConfigClearData = z.infer<typeof configClearData>;
 export type UserCreate = z.infer<typeof userCreate>;
 export type UserUpdate = z.infer<typeof userUpdate>;
 export type AuthLogin = z.infer<typeof authLogin>;

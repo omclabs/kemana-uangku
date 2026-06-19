@@ -1,9 +1,12 @@
 import { createMiddleware } from 'hono/factory';
 import { hashToken } from '../lib/session';
+import { assertRequiredBindings, isApiTokenAuthEnabled } from '../lib/security';
 
 export type Bindings = {
   DB: D1Database;
   API_TOKEN: string;
+  ALLOWED_ORIGINS?: string;
+  ALLOW_API_TOKEN_AUTH?: string;
   AI?: {
     run(model: string, input: unknown): Promise<unknown>;
   };
@@ -30,6 +33,8 @@ export const authMiddleware = createMiddleware<{
   Bindings: Bindings;
   Variables: { currentUser: AuthUser | null };
 }>(async (c, next) => {
+  assertRequiredBindings(c.env);
+
   const authHeader = c.req.header('Authorization');
 
   if (!authHeader) {
@@ -42,7 +47,7 @@ export const authMiddleware = createMiddleware<{
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  if (token !== c.env.API_TOKEN) {
+  if (!isApiTokenAuthEnabled(c.env) || token !== c.env.API_TOKEN) {
     const sessionUser = await c.env.DB.prepare(
       `SELECT u.id, u.username, u.role, u.is_active
        FROM sessions s

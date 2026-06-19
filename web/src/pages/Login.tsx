@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ApiError, apiFetch, setSession } from '../lib/api';
 import type { SessionUser } from '../lib/types';
 
 interface LoginResponse {
   token: string;
+  must_change_password: boolean;
   user: SessionUser;
 }
 
@@ -30,6 +31,8 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const passwordChanged = location.state && typeof location.state === 'object' && 'passwordChanged' in location.state;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -41,7 +44,10 @@ export default function Login() {
         body: JSON.stringify({ username, password }),
       });
       setSession(res.token, res.user);
-      navigate('/dashboard', { replace: true });
+      navigate(res.must_change_password ? '/config/change-password' : '/dashboard', {
+        replace: true,
+        state: res.must_change_password ? { mustChangePassword: true } : undefined,
+      });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed');
     } finally {
@@ -168,6 +174,21 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {passwordChanged && (
+            <div style={{
+              marginBottom: 14,
+              padding: '10px 12px',
+              borderRadius: 14,
+              border: '1px solid rgba(134,255,188,.32)',
+              background: 'rgba(45, 179, 110, .14)',
+              color: '#e9fff1',
+              fontSize: 13,
+              fontWeight: 600,
+            }}>
+              Password updated. Sign in again with the new password.
+            </div>
+          )}
+
           <div style={{ marginBottom: 12 }}>
             <label style={{
               display: 'block', fontSize: 11.5, fontWeight: 700,

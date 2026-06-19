@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ApiError, apiFetch, getUser } from '../lib/api';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ApiError, apiFetch, clearSession, getUser } from '../lib/api';
 import PageContainer from '../components/PageContainer';
 
 function LockIcon() {
@@ -28,19 +28,19 @@ function FieldRow({ icon, label, children }: { icon: React.ReactNode; label: str
 
 export default function ChangePassword() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = getUser();
+  const mustRotateDefaultPassword = location.state && typeof location.state === 'object' && 'mustChangePassword' in location.state;
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setSaved(false);
 
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters.');
@@ -61,10 +61,11 @@ export default function ChangePassword() {
         method: 'POST',
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
       });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setSaved(true);
+      clearSession();
+      navigate('/login', {
+        replace: true,
+        state: { passwordChanged: true },
+      });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to update password');
     } finally {
@@ -153,13 +154,17 @@ export default function ChangePassword() {
               {error}
             </div>
           )}
-          {saved && (
+          {mustRotateDefaultPassword && (
             <div style={{
-              padding: '10px 14px', background: 'var(--income-soft)',
-              border: '1px solid color-mix(in srgb, var(--income) 25%, transparent)',
-              borderRadius: 12, fontSize: 13, color: 'var(--income)', fontWeight: 500,
+              padding: '10px 14px',
+              background: 'color-mix(in srgb, var(--accent) 12%, var(--surface))',
+              border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
+              borderRadius: 12,
+              fontSize: 13,
+              color: 'var(--ink)',
+              fontWeight: 600,
             }}>
-              Password updated.
+              Default admin password is still active. Change it now to harden the app.
             </div>
           )}
 

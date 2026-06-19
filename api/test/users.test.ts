@@ -189,6 +189,11 @@ describe('/users', () => {
     expect(after?.password_hash).not.toBe(before?.password_hash);
     expect(await bcrypt.compare('newpassword1', after!.password_hash)).toBe(true);
 
+    const revokedSessionRes = await SELF.fetch('https://example.com/users', {
+      headers: { Authorization: `Bearer ${selfToken}` },
+    });
+    expect(revokedSessionRes.status).toBe(401);
+
     // Old password no longer works
     const staleRes = await SELF.fetch(`https://example.com/users/${id}/change-password`, {
       method: 'POST',

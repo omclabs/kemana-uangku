@@ -103,6 +103,10 @@ never talks to Cloudflare. Replace it with a real ID only when deploying.
 | `make shell-web` | Open a shell in the running web container |
 | `make build` | Build the api and web Docker images |
 | `make clean` | Stop + remove containers and the `node_modules` volumes (D1 data untouched) |
+| `make deploy-api-migrate` | Apply remote D1 migrations with Wrangler |
+| `make deploy-api` | Deploy the Worker api with Wrangler |
+| `make deploy-web API_BASE_URL=...` | Build `web/dist` for production upload |
+| `make deploy-all API_BASE_URL=...` | Migrate api, deploy api, then build web assets |
 | `make help` | List all targets (default) |
 
 `migrate`, `test`, `logs`, `logs-web`, `shell`, and `shell-web` use

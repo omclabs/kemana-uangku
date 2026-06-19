@@ -209,6 +209,14 @@ app.post('/:id/change-password', async (c) => {
     .bind(passwordHash, actor.id, id)
     .run();
 
+  await c.env.DB.prepare(
+    `UPDATE sessions
+     SET is_active = 0
+     WHERE user_id = ?`
+  )
+    .bind(id)
+    .run();
+
   const row = await c.env.DB.prepare(`SELECT ${SAFE_COLUMNS} FROM users WHERE id = ?`)
     .bind(id)
     .first();

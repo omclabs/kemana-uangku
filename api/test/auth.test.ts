@@ -12,9 +12,14 @@ describe('/auth/login', () => {
       body: JSON.stringify({ username: 'admin', password: 'admin' }),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { token: string; user: { id: string; username: string; role: string } };
+    const body = (await res.json()) as {
+      token: string;
+      must_change_password: boolean;
+      user: { id: string; username: string; role: string };
+    };
     expect(body.token).not.toBe(env.API_TOKEN);
     expect(body.token.length).toBeGreaterThan(20);
+    expect(body.must_change_password).toBe(true);
     expect(body.user.username).toBe('admin');
     expect(body.user.role).toBe('admin');
   });
@@ -65,6 +70,18 @@ describe('/auth/login', () => {
       body: JSON.stringify({ username: 'admin', password: 'admin' }),
     });
     expect(res.status).not.toBe(401);
+  });
+
+  it('rejects disallowed browser origins', async () => {
+    const res = await SELF.fetch('https://example.com/auth/login', {
+      method: 'POST',
+      headers: {
+        ...JSON_HEADERS,
+        Origin: 'https://evil.example',
+      },
+      body: JSON.stringify({ username: 'admin', password: 'admin' }),
+    });
+    expect(res.status).toBe(403);
   });
 });
 
