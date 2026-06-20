@@ -8,3 +8,5 @@ dist/
 .omc
 handoff
 tmp
+api/wrangler.toml
+web/.env.production
