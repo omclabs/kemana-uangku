@@ -12,10 +12,6 @@ type CurrentUser = {
   role: Role;
 };
 
-export function isReimbursement(user: CurrentUser | null | undefined): boolean {
-  return user?.role === 'reimbursement';
-}
-
 export function requireAdmin(c: CurrentUserContext): Response | null {
   const user = getCurrentUser(c);
   if (!user || user.role !== 'admin') {

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
 import { requireNonReimbursement } from '../lib/access';
+import { applyActiveToggleFields, softDeleteStatement } from '../lib/db';
 import { categoryCreate, categoryUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -187,16 +188,7 @@ app.put('/:id', async (c) => {
     values.push(body.budget_monthly);
   }
   if (body.is_active !== undefined) {
-    fields.push('is_active = ?');
-    values.push(body.is_active ? 1 : 0);
-    if (body.is_active) {
-      fields.push('deleted_by = NULL');
-      fields.push('deleted_at = NULL');
-    } else {
-      fields.push('deleted_by = ?');
-      values.push(actor?.id ?? null);
-      fields.push('deleted_at = unixepoch()');
-    }
+    applyActiveToggleFields(fields, values, body.is_active, actor?.id ?? null);
   }
 
   if (fields.length > 0) {
@@ -257,17 +249,7 @@ app.delete('/:id', async (c) => {
     return c.json({ error: 'cannot delete: row has active children' }, 409);
   }
 
-  await c.env.DB.prepare(
-    `UPDATE categories
-     SET is_active = 0,
-         updated_by = ?,
-         deleted_by = ?,
-         deleted_at = unixepoch(),
-         updated_at = unixepoch()
-     WHERE id = ?`
-  )
-    .bind(actor?.id ?? null, actor?.id ?? null, id)
-    .run();
+  await softDeleteStatement(c.env.DB, 'categories', id, actor?.id ?? null).run();
 
   const row = await c.env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first();
 

@@ -13,6 +13,8 @@ import {
   type BalanceOp,
   type TransactionBalanceRow,
 } from '../lib/balance';
+import { LIABILITY_ACCOUNT_TYPES } from '../lib/constants';
+import { inPlaceholders } from '../lib/db';
 import { rebuildMonthlyBalancesFrom } from '../lib/month-balance';
 import { buildReceiptDraft } from '../lib/receipt-import';
 
@@ -20,7 +22,6 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 const FEE_CATEGORY_ID = 'cat-admin';
 const TRANSFER_CATEGORY_ID = 'cat-transfer';
-const LIABILITY_ACCOUNT_TYPES = ['credit_card', 'loan'];
 const SYSTEM_CATEGORY_IDS = [FEE_CATEGORY_ID, TRANSFER_CATEGORY_ID];
 
 type TransactionType = 'income' | 'expense' | 'transfer';
@@ -177,7 +178,7 @@ async function createImportedExpenseRows(
   const minDate = Math.min(...rows.map((row) => row.date));
   await rebuildMonthlyBalancesFrom(db, minDate, actorId);
 
-  const placeholders = insertedIds.map(() => '?').join(',');
+  const placeholders = inPlaceholders(insertedIds);
   const { results } = await db.prepare(
     `SELECT * FROM transactions WHERE id IN (${placeholders}) ORDER BY date ASC, created_at ASC`
   )
@@ -245,7 +246,7 @@ app.get('/', async (c) => {
     if (accessibleAccountIds.length === 0) {
       return c.json([], 200);
     }
-    const placeholders = accessibleAccountIds.map(() => '?').join(',');
+    const placeholders = inPlaceholders(accessibleAccountIds);
     conditions.push(`account_id IN (${placeholders})`);
     values.push(...accessibleAccountIds);
   }
@@ -316,9 +317,6 @@ app.post('/import-receipt/commit', async (c) => {
   const account = await loadActiveAccount(c.env.DB, body.account_id);
   if (!account) {
     return c.json({ error: 'account_id not found or inactive' }, 400);
-  }
-  if (body.type === 'transfer' && account.type === 'credit_card') {
-    return c.json({ error: 'credit card account cannot be a transfer source' }, 400);
   }
 
   const includedRows = body.draft_items.filter((row) => row.included);
@@ -533,7 +531,7 @@ app.post('/', async (c) => {
     actor?.id ?? null
   );
 
-  const placeholders = insertedIds.map(() => '?').join(',');
+  const placeholders = inPlaceholders(insertedIds);
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM transactions WHERE id IN (${placeholders}) ORDER BY date ASC, installment_index ASC`
   )

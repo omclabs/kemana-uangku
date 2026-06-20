@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
 import { requireNonReimbursement } from '../lib/access';
+import { inPlaceholders } from '../lib/db';
 import { budgetUpsert, monthKey } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -118,7 +119,7 @@ app.put('/:month', async (c) => {
   const categoryMap = new Map<string, { id: string; type: string; is_active: number }>();
 
   if (categoryIds.length > 0) {
-    const placeholders = categoryIds.map(() => '?').join(',');
+    const placeholders = inPlaceholders(categoryIds);
     const { results } = await c.env.DB.prepare(
       `SELECT id, type, is_active
        FROM categories

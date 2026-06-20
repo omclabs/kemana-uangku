@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import bcrypt from 'bcryptjs';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
 import { requireAdmin } from '../lib/access';
+import { applyActiveToggleFields, inPlaceholders, softDeleteStatement } from '../lib/db';
 import { changePassword, userCreate, userUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -36,7 +37,7 @@ async function validateAssignedCreditCardAccounts(
   }
 
   const uniqueIds = [...new Set(accountIds)];
-  const placeholders = uniqueIds.map(() => '?').join(',');
+  const placeholders = inPlaceholders(uniqueIds);
   const { results } = await db.prepare(
     `SELECT id, type, is_active
      FROM accounts
@@ -94,7 +95,7 @@ async function loadAssignedAccountIds(
     return grants;
   }
 
-  const placeholders = userIds.map(() => '?').join(',');
+  const placeholders = inPlaceholders(userIds);
   const { results } = await db.prepare(
     `SELECT ua.user_id, ua.account_id
      FROM user_account_access ua
@@ -260,16 +261,7 @@ app.put('/:id', async (c) => {
     values.push(await bcrypt.hash(body.password, 10));
   }
   if (body.is_active !== undefined) {
-    fields.push('is_active = ?');
-    values.push(body.is_active ? 1 : 0);
-    if (body.is_active) {
-      fields.push('deleted_by = NULL');
-      fields.push('deleted_at = NULL');
-    } else {
-      fields.push('deleted_by = ?');
-      values.push(actor?.id ?? null);
-      fields.push('deleted_at = unixepoch()');
-    }
+    applyActiveToggleFields(fields, values, body.is_active, actor?.id ?? null);
   }
 
   if (fields.length > 0) {
@@ -357,17 +349,7 @@ app.delete('/:id', async (c) => {
     return c.json({ error: 'Not found' }, 404);
   }
 
-  await c.env.DB.prepare(
-    `UPDATE users
-     SET is_active = 0,
-         updated_by = ?,
-         deleted_by = ?,
-         deleted_at = unixepoch(),
-         updated_at = unixepoch()
-     WHERE id = ?`
-  )
-    .bind(actor?.id ?? null, actor?.id ?? null, id)
-    .run();
+  await softDeleteStatement(c.env.DB, 'users', id, actor?.id ?? null).run();
 
   await replaceAssignedAccounts(c.env.DB, id, [], actor?.id ?? null);
 

@@ -37,7 +37,7 @@ export function assertRequiredBindings(env: SecurityEnv): void {
   }
 }
 
-export function getAllowedOrigins(env: Pick<SecurityEnv, 'ALLOWED_ORIGINS'>): string[] {
+function getAllowedOrigins(env: Pick<SecurityEnv, 'ALLOWED_ORIGINS'>): string[] {
   const configured = env.ALLOWED_ORIGINS?.split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);

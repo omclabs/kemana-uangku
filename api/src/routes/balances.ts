@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
 import { listAccessibleAccountIds } from '../lib/access';
+import { inPlaceholders } from '../lib/db';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -18,7 +19,7 @@ app.get('/', async (c) => {
 
     const conditions: string[] = ['is_active = 1'];
     const values: unknown[] = [];
-    const placeholders = accessibleAccountIds.map(() => '?').join(',');
+    const placeholders = inPlaceholders(accessibleAccountIds);
     conditions.push(`account_id IN (${placeholders})`);
     values.push(...accessibleAccountIds);
 

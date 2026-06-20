@@ -22,10 +22,6 @@ function monthKeyFromUnix(monthStart: number): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-export function monthStartForTransaction(unixSeconds: number): number {
-  return monthStartUnix(unixSeconds);
-}
-
 export async function rebuildMonthlyBalancesFrom(
   db: D1Database,
   fromUnixSeconds: number,

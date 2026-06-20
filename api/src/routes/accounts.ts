@@ -6,7 +6,10 @@ import {
   requireNonReimbursement,
 } from '../lib/access';
 import { adjustBalanceStatement, transactionBalanceOps } from '../lib/balance';
+import { LIABILITY_ACCOUNT_TYPES } from '../lib/constants';
+import { applyActiveToggleFields, inPlaceholders, softDeleteStatement } from '../lib/db';
 import { rebuildMonthlyBalancesFrom } from '../lib/month-balance';
+import { parseAnchorMonth, statementWindowForOffset } from '../lib/statement-window';
 import { accountCreate, accountPaymentCreate, accountUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -57,7 +60,6 @@ const ACCOUNT_ADJUSTMENT_INCOME_CATEGORY_ID = 'cat-income-other';
 const ACCOUNT_ADJUSTMENT_EXPENSE_CATEGORY_ID = 'cat-other-misc';
 const ACCOUNT_ADJUSTMENT_NOTE = 'Account balance adjustment';
 const CREDIT_CARD_PAYMENT_CATEGORY_ID = 'cat-transfer';
-const LIABILITY_ACCOUNT_TYPES = ['credit_card', 'loan'] as const;
 
 type TransactionRow = {
   id: string;
@@ -93,27 +95,6 @@ function creditCardFieldsValid(
   return creditLimit === null && billingDate === null;
 }
 
-function statementCycleStart(year: number, month: number, billingDate: number): Date {
-  return new Date(year, month, billingDate + 1, 0, 0, 0, 0);
-}
-
-function nextStatementCycleStart(start: Date, billingDate: number): Date {
-  return new Date(start.getFullYear(), start.getMonth() + 1, billingDate + 1, 0, 0, 0, 0);
-}
-
-function statementWindowForOffset(anchorYear: number, anchorMonth: number, billingDate: number, offset: number) {
-  const start = statementCycleStart(anchorYear, anchorMonth + offset, billingDate);
-  const endExclusive = nextStatementCycleStart(start, billingDate);
-  return {
-    start: Math.floor(start.getTime() / 1000),
-    endExclusive: Math.floor(endExclusive.getTime() / 1000),
-  };
-}
-
-function parseAnchorMonth(value: string): { year: number; month: number } {
-  const [yearRaw, monthRaw] = value.split('-');
-  return { year: Number(yearRaw), month: Number(monthRaw) - 1 };
-}
 
 app.get('/', async (c) => {
   const user = getCurrentUser(c);
@@ -141,7 +122,7 @@ app.get('/', async (c) => {
     if (accessibleAccountIds.length === 0) {
       return c.json([], 200);
     }
-    const placeholders = accessibleAccountIds.map(() => '?').join(',');
+    const placeholders = inPlaceholders(accessibleAccountIds);
     conditions.push(`a.id IN (${placeholders})`);
     values.push(...accessibleAccountIds);
   }
@@ -205,7 +186,7 @@ app.post('/:id/payments', async (c) => {
   }
 
   const uniqueIds = [...new Set(body.transaction_ids)];
-  const placeholders = uniqueIds.map(() => '?').join(',');
+  const placeholders = inPlaceholders(uniqueIds);
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM transactions WHERE id IN (${placeholders})`
   )
@@ -464,16 +445,7 @@ app.put('/:id', async (c) => {
     values.push(body.include_in_total ? 1 : 0);
   }
   if (body.is_active !== undefined) {
-    fields.push('is_active = ?');
-    values.push(body.is_active ? 1 : 0);
-    if (body.is_active) {
-      fields.push('deleted_by = NULL');
-      fields.push('deleted_at = NULL');
-    } else {
-      fields.push('deleted_by = ?');
-      values.push(actor?.id ?? null);
-      fields.push('deleted_at = unixepoch()');
-    }
+    applyActiveToggleFields(fields, values, body.is_active, actor?.id ?? null);
   }
 
   if (fields.length > 0) {
@@ -574,17 +546,7 @@ app.delete('/:id', async (c) => {
     return c.json({ error: 'cannot delete: row has active children' }, 409);
   }
 
-  await c.env.DB.prepare(
-    `UPDATE accounts
-     SET is_active = 0,
-         updated_by = ?,
-         deleted_by = ?,
-         deleted_at = unixepoch(),
-         updated_at = unixepoch()
-     WHERE id = ?`
-  )
-    .bind(actor?.id ?? null, actor?.id ?? null, id)
-    .run();
+  await softDeleteStatement(c.env.DB, 'accounts', id, actor?.id ?? null).run();
 
   const row = await c.env.DB.prepare(`${SELECT_WITH_BALANCE} WHERE a.id = ?`).bind(id).first();
 

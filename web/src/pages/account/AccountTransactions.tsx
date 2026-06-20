@@ -84,7 +84,6 @@ function chartLabel(value: number): string {
 function cellFmt(value: number): string {
   const abs = Math.abs(value);
   if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(2).replace('.', ',')}jt`;
-  if (abs >= 1_000) return statFmt(value);
   return statFmt(value);
 }
 
