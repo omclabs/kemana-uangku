@@ -5,6 +5,16 @@ import { resetFinanceData } from './fixtures';
 const AUTH = { Authorization: 'Bearer test-token' };
 const JSON_HEADERS = { ...AUTH, 'Content-Type': 'application/json' };
 
+async function login(username: string, password: string): Promise<string> {
+  const res = await SELF.fetch('https://example.com/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const body = (await res.json()) as { token: string };
+  return body.token;
+}
+
 describe('/accounts', () => {
   beforeEach(async () => {
     await resetFinanceData();
@@ -469,5 +479,59 @@ describe('/accounts', () => {
       expense: 100000,
       balance: -100000,
     });
+  });
+
+  it('reimbursement users only see assigned credit card accounts and cannot manage accounts', async () => {
+    const assignedRes = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        name: 'Assigned Card',
+        type: 'credit_card',
+        balance: 0,
+        credit_limit: 4000000,
+        billing_date: 19,
+      }),
+    });
+    const assigned = (await assignedRes.json()) as { id: string };
+
+    await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        name: 'Other Card',
+        type: 'credit_card',
+        balance: 0,
+        credit_limit: 4000000,
+        billing_date: 21,
+      }),
+    });
+
+    await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: 'reimburse-accounts',
+        email: 'reimburse-accounts@example.com',
+        password: 'password1',
+        role: 'reimbursement',
+        assigned_account_ids: [assigned.id],
+      }),
+    });
+
+    const token = await login('reimburse-accounts', 'password1');
+    const userHeaders = { Authorization: `Bearer ${token}` };
+
+    const listRes = await SELF.fetch('https://example.com/accounts', { headers: userHeaders });
+    expect(listRes.status).toBe(200);
+    const rows = (await listRes.json()) as Array<{ id: string }>;
+    expect(rows.map((row) => row.id)).toEqual([assigned.id]);
+
+    const postRes = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: { ...userHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Blocked Bank', type: 'bank', balance: 0 }),
+    });
+    expect(postRes.status).toBe(403);
   });
 });

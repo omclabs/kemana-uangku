@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import bcrypt from 'bcryptjs';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
+import { requireAdmin } from '../lib/access';
 import { changePassword, userCreate, userUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -12,21 +13,117 @@ type UserRow = {
   id: string;
   username: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'reimbursement';
   is_active: number;
   created_at: number;
   updated_at: number;
 };
 
-function requireAdmin(c: {
-  get(name: 'currentUser'): unknown;
-  json: (body: unknown, status?: number) => Response;
-}): Response | null {
-  const user = getCurrentUser(c);
-  if (!user || user.role !== 'admin') {
-    return c.json({ error: 'Forbidden' }, 403);
+type UserResponse = UserRow & {
+  created_by: string | null;
+  updated_by: string | null;
+  deleted_by: string | null;
+  deleted_at: number | null;
+  assigned_account_ids: string[];
+};
+
+async function validateAssignedCreditCardAccounts(
+  db: D1Database,
+  accountIds: string[]
+): Promise<string | null> {
+  if (accountIds.length === 0) {
+    return null;
   }
+
+  const uniqueIds = [...new Set(accountIds)];
+  const placeholders = uniqueIds.map(() => '?').join(',');
+  const { results } = await db.prepare(
+    `SELECT id, type, is_active
+     FROM accounts
+     WHERE id IN (${placeholders})`
+  )
+    .bind(...uniqueIds)
+    .all<{ id: string; type: string; is_active: number }>();
+
+  if ((results ?? []).length !== uniqueIds.length) {
+    return 'one or more assigned accounts were not found';
+  }
+
+  for (const row of results ?? []) {
+    if (row.type !== 'credit_card') {
+      return 'assigned accounts must be credit card accounts';
+    }
+    if (row.is_active !== 1) {
+      return 'assigned accounts must be active';
+    }
+  }
+
   return null;
+}
+
+async function replaceAssignedAccounts(
+  db: D1Database,
+  userId: string,
+  accountIds: string[],
+  actorId: string | null
+): Promise<void> {
+  const uniqueIds = [...new Set(accountIds)];
+  const statements: D1PreparedStatement[] = [
+    db.prepare('DELETE FROM user_account_access WHERE user_id = ?').bind(userId),
+  ];
+
+  for (const accountId of uniqueIds) {
+    statements.push(
+      db.prepare(
+        `INSERT INTO user_account_access
+          (user_id, account_id, created_by, updated_by)
+         VALUES (?, ?, ?, ?)`
+      ).bind(userId, accountId, actorId, actorId)
+    );
+  }
+
+  await db.batch(statements);
+}
+
+async function loadAssignedAccountIds(
+  db: D1Database,
+  userIds: string[]
+): Promise<Map<string, string[]>> {
+  const grants = new Map<string, string[]>();
+  if (userIds.length === 0) {
+    return grants;
+  }
+
+  const placeholders = userIds.map(() => '?').join(',');
+  const { results } = await db.prepare(
+    `SELECT ua.user_id, ua.account_id
+     FROM user_account_access ua
+     JOIN accounts a ON a.id = ua.account_id
+     WHERE ua.user_id IN (${placeholders})
+       AND a.type = 'credit_card'
+     ORDER BY a.name COLLATE NOCASE ASC`
+  )
+    .bind(...userIds)
+    .all<{ user_id: string; account_id: string }>();
+
+  for (const row of results ?? []) {
+    const existing = grants.get(row.user_id) ?? [];
+    existing.push(row.account_id);
+    grants.set(row.user_id, existing);
+  }
+
+  return grants;
+}
+
+async function withAssignedAccounts(
+  db: D1Database,
+  rows: UserResponse[]
+): Promise<UserResponse[]> {
+  const accountIdsByUser = await loadAssignedAccountIds(db, rows.map((row) => row.id));
+  return rows.map((row) => ({
+    ...row,
+    assigned_account_ids: accountIdsByUser.get(row.id) ?? [],
+  }));
 }
 
 app.get('/', async (c) => {
@@ -41,7 +138,7 @@ app.get('/', async (c) => {
 
   const { results } = await c.env.DB.prepare(query).all();
 
-  return c.json(results, 200);
+  return c.json(await withAssignedAccounts(c.env.DB, (results ?? []) as UserResponse[]), 200);
 });
 
 app.get('/:id', async (c) => {
@@ -57,7 +154,7 @@ app.get('/:id', async (c) => {
     return c.json({ error: 'Not found' }, 404);
   }
 
-  return c.json(row, 200);
+  return c.json((await withAssignedAccounts(c.env.DB, [row as UserResponse]))[0], 200);
 });
 
 app.post('/', async (c) => {
@@ -66,6 +163,14 @@ app.post('/', async (c) => {
 
   const actor = getCurrentUser(c);
   const body = userCreate.parse(await c.req.json());
+  const assignedAccountIds = body.role === 'reimbursement'
+    ? [...new Set(body.assigned_account_ids ?? [])]
+    : [];
+
+  const accountError = await validateAssignedCreditCardAccounts(c.env.DB, assignedAccountIds);
+  if (accountError) {
+    return c.json({ error: accountError }, 400);
+  }
 
   const conflict = await c.env.DB.prepare(
     'SELECT id FROM users WHERE username = ? OR email = ?'
@@ -88,11 +193,13 @@ app.post('/', async (c) => {
     .bind(id, body.username, body.email, passwordHash, body.role ?? 'user', actor?.id ?? null, actor?.id ?? null)
     .run();
 
+  await replaceAssignedAccounts(c.env.DB, id, assignedAccountIds, actor?.id ?? null);
+
   const row = await c.env.DB.prepare(`SELECT ${SAFE_COLUMNS} FROM users WHERE id = ?`)
     .bind(id)
     .first();
 
-  return c.json(row, 201);
+  return c.json((await withAssignedAccounts(c.env.DB, [row as UserResponse]))[0], 201);
 });
 
 app.put('/:id', async (c) => {
@@ -110,6 +217,16 @@ app.put('/:id', async (c) => {
   }
 
   const body = userUpdate.parse(await c.req.json());
+  const resultingRole = body.role ?? existing.role;
+  const existingAssignedAccountIds = (await loadAssignedAccountIds(c.env.DB, [id])).get(id) ?? [];
+  const assignedAccountIds = resultingRole === 'reimbursement'
+    ? [...new Set(body.assigned_account_ids ?? existingAssignedAccountIds)]
+    : [];
+
+  const accountError = await validateAssignedCreditCardAccounts(c.env.DB, assignedAccountIds);
+  if (accountError) {
+    return c.json({ error: accountError }, 400);
+  }
 
   if (body.username !== undefined || body.email !== undefined) {
     const conflict = await c.env.DB.prepare(
@@ -174,7 +291,9 @@ app.put('/:id', async (c) => {
     .bind(id)
     .first();
 
-  return c.json(row, 200);
+  await replaceAssignedAccounts(c.env.DB, id, assignedAccountIds, actor?.id ?? null);
+
+  return c.json((await withAssignedAccounts(c.env.DB, [row as UserResponse]))[0], 200);
 });
 
 app.post('/:id/change-password', async (c) => {
@@ -221,7 +340,7 @@ app.post('/:id/change-password', async (c) => {
     .bind(id)
     .first();
 
-  return c.json(row, 200);
+  return c.json((await withAssignedAccounts(c.env.DB, [row as UserResponse]))[0], 200);
 });
 
 app.delete('/:id', async (c) => {
@@ -250,11 +369,13 @@ app.delete('/:id', async (c) => {
     .bind(actor?.id ?? null, actor?.id ?? null, id)
     .run();
 
+  await replaceAssignedAccounts(c.env.DB, id, [], actor?.id ?? null);
+
   const row = await c.env.DB.prepare(`SELECT ${SAFE_COLUMNS} FROM users WHERE id = ?`)
     .bind(id)
     .first();
 
-  return c.json(row, 200);
+  return c.json((await withAssignedAccounts(c.env.DB, [row as UserResponse]))[0], 200);
 });
 
 export default app;

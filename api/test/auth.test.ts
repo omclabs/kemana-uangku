@@ -72,6 +72,45 @@ describe('/auth/login', () => {
     expect(res.status).not.toBe(401);
   });
 
+  it('reimbursement login includes assigned credit card ids', async () => {
+    const accountRes = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: { ...AUTH, ...JSON_HEADERS },
+      body: JSON.stringify({
+        name: 'Reimbursement Card',
+        type: 'credit_card',
+        balance: 0,
+        credit_limit: 5000000,
+        billing_date: 19,
+      }),
+    });
+    const account = (await accountRes.json()) as { id: string };
+
+    await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: { ...AUTH, ...JSON_HEADERS },
+      body: JSON.stringify({
+        username: 'reimburse-auth',
+        email: 'reimburse-auth@example.com',
+        password: 'password1',
+        role: 'reimbursement',
+        assigned_account_ids: [account.id],
+      }),
+    });
+
+    const res = await SELF.fetch('https://example.com/auth/login', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ username: 'reimburse-auth', password: 'password1' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      user: { role: string; assigned_account_ids: string[] };
+    };
+    expect(body.user.role).toBe('reimbursement');
+    expect(body.user.assigned_account_ids).toEqual([account.id]);
+  });
+
   it('rejects disallowed browser origins', async () => {
     const res = await SELF.fetch('https://example.com/auth/login', {
       method: 'POST',

@@ -1,7 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { NAV_ITEMS } from '../lib/nav';
+import { getUser } from '../lib/api';
+import { navItemsForRole } from '../lib/nav';
 
 export default function BottomNav() {
+  const items = navItemsForRole(getUser()?.role);
+
   return (
     <nav
       style={{
@@ -16,7 +19,7 @@ export default function BottomNav() {
         boxShadow: '0 -8px 24px rgba(0,0,0,.05)',
       }}
     >
-      {NAV_ITEMS.map((item) => (
+      {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}

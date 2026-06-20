@@ -38,6 +38,16 @@ type TxRow = {
   deleted_by?: string | null;
 };
 
+async function login(username: string, password: string): Promise<string> {
+  const res = await SELF.fetch('https://example.com/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const body = (await res.json()) as { token: string };
+  return body.token;
+}
+
 async function getAccountBalance(id: string): Promise<number> {
   const res = await SELF.fetch(`https://example.com/accounts/${id}`, { headers: AUTH });
   const body = (await res.json()) as { balance: number };
@@ -603,6 +613,52 @@ describe('/transactions', () => {
       expect(row.account_id).toBe(TEST_ACCOUNT_IDS.cash);
       expect(row.type).toBe('income');
     });
+  });
+
+  it('reimbursement users only see assigned account transactions and cannot delete them', async () => {
+    const creditCardRes = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.creditCard,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 90000,
+      type: 'expense',
+    });
+    const [creditCardTx] = (await creditCardRes.json()) as TxRow[];
+
+    await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 45000,
+      type: 'expense',
+    });
+
+    await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: 'reimburse-transactions',
+        email: 'reimburse-transactions@example.com',
+        password: 'password1',
+        role: 'reimbursement',
+        assigned_account_ids: [TEST_ACCOUNT_IDS.creditCard],
+      }),
+    });
+
+    const token = await login('reimburse-transactions', 'password1');
+    const userHeaders = { Authorization: `Bearer ${token}` };
+
+    const listRes = await SELF.fetch('https://example.com/transactions', { headers: userHeaders });
+    expect(listRes.status).toBe(200);
+    const rows = (await listRes.json()) as TxRow[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(creditCardTx.id);
+
+    const deleteRes = await SELF.fetch(`https://example.com/transactions/${creditCardTx.id}`, {
+      method: 'DELETE',
+      headers: userHeaders,
+    });
+    expect(deleteRes.status).toBe(403);
   });
 
   it('POST /import-receipt/parse returns draft rows from csv without creating transactions', async () => {

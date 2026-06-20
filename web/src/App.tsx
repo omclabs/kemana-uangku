@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
 import AdminGuard from './components/AdminGuard';
+import RoleGuard from './components/RoleGuard';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import Login from './pages/Login';
@@ -78,11 +79,11 @@ export default function App() {
         <Route
           path="/transactions/import"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <TransactionReceiptImport />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
@@ -98,111 +99,111 @@ export default function App() {
         <Route
           path="/accounts"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <AccountList />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/accounts/new"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <AccountForm />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/accounts/:id/edit"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <AccountForm />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/account/:id/transaction"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <AccountTransactions />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/account/:id/transactions"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <AccountTransactions />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/account/:id/payment"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <AccountPayment />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/accounts/:id/payment"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <AccountPayment />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/config/budgets"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <BudgetPage />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/config/categories"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <CategoryList />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/config/categories/new"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <CategoryForm />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route
           path="/config/categories/:id/edit"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <CategoryForm />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route path="/categories" element={<Navigate to="/config/categories" replace />} />
@@ -221,11 +222,11 @@ export default function App() {
         <Route
           path="/config/preferences"
           element={
-            <AuthGuard>
+            <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <ConfigPreferences />
               </AuthLayout>
-            </AuthGuard>
+            </RoleGuard>
           }
         />
         <Route

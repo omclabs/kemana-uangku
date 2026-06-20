@@ -10,12 +10,13 @@ export const ACCOUNT_TYPES = [
 ] as const;
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
-export type Role = 'admin' | 'user';
+export type Role = 'admin' | 'user' | 'reimbursement';
 
 export interface SessionUser {
   id: string;
   username: string;
   role: Role;
+  assigned_account_ids: string[];
 }
 
 export interface Account {
@@ -107,6 +108,7 @@ export interface User {
   username: string;
   email: string;
   role: Role;
+  assigned_account_ids: string[];
   is_active: number;
   created_at: number;
   updated_at: number;
@@ -120,6 +122,7 @@ export interface UserInput {
   username: string;
   email: string;
   role: Role;
+  assigned_account_ids?: string[];
   password?: string;
   is_active?: boolean;
 }

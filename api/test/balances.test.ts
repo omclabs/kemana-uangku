@@ -10,6 +10,16 @@ const FEB_2026 = Math.floor(new Date('2026-02-15T00:00:00Z').getTime() / 1000);
 const MAR_2026 = Math.floor(new Date('2026-03-15T00:00:00Z').getTime() / 1000);
 const APR_2026 = Math.floor(new Date('2026-04-15T00:00:00Z').getTime() / 1000);
 
+async function login(username: string, password: string): Promise<string> {
+  const res = await SELF.fetch('https://example.com/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const body = (await res.json()) as { token: string };
+  return body.token;
+}
+
 async function postTransaction(body: Record<string, unknown>) {
   return SELF.fetch('https://example.com/transactions', {
     method: 'POST',
@@ -128,5 +138,58 @@ describe('/balances', () => {
       expense: 0,
       balance: -200000,
     });
+  });
+
+  it('reimbursement balances are scoped to assigned credit card accounts', async () => {
+    await postTransaction({
+      date: JAN_2026,
+      account_id: TEST_ACCOUNT_IDS.creditCard,
+      category_id: 'cat-food-dining',
+      amount: 120000,
+      type: 'expense',
+    });
+
+    await postTransaction({
+      date: JAN_2026,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: 'cat-income-salary',
+      amount: 900000,
+      type: 'income',
+    });
+
+    await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: 'reimburse-balances',
+        email: 'reimburse-balances@example.com',
+        password: 'password1',
+        role: 'reimbursement',
+        assigned_account_ids: [TEST_ACCOUNT_IDS.creditCard],
+      }),
+    });
+
+    const token = await login('reimburse-balances', 'password1');
+    const res = await SELF.fetch('https://example.com/balances?limit=12', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
+
+    const rows = (await res.json()) as Array<{
+      month_key: string;
+      income: number;
+      expense: number;
+      balance: number;
+    }>;
+
+    expect(rows).toEqual([
+      {
+        month_key: '2026-01',
+        income: 0,
+        expense: 120000,
+        balance: -120000,
+        month_start: Math.floor(Date.UTC(2026, 0, 1) / 1000),
+      },
+    ]);
   });
 });

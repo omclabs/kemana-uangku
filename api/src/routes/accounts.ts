@@ -1,5 +1,10 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
+import {
+  listAccessibleAccountIds,
+  requireAccountAccess,
+  requireNonReimbursement,
+} from '../lib/access';
 import { adjustBalanceStatement, transactionBalanceOps } from '../lib/balance';
 import { rebuildMonthlyBalancesFrom } from '../lib/month-balance';
 import { accountCreate, accountPaymentCreate, accountUpdate } from '../lib/validation';
@@ -111,6 +116,7 @@ function parseAnchorMonth(value: string): { year: number; month: number } {
 }
 
 app.get('/', async (c) => {
+  const user = getCurrentUser(c);
   const type = c.req.query('type');
   const parentId = c.req.query('parent_id');
   const includeInactive = c.req.query('include_inactive') === 'true';
@@ -130,6 +136,16 @@ app.get('/', async (c) => {
     values.push(parentId);
   }
 
+  const accessibleAccountIds = await listAccessibleAccountIds(c.env.DB, user);
+  if (accessibleAccountIds !== null) {
+    if (accessibleAccountIds.length === 0) {
+      return c.json([], 200);
+    }
+    const placeholders = accessibleAccountIds.map(() => '?').join(',');
+    conditions.push(`a.id IN (${placeholders})`);
+    values.push(...accessibleAccountIds);
+  }
+
   let query = SELECT_WITH_BALANCE;
   if (conditions.length > 0) {
     query += ` WHERE ${conditions.join(' AND ')}`;
@@ -145,6 +161,9 @@ app.get('/', async (c) => {
 
 app.get('/:id', async (c) => {
   const id = c.req.param('id');
+  const forbidden = await requireAccountAccess(c, id);
+  if (forbidden) return forbidden;
+
   const row = await c.env.DB.prepare(`${SELECT_WITH_BALANCE} WHERE a.id = ?`).bind(id).first();
 
   if (!row) {
@@ -155,6 +174,9 @@ app.get('/:id', async (c) => {
 });
 
 app.post('/:id/payments', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const actor = getCurrentUser(c);
   const creditCardId = c.req.param('id');
   const body = accountPaymentCreate.parse(await c.req.json());
@@ -275,6 +297,9 @@ app.post('/:id/payments', async (c) => {
 });
 
 app.post('/', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const actor = getCurrentUser(c);
   const body = accountCreate.parse(await c.req.json());
 
@@ -328,6 +353,9 @@ app.post('/', async (c) => {
 });
 
 app.put('/:id', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const actor = getCurrentUser(c);
   const id = c.req.param('id');
   const existing = await c.env.DB.prepare('SELECT * FROM accounts WHERE id = ?')
@@ -510,6 +538,9 @@ app.put('/:id', async (c) => {
 });
 
 app.delete('/:id', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const actor = getCurrentUser(c);
   const id = c.req.param('id');
   const existing = await c.env.DB.prepare('SELECT * FROM accounts WHERE id = ?')

@@ -60,7 +60,8 @@ export const userCreate = z.object({
   username: z.string().min(3),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['admin', 'user']).optional(),
+  role: z.enum(['admin', 'user', 'reimbursement']).optional(),
+  assigned_account_ids: z.array(z.string().min(1)).optional(),
 });
 
 export const userUpdate = userCreate.partial().extend({

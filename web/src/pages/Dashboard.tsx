@@ -76,7 +76,7 @@ export default function Dashboard() {
   );
 
   const totalBalance = topLevelAccounts
-    .filter((a) => a.type !== 'credit_card' && a.type !== 'loan')
+    .filter((a) => user?.role === 'reimbursement' || (a.type !== 'credit_card' && a.type !== 'loan'))
     .reduce((sum, a) => sum + a.computed_balance, 0);
 
   const now = new Date();

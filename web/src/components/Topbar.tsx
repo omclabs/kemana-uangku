@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { getUser } from '../lib/api';
-import { NAV_ITEMS } from '../lib/nav';
+import { navItemsForRole } from '../lib/nav';
 import { useTheme } from '../lib/theme';
 
 export default function Topbar() {
@@ -8,7 +8,7 @@ export default function Topbar() {
   const user = getUser();
   const { theme, toggle } = useTheme();
 
-  const activeItem = NAV_ITEMS.find((item) => location.pathname.startsWith(item.to));
+  const activeItem = navItemsForRole(user?.role).find((item) => location.pathname.startsWith(item.to));
   const title = activeItem?.label ?? 'kemana uangku';
 
   return (

@@ -10,7 +10,7 @@ const app = new Hono<{ Bindings: Bindings }>();
 type UserAuthRow = {
   id: string;
   username: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'reimbursement';
   password_hash: string;
   is_active: number;
 };
@@ -43,6 +43,17 @@ app.post('/login', async (c) => {
   const tokenHash = await hashToken(token);
   const sessionId = crypto.randomUUID();
   const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  const { results: accessRows } = await c.env.DB.prepare(
+    `SELECT ua.account_id
+     FROM user_account_access ua
+     JOIN accounts a ON a.id = ua.account_id
+     WHERE ua.user_id = ?
+       AND a.type = 'credit_card'
+       AND a.is_active = 1
+     ORDER BY a.name COLLATE NOCASE ASC`
+  )
+    .bind(row.id)
+    .all<{ account_id: string }>();
 
   await c.env.DB.prepare(
     `INSERT INTO sessions (id, user_id, token_hash, expires_at)
@@ -51,7 +62,16 @@ app.post('/login', async (c) => {
     .bind(sessionId, row.id, tokenHash, expiresAt)
     .run();
 
-  return c.json({ token, must_change_password: mustChangePassword, user: { id: row.id, username: row.username, role: row.role } }, 200);
+  return c.json({
+    token,
+    must_change_password: mustChangePassword,
+    user: {
+      id: row.id,
+      username: row.username,
+      role: row.role,
+      assigned_account_ids: (accessRows ?? []).map((access) => access.account_id),
+    },
+  }, 200);
 });
 
 export default app;

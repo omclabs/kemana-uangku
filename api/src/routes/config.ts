@@ -1,20 +1,10 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
+import { requireAdmin } from '../lib/access';
 import { configClearData, configUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
-
-function requireAdmin(c: {
-  get(name: 'currentUser'): unknown;
-  json: (body: unknown, status?: number) => Response;
-}): Response | null {
-  const user = getCurrentUser(c);
-  if (!user || user.role !== 'admin') {
-    return c.json({ error: 'Forbidden' }, 403);
-  }
-  return null;
-}
 
 app.get('/', async (c) => {
   const row = await c.env.DB.prepare('SELECT * FROM config WHERE id = 1').first();
@@ -22,6 +12,9 @@ app.get('/', async (c) => {
 });
 
 app.put('/', async (c) => {
+  const forbidden = requireAdmin(c);
+  if (forbidden) return forbidden;
+
   const body = configUpdate.parse(await c.req.json());
   const actor = getCurrentUser(c);
 

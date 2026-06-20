@@ -1,5 +1,10 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
+import {
+  listAccessibleAccountIds,
+  requireAccountAccess,
+  requireNonReimbursement,
+} from '../lib/access';
 import { receiptImportCommitInput, transactionCreate, transactionUpdate } from '../lib/validation';
 import {
   adjustBalanceStatement,
@@ -183,6 +188,7 @@ async function createImportedExpenseRows(
 }
 
 app.get('/', async (c) => {
+  const user = getCurrentUser(c);
   const conditions: string[] = [];
   const values: unknown[] = [];
 
@@ -192,6 +198,8 @@ app.get('/', async (c) => {
 
   const accountId = c.req.query('account_id');
   if (accountId) {
+    const forbidden = await requireAccountAccess(c, accountId);
+    if (forbidden) return forbidden;
     conditions.push('account_id = ?');
     values.push(accountId);
   }
@@ -232,6 +240,16 @@ app.get('/', async (c) => {
     values.push(Number(to));
   }
 
+  const accessibleAccountIds = await listAccessibleAccountIds(c.env.DB, user);
+  if (accessibleAccountIds !== null) {
+    if (accessibleAccountIds.length === 0) {
+      return c.json([], 200);
+    }
+    const placeholders = accessibleAccountIds.map(() => '?').join(',');
+    conditions.push(`account_id IN (${placeholders})`);
+    values.push(...accessibleAccountIds);
+  }
+
   let query = 'SELECT * FROM transactions';
   if (conditions.length > 0) {
     query += ` WHERE ${conditions.join(' AND ')}`;
@@ -253,10 +271,16 @@ app.get('/:id', async (c) => {
     return c.json({ error: 'Not found' }, 404);
   }
 
+  const forbidden = await requireAccountAccess(c, (row as TransactionRow).account_id);
+  if (forbidden) return forbidden;
+
   return c.json(row, 200);
 });
 
 app.post('/import-receipt/parse', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const form = await c.req.formData();
   const accountId = form.get('account_id');
   const file = form.get('file');
@@ -284,6 +308,9 @@ app.post('/import-receipt/parse', async (c) => {
 });
 
 app.post('/import-receipt/commit', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const actor = getCurrentUser(c);
   const body = receiptImportCommitInput.parse(await c.req.json());
   const account = await loadActiveAccount(c.env.DB, body.account_id);
@@ -336,6 +363,8 @@ app.post('/import-receipt/commit', async (c) => {
 app.post('/', async (c) => {
   const actor = getCurrentUser(c);
   const body = transactionCreate.parse(await c.req.json());
+  const accountForbidden = await requireAccountAccess(c, body.account_id);
+  if (accountForbidden) return accountForbidden;
 
   if (body.type === 'transfer') {
     if (!body.transfer_to) {
@@ -366,6 +395,8 @@ app.post('/', async (c) => {
 
   let transferToAccount: AccountRow | null = null;
   if (body.type === 'transfer' && body.transfer_to) {
+    const transferForbidden = await requireAccountAccess(c, body.transfer_to);
+    if (transferForbidden) return transferForbidden;
     transferToAccount = await loadActiveAccount(c.env.DB, body.transfer_to);
     if (!transferToAccount) {
       return c.json({ error: 'transfer_to not found or inactive' }, 400);
@@ -523,7 +554,13 @@ app.put('/:id', async (c) => {
     return c.json({ error: 'Not found' }, 404);
   }
 
+  const forbidden = await requireAccountAccess(c, existing.account_id);
+  if (forbidden) return forbidden;
+
   const body = transactionUpdate.parse(await c.req.json());
+  if (actor?.role === 'reimbursement' && (body.is_active !== undefined || body.paid_status !== undefined)) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
 
   if (body.category_id !== undefined) {
     if (existing.transfer_to !== null || existing.parent_transaction_id !== null) {
@@ -666,6 +703,12 @@ app.delete('/:id', async (c) => {
 
   if (!existing) {
     return c.json({ error: 'Not found' }, 404);
+  }
+
+  const forbidden = await requireAccountAccess(c, existing.account_id);
+  if (forbidden) return forbidden;
+  if (actor?.role === 'reimbursement') {
+    return c.json({ error: 'Forbidden' }, 403);
   }
 
   const hard = c.req.query('hard') === 'true';

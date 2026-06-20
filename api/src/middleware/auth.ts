@@ -13,7 +13,7 @@ export type Bindings = {
   RECEIPT_OCR_MODEL?: string;
 };
 
-export type Role = 'admin' | 'user';
+export type Role = 'admin' | 'user' | 'reimbursement';
 
 export type AuthUser = {
   id: string;

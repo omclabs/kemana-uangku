@@ -1,4 +1,6 @@
-export const NAV_ITEMS = [
+import type { Role } from './types';
+
+const ALL_NAV_ITEMS = [
   {
     to: '/dashboard',
     label: 'Home',
@@ -41,3 +43,10 @@ export const NAV_ITEMS = [
     ),
   },
 ];
+
+export function navItemsForRole(role: Role | undefined) {
+  if (role === 'reimbursement') {
+    return ALL_NAV_ITEMS.filter((item) => item.to === '/dashboard' || item.to === '/transactions' || item.to === '/config');
+  }
+  return ALL_NAV_ITEMS;
+}

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
+import { requireNonReimbursement } from '../lib/access';
 import { budgetUpsert, monthKey } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -89,11 +90,17 @@ async function buildBudgetMonthResponse(db: D1Database, month: string) {
 }
 
 app.get('/', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const month = parseMonthKey(c.req.query('month') ?? '');
   return c.json(await buildBudgetMonthResponse(c.env.DB, month), 200);
 });
 
 app.put('/:month', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const actor = getCurrentUser(c);
   const month = parseMonthKey(c.req.param('month'));
   const monthStart = monthStartFromKey(month);

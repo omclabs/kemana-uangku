@@ -40,6 +40,7 @@ const cardStyle: React.CSSProperties = {
 export default function Config() {
   const navigate = useNavigate();
   const user = getUser();
+  const isReimbursement = user?.role === 'reimbursement';
   const [currency, setCurrency] = useState('');
   const [timezone, setTimezone] = useState('');
   const [version, setVersion] = useState('');
@@ -128,59 +129,65 @@ export default function Config() {
         <p style={{ padding: '32px 0', textAlign: 'center', color: 'var(--muted)' }}>Loading…</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Link to="/config/preferences" style={cardStyle}>
-            <span style={{
-              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-              background: 'var(--income-soft)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <WalletIcon />
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>General Settings</span>
+          {!isReimbursement && (
+            <Link to="/config/preferences" style={cardStyle}>
               <span style={{
-                display: 'block', fontSize: 12.5, color: 'var(--muted)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                background: 'var(--income-soft)', color: 'var(--accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                {currency} · {timezone}
+                <WalletIcon />
               </span>
-            </span>
-            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
-          </Link>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>General Settings</span>
+                <span style={{
+                  display: 'block', fontSize: 12.5, color: 'var(--muted)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {currency} · {timezone}
+                </span>
+              </span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+            </Link>
+          )}
 
-          <Link to="/config/categories" style={cardStyle}>
-            <span style={{
-              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-              background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <TagIcon />
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Categories</span>
-              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                Manage income and expense categories
+          {!isReimbursement && (
+            <Link to="/config/categories" style={cardStyle}>
+              <span style={{
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <TagIcon />
               </span>
-            </span>
-            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
-          </Link>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Categories</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                  Manage income and expense categories
+                </span>
+              </span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+            </Link>
+          )}
 
-          <Link to="/config/budgets" style={cardStyle}>
-            <span style={{
-              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-              background: 'color-mix(in srgb, var(--accent-2) 10%, transparent)', color: 'var(--accent-2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <BudgetIcon />
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Budgets</span>
-              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                Manage month-specific budget targets
+          {!isReimbursement && (
+            <Link to="/config/budgets" style={cardStyle}>
+              <span style={{
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                background: 'color-mix(in srgb, var(--accent-2) 10%, transparent)', color: 'var(--accent-2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <BudgetIcon />
               </span>
-            </span>
-            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
-          </Link>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Budgets</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                  Manage month-specific budget targets
+                </span>
+              </span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+            </Link>
+          )}
 
           <Link to="/config/change-password" style={cardStyle}>
             <span style={{

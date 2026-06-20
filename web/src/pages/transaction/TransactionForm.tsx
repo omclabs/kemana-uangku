@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ApiError, apiFetch } from '../../lib/api';
+import { ApiError, apiFetch, getUser } from '../../lib/api';
 import {
   INSTALLMENT_OPTIONS, RECURRING_MODES, TRANSACTION_TYPES,
   type Account, type Category, type RecurringMode,
@@ -94,6 +94,11 @@ export default function TransactionForm() {
   const presetAccountId = searchParams.get('account_id');
   const presetDate = normalizeDatePreset(searchParams.get('date'));
   const continueMode = !isEdit && (presetDate !== null || presetAccountId !== null);
+  const user = getUser();
+  const assignedAccountIds = user?.assigned_account_ids ?? [];
+  const lockedAssignedAccountId = user?.role === 'reimbursement' && assignedAccountIds.length === 1
+    ? assignedAccountIds[0]
+    : null;
 
   const [type,       setType]       = useState<TransactionType>('expense');
   const [date,       setDate]       = useState(() => presetDate ?? toDatetimeLocal(Math.floor(Date.now() / 1000)));
@@ -142,7 +147,9 @@ export default function TransactionForm() {
           setParentTxId(tx.parent_transaction_id);
           setPaymentTransactionId(tx.payment_transaction_id);
         } else {
-          if (presetAccountId && accts.some((account) => account.id === presetAccountId)) {
+          if (lockedAssignedAccountId && accts.some((account) => account.id === lockedAssignedAccountId)) {
+            setAccountId(lockedAssignedAccountId);
+          } else if (presetAccountId && accts.some((account) => account.id === presetAccountId)) {
             setAccountId(presetAccountId);
           }
           if (presetDate) {
@@ -157,7 +164,7 @@ export default function TransactionForm() {
     }
     load();
     return () => { cancelled = true; };
-  }, [id, presetDate, searchParams]);
+  }, [id, lockedAssignedAccountId, presetDate, searchParams]);
 
   function handleTypeChange(t: TransactionType) {
     setType(t); setCategoryId('');
@@ -359,7 +366,7 @@ export default function TransactionForm() {
 
           {/* ── Account ──────────────────────────────────────────── */}
           <FieldRow icon={<WalletIcon />} label={displayType === 'transfer' ? 'From' : 'Account'}>
-            {isEdit ? (
+            {isEdit || lockedAssignedAccountId ? (
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{accountName(accountId)}</span>
             ) : (
               <button type="button" onClick={() => setActiveLookup('account')} style={{

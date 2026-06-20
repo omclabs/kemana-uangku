@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { categoryVisual } from '../../lib/categories';
-import { ApiError, apiFetch } from '../../lib/api';
+import { ApiError, apiFetch, getUser } from '../../lib/api';
 import type { Account, Category, Transaction } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
 
@@ -309,6 +309,8 @@ function MonthlyView({
 
 export default function TransactionList() {
   const navigate = useNavigate();
+  const user = getUser();
+  const isReimbursement = user?.role === 'reimbursement';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts,     setAccounts]     = useState<Account[]>([]);
   const [categories,   setCategories]   = useState<Category[]>([]);
@@ -340,6 +342,7 @@ export default function TransactionList() {
   const categoryName = (id: string | null) => id ? (categories.find((c) => c.id === id)?.name ?? 'Unknown') : '';
 
   function markPaid(transaction: Transaction) {
+    if (isReimbursement) return;
     navigate(`/account/${transaction.account_id}/payment?month=${encodeURIComponent(toMonthPreset(transaction.date))}`);
   }
 
@@ -537,14 +540,16 @@ export default function TransactionList() {
           <div style={{ marginTop: 1, fontSize: 17, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.02em' }}>{statementLabel}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link to="/transactions/import" style={{
-            display: 'inline-flex', alignItems: 'center',
-            borderRadius: 13, border: '1px solid var(--line)', background: 'var(--surface)',
-            padding: '8px 12px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)',
-            textDecoration: 'none', whiteSpace: 'nowrap',
-          }}>
-            Import
-          </Link>
+          {!isReimbursement && (
+            <Link to="/transactions/import" style={{
+              display: 'inline-flex', alignItems: 'center',
+              borderRadius: 13, border: '1px solid var(--line)', background: 'var(--surface)',
+              padding: '8px 12px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)',
+              textDecoration: 'none', whiteSpace: 'nowrap',
+            }}>
+              Import
+            </Link>
+          )}
           <Link to="/transactions/new" aria-label="Add transaction" style={{
             width: 40, height: 40, borderRadius: 13, flexShrink: 0,
             background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
@@ -650,6 +655,7 @@ export default function TransactionList() {
                       accountName={accountName}
                       categoryName={categoryName}
                       onMarkPaid={markPaid}
+                      showPaymentAction={!isReimbursement}
                     />
                   ))}
                 </div>
@@ -671,11 +677,13 @@ export default function TransactionList() {
 
 function TransactionRow({
   transaction: t, accountName, categoryName, onMarkPaid,
+  showPaymentAction,
 }: {
   transaction: Transaction;
   accountName: (id: string | null) => string;
   categoryName: (id: string | null) => string;
   onMarkPaid: (transaction: Transaction) => void;
+  showPaymentAction: boolean;
 }) {
   const navigate = useNavigate();
 
@@ -737,7 +745,7 @@ function TransactionRow({
           <div style={{ fontSize: 13, fontWeight: 800, color: isDeposit ? 'var(--income)' : t.type === 'expense' ? 'var(--expense)' : 'var(--ink)' }}>
             {isDeposit ? '+' : t.type === 'expense' ? '−' : ''}Rp {new Intl.NumberFormat('id-ID').format(Math.abs(t.amount))}
           </div>
-          {t.paid_status === 'settle' && (
+          {showPaymentAction && t.paid_status === 'settle' && (
             <button
               type="button"
               onClick={(e) => {

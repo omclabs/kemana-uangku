@@ -4,7 +4,7 @@ import PageContainer from '../../components/PageContainer';
 import PageHeader from '../../components/PageHeader';
 import StyledSelect from '../../components/StyledSelect';
 import { ApiError, apiFetch } from '../../lib/api';
-import type { Role, User, UserInput } from '../../lib/types';
+import type { Account, Role, User, UserInput } from '../../lib/types';
 
 const inputStyle: CSSProperties = {
   width: '100%',
@@ -44,6 +44,7 @@ function Field({ label, children, hint }: { label: string; children: ReactNode; 
 const roleOptions = [
   { value: 'admin', label: 'Admin', hint: 'Can manage users and all app data' },
   { value: 'user', label: 'User', hint: 'Can use the app but cannot manage users' },
+  { value: 'reimbursement', label: 'Reimbursement', hint: 'Limited to dashboard, transactions, password, and logout' },
 ];
 
 export default function UserForm() {
@@ -56,6 +57,8 @@ export default function UserForm() {
   const [role, setRole] = useState<Role>('user');
   const [password, setPassword] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [creditCards, setCreditCards] = useState<Account[]>([]);
+  const [assignedAccountIds, setAssignedAccountIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,18 +67,20 @@ export default function UserForm() {
     let cancelled = false;
 
     async function load() {
-      if (!id) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        const user = await apiFetch<User>(`/users/${id}`);
+        const [user, cards] = await Promise.all([
+          id ? apiFetch<User>(`/users/${id}`) : Promise.resolve(null),
+          apiFetch<Account[]>('/accounts?type=credit_card&include_inactive=true'),
+        ]);
         if (cancelled) return;
-        setUsername(user.username);
-        setEmail(user.email);
-        setRole(user.role);
-        setIsActive(user.is_active === 1);
+        setCreditCards(cards);
+        if (user) {
+          setUsername(user.username);
+          setEmail(user.email);
+          setRole(user.role);
+          setIsActive(user.is_active === 1);
+          setAssignedAccountIds(user.assigned_account_ids ?? []);
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load user');
       } finally {
@@ -98,6 +103,7 @@ export default function UserForm() {
       username,
       email,
       role,
+      assigned_account_ids: role === 'reimbursement' ? assignedAccountIds : [],
       is_active: isActive,
     };
 
@@ -116,6 +122,7 @@ export default function UserForm() {
           username,
           email,
           role,
+          assigned_account_ids: role === 'reimbursement' ? assignedAccountIds : [],
           password: password.trim(),
         };
         await apiFetch('/users', {
@@ -134,6 +141,8 @@ export default function UserForm() {
   if (loading) {
     return <p style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>Loading…</p>;
   }
+
+  const visibleCreditCards = creditCards.filter((account) => account.is_active === 1);
 
   return (
     <PageContainer>
@@ -175,6 +184,61 @@ export default function UserForm() {
               onChange={(value) => setRole(value as Role)}
             />
           </Field>
+
+          {role === 'reimbursement' && (
+            <Field label="Assigned Credit Cards" hint="These cards define the only account scope available to the user.">
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                {visibleCreditCards.map((account) => {
+                  const checked = assignedAccountIds.includes(account.id);
+                  return (
+                    <label
+                      key={account.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        border: '1px solid var(--line)',
+                        borderRadius: 14,
+                        padding: '12px 14px',
+                        background: checked ? 'color-mix(in srgb, var(--accent) 8%, var(--surface))' : 'var(--surface)',
+                        color: 'var(--ink)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          setAssignedAccountIds((current) => (
+                            event.target.checked
+                              ? [...current, account.id]
+                              : current.filter((value) => value !== account.id)
+                          ));
+                        }}
+                      />
+                      <span style={{ flex: 1 }}>
+                        <span style={{ display: 'block', fontWeight: 700 }}>{account.name}</span>
+                        <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}>
+                          Billing date {account.billing_date ?? '-'}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+                {visibleCreditCards.length === 0 && (
+                  <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)' }}>
+                    No active credit card accounts available.
+                  </p>
+                )}
+              </div>
+            </Field>
+          )}
 
           <Field
             label={isEdit ? 'New Password' : 'Password'}

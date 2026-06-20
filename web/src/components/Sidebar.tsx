@@ -1,14 +1,17 @@
 import { NavLink } from 'react-router-dom';
-import { NAV_ITEMS } from '../lib/nav';
+import { getUser } from '../lib/api';
+import { navItemsForRole } from '../lib/nav';
 
 export default function Sidebar() {
+  const items = navItemsForRole(getUser()?.role);
+
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r border-line bg-surface md:flex">
       <div className="flex items-center px-4 py-3">
         <span className="font-semibold text-ink">kemana uangku</span>
       </div>
       <nav className="flex flex-1 flex-col gap-1 px-2">
-        {NAV_ITEMS.map((item) => (
+        {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

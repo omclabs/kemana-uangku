@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
+import { requireNonReimbursement } from '../lib/access';
 import { categoryCreate, categoryUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -59,6 +60,9 @@ app.get('/:id', async (c) => {
 });
 
 app.post('/', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const actor = getCurrentUser(c);
   const body = categoryCreate.parse(await c.req.json());
 
@@ -102,6 +106,9 @@ app.post('/', async (c) => {
 });
 
 app.put('/:id', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const actor = getCurrentUser(c);
   const id = c.req.param('id');
   const existing = await c.env.DB.prepare('SELECT * FROM categories WHERE id = ?')
@@ -214,6 +221,9 @@ app.put('/:id', async (c) => {
 });
 
 app.delete('/:id', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
   const actor = getCurrentUser(c);
   const id = c.req.param('id');
   const existing = await c.env.DB.prepare('SELECT * FROM categories WHERE id = ?')

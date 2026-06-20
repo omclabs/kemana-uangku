@@ -248,4 +248,64 @@ describe('/users', () => {
 
     expect(res.status).toBe(403);
   });
+
+  it('admin can assign reimbursement users to credit card accounts only', async () => {
+    const cardRes = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        name: 'Team Card',
+        type: 'credit_card',
+        balance: 0,
+        credit_limit: 3000000,
+        billing_date: 19,
+      }),
+    });
+    const card = (await cardRes.json()) as { id: string };
+
+    const bankRes = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Ops Bank', type: 'bank', balance: 0 }),
+    });
+    const bank = (await bankRes.json()) as { id: string };
+
+    const badRes = await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: 'bad-reimburse',
+        email: 'bad-reimburse@example.com',
+        password: 'password1',
+        role: 'reimbursement',
+        assigned_account_ids: [bank.id],
+      }),
+    });
+    expect(badRes.status).toBe(400);
+
+    const createRes = await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: 'good-reimburse',
+        email: 'good-reimburse@example.com',
+        password: 'password1',
+        role: 'reimbursement',
+        assigned_account_ids: [card.id],
+      }),
+    });
+    expect(createRes.status).toBe(201);
+    const created = (await createRes.json()) as { id: string; assigned_account_ids: string[] };
+    expect(created.assigned_account_ids).toEqual([card.id]);
+
+    const updateRes = await SELF.fetch(`https://example.com/users/${created.id}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ role: 'user' }),
+    });
+    expect(updateRes.status).toBe(200);
+    const updated = (await updateRes.json()) as { assigned_account_ids: string[]; role: string };
+    expect(updated.role).toBe('user');
+    expect(updated.assigned_account_ids).toEqual([]);
+  });
 });
