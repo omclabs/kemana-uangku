@@ -69,7 +69,9 @@ app.post('/login', async (c) => {
       id: row.id,
       username: row.username,
       role: row.role,
-      assigned_account_ids: (accessRows ?? []).map((access) => access.account_id),
+      assigned_account_ids: row.role === 'reimbursement'
+        ? (accessRows ?? []).map((access) => access.account_id)
+        : [],
     },
   }, 200);
 });

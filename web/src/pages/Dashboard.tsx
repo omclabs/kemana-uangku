@@ -46,6 +46,7 @@ export default function Dashboard() {
   const [categoryTab, setCategoryTab] = useState<'income' | 'expense'>('expense');
 
   const user = getUser();
+  const canViewAllDashboardAccounts = user?.role === 'admin' || user?.role === 'reimbursement';
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +77,7 @@ export default function Dashboard() {
   );
 
   const totalBalance = topLevelAccounts
-    .filter((a) => user?.role === 'reimbursement' || (a.type !== 'credit_card' && a.type !== 'loan'))
+    .filter((a) => canViewAllDashboardAccounts || (a.type !== 'credit_card' && a.type !== 'loan'))
     .reduce((sum, a) => sum + a.computed_balance, 0);
 
   const now = new Date();

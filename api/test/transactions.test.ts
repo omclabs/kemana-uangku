@@ -661,6 +661,58 @@ describe('/transactions', () => {
     expect(deleteRes.status).toBe(403);
   });
 
+  it('admin users can still see all transactions after promotion from reimbursement', async () => {
+    const creditCardRes = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.creditCard,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 90000,
+      type: 'expense',
+    });
+    const [creditCardTx] = (await creditCardRes.json()) as TxRow[];
+
+    const bankRes = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 45000,
+      type: 'expense',
+    });
+    const [bankTx] = (await bankRes.json()) as TxRow[];
+
+    const createRes = await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: 'promoted-admin-transactions',
+        email: 'promoted-admin-transactions@example.com',
+        password: 'password1',
+        role: 'reimbursement',
+        assigned_account_ids: [TEST_ACCOUNT_IDS.creditCard],
+      }),
+    });
+    const created = (await createRes.json()) as { id: string };
+
+    const updateRes = await SELF.fetch(`https://example.com/users/${created.id}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        role: 'admin',
+      }),
+    });
+    expect(updateRes.status).toBe(200);
+
+    const token = await login('promoted-admin-transactions', 'password1');
+    const userHeaders = { Authorization: `Bearer ${token}` };
+
+    const listRes = await SELF.fetch('https://example.com/transactions', { headers: userHeaders });
+    expect(listRes.status).toBe(200);
+    const rows = (await listRes.json()) as TxRow[];
+    const rowIds = rows.map((row) => row.id);
+    expect(rowIds).toContain(creditCardTx.id);
+    expect(rowIds).toContain(bankTx.id);
+  });
+
   it('POST /import-receipt/parse returns draft rows from csv without creating transactions', async () => {
     const before = await listTransactions();
     const form = new FormData();

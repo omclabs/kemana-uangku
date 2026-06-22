@@ -137,6 +137,8 @@ Deploy flow:
 4. Add `VITE_API_BASE_URL`.
 5. Deploy.
 
+The web build includes a `_redirects` file with `/* /index.html 200` so shared deep links like `/login` and `/transactions/new` resolve on hosts that support that convention.
+
 If you build manually first, `make deploy-web API_BASE_URL=...` prepares the exact `dist/` directory to upload.
 
 ### Option B: Any static host
@@ -148,6 +150,7 @@ If you use another static host:
 3. make sure `VITE_API_BASE_URL` points to the deployed Worker before building
 
 Because this is a React SPA, your host must rewrite unknown routes to `index.html`.
+If you publish to a `*.workers.dev` frontend, verify that a direct request to `/login` returns the app shell instead of `404`.
 
 ## 4. Post-deploy checks
 
