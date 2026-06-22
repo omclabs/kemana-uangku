@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, apiFetch, clearSession, getUser } from '../lib/api';
 import type { Config as ConfigType } from '../lib/types';
+import { WEB_BUILD } from '../lib/version';
 import PageContainer from '../components/PageContainer';
 import PageHeader from '../components/PageHeader';
 
@@ -44,6 +45,9 @@ export default function Config() {
   const [currency, setCurrency] = useState('');
   const [timezone, setTimezone] = useState('');
   const [version, setVersion] = useState('');
+  const [apiBuildVersion, setApiBuildVersion] = useState('dev');
+  const [apiCommitSha, setApiCommitSha] = useState('dev');
+  const [apiDeployedAt, setApiDeployedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
@@ -61,6 +65,9 @@ export default function Config() {
         setCurrency(config.currency);
         setTimezone(config.default_timezone);
         setVersion(config.version);
+        setApiBuildVersion(config.api_build?.version ?? 'dev');
+        setApiCommitSha(config.api_build?.commit_sha ?? 'dev');
+        setApiDeployedAt(config.api_build?.deployed_at ?? null);
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load config');
@@ -284,7 +291,17 @@ export default function Config() {
       )}
 
       {!loading && (
-        <p style={{ marginTop: 24, fontSize: 11.5, color: 'var(--muted)' }}>Schema version: {version}</p>
+        <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>Schema version: {version}</p>
+          <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>
+            Web build: {WEB_BUILD.version} ({WEB_BUILD.commitSha})
+            {WEB_BUILD.builtAt ? ` · ${WEB_BUILD.builtAt}` : ''}
+          </p>
+          <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>
+            API build: {apiBuildVersion} ({apiCommitSha})
+            {apiDeployedAt ? ` · ${apiDeployedAt}` : ''}
+          </p>
+        </div>
       )}
 
       {clearOpen && (

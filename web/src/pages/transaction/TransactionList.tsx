@@ -33,10 +33,10 @@ function cellFmt(value: number): string {
   return statFmt(value);
 }
 
-function toDatePreset(unix: number): string {
+function toDatetimePreset(unix: number): string {
   const d = new Date(unix * 1000);
   const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 function toMonthPreset(unix: number): string {
@@ -599,6 +599,10 @@ export default function TransactionList() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {groups.map((group) => {
             const groupDate = new Date(group.date * 1000);
+            const latestGroupDate = group.items.reduce(
+              (latest, transaction) => Math.max(latest, transaction.date),
+              group.date
+            );
             const depositTotal = group.items.reduce((sum, transaction) => {
               if (transaction.type === 'income') return sum + transaction.amount;
               return sum;
@@ -613,7 +617,7 @@ export default function TransactionList() {
               <section key={group.key}>
                 <button
                   type="button"
-                  onClick={() => navigate(`/transactions/new?date=${encodeURIComponent(toDatePreset(group.date))}`)}
+                  onClick={() => navigate(`/transactions/new?date=${encodeURIComponent(toDatetimePreset(latestGroupDate))}`)}
                   style={{
                     width: '100%',
                     display: 'flex',

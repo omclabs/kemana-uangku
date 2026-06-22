@@ -6,9 +6,17 @@ import { configClearData, configUpdate } from '../lib/validation';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+function apiBuildInfo(env: Bindings) {
+  return {
+    version: env.APP_VERSION ?? 'dev',
+    commit_sha: env.COMMIT_SHA ?? 'dev',
+    deployed_at: env.DEPLOYED_AT ?? null,
+  };
+}
+
 app.get('/', async (c) => {
   const row = await c.env.DB.prepare('SELECT * FROM config WHERE id = 1').first();
-  return c.json(row, 200);
+  return c.json({ ...row, api_build: apiBuildInfo(c.env) }, 200);
 });
 
 app.put('/', async (c) => {
@@ -39,7 +47,7 @@ app.put('/', async (c) => {
   }
 
   const row = await c.env.DB.prepare('SELECT * FROM config WHERE id = 1').first();
-  return c.json(row, 200);
+  return c.json({ ...row, api_build: apiBuildInfo(c.env) }, 200);
 });
 
 app.post('/clear-data', async (c) => {

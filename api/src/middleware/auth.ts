@@ -7,6 +7,9 @@ export type Bindings = {
   API_TOKEN: string;
   ALLOWED_ORIGINS?: string;
   ALLOW_API_TOKEN_AUTH?: string;
+  APP_VERSION?: string;
+  COMMIT_SHA?: string;
+  DEPLOYED_AT?: string;
   AI?: {
     run(model: string, input: unknown): Promise<unknown>;
   };

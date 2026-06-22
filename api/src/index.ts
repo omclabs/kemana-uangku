@@ -79,7 +79,10 @@ app.onError((err, c) => {
       path: c.req.path,
       error: err.message,
     });
-    const response = c.json({ error: 'Service misconfigured' }, err.status);
+    const response = new Response(JSON.stringify({ error: 'Service misconfigured' }), {
+      status: err.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
     applySecurityHeaders(response);
     return response;
   }

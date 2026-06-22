@@ -95,6 +95,14 @@ The frontend only needs one runtime input at build time:
 
 - `VITE_API_BASE_URL` = your deployed Worker base URL
 
+The repo's `make deploy-api` and `make deploy-web` commands also inject minimal build metadata automatically:
+
+- package version
+- current git commit short SHA
+- UTC build/deploy timestamp
+
+These values are shown in the app config screens as `Web build` and `API build`.
+
 From `web/`:
 
 ```bash
@@ -166,6 +174,7 @@ After both sides are deployed:
    - account balance changes
    - monthly balance summary updates
    - config pages and budget pages load normally
+   - config shows `Schema version`, `Web build`, and `API build`
 
 ## 5. Ongoing updates
 

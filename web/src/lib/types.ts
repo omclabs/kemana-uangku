@@ -74,6 +74,11 @@ export interface Config {
   default_timezone: string;
   currency: string;
   last_updated: number;
+  api_build?: {
+    version: string;
+    commit_sha: string;
+    deployed_at: string | null;
+  };
 }
 
 export interface MonthlyBalance {

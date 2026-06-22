@@ -79,13 +79,13 @@ export default function Calculator({ initialValue, onConfirm, onClose }: Calcula
           <CalcButton label="3" onClick={() => handleDigit('3')} />
           <CalcButton label="-" variant="operator" onClick={() => handleOperator('-')} />
 
-          <CalcButton label="C" variant="clear" onClick={() => setState(reset())} />
-          <CalcButton label="⌫" variant="clear" onClick={() => setState((s) => backspace(s))} />
+          <CalcButton label="0" onClick={() => handleDigit('0')} />
+          <CalcButton label="." onClick={() => handleDigit('.')} />
           <CalcButton label="+/-" variant="operator" onClick={() => setState((s) => toggleSign(s))} />
           <CalcButton label="+" variant="operator" onClick={() => handleOperator('+')} />
 
-          <CalcButton label="0" onClick={() => handleDigit('0')} />
-          <CalcButton label="." onClick={() => handleDigit('.')} />
+          <CalcButton label="C" variant="clear" onClick={() => setState(reset())} />
+          <CalcButton label="⌫" variant="clear" onClick={() => setState((s) => backspace(s))} />
           <CalcButton label="=" variant="equal" className="col-span-2" onClick={handleEqual} />
         </div>
 

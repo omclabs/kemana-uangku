@@ -171,6 +171,24 @@ export default function TransactionForm() {
     if (t !== 'transfer') { setTransferTo(''); setFee(null); }
   }
 
+  function handleAccountSelect(nextAccountId: string) {
+    setAccountId(nextAccountId);
+    if (isEdit) return;
+    if (type === 'transfer') {
+      window.setTimeout(() => setActiveLookup('transferTo'), 0);
+      return;
+    }
+    window.setTimeout(() => setActiveLookup('category'), 0);
+  }
+
+  function handleCategorySelect(nextCategoryId: string) {
+    setCategoryId(nextCategoryId);
+    if (!isEdit) {
+      setActiveLookup(null);
+      setActiveCalculator('amount');
+    }
+  }
+
   const sourceAccount = accounts.find((account) => account.id === accountId) ?? null;
   const transferLike = transferTo !== '';
   const displayType: TransactionType = transferLike ? 'transfer' : type;
@@ -344,25 +362,20 @@ export default function TransactionForm() {
             </div>
           )}
 
-          {/* ── Amount hero ──────────────────────────────────────── */}
-          <button type="button" onClick={() => setActiveCalculator('amount')} style={{
-            background: 'var(--surface)', border: `1.5px solid ${hasAmount ? 'var(--accent)' : 'var(--line)'}`,
-            borderRadius: 18, padding: '18px 20px', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            boxShadow: hasAmount ? '0 4px 16px -6px var(--accent)' : 'none',
-            transition: 'all .15s',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--muted)' }}>Rp</span>
-              <span style={{
-                fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em',
-                color: hasAmount ? 'var(--ink)' : 'var(--muted)',
-              }}>
-                {hasAmount ? new Intl.NumberFormat('id-ID').format(amount) : '0'}
-              </span>
-            </div>
-            <span style={{ color: 'var(--muted)' }}><CalcIcon /></span>
-          </button>
+          {/* ── Date ─────────────────────────────────────────────── */}
+          <FieldRow icon={<CalendarIcon />} label="Date">
+            <input
+              type="datetime-local"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+              style={{
+                width: '100%', background: 'none', border: 'none', padding: 0,
+                fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
+                outline: 'none',
+              }}
+            />
+          </FieldRow>
 
           {/* ── Account ──────────────────────────────────────────── */}
           <FieldRow icon={<WalletIcon />} label={displayType === 'transfer' ? 'From' : 'Account'}>
@@ -443,34 +456,25 @@ export default function TransactionForm() {
             </FieldRow>
           )}
 
-          {/* ── Date ─────────────────────────────────────────────── */}
-          <FieldRow icon={<CalendarIcon />} label="Date">
-            <input
-              type="datetime-local"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-              style={{
-                width: '100%', background: 'none', border: 'none', padding: 0,
-                fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
-                outline: 'none',
-              }}
-            />
-          </FieldRow>
-
-          {/* ── Note ─────────────────────────────────────────────── */}
-          <FieldRow icon={<NoteIcon />} label="Note">
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Optional"
-              style={{
-                width: '100%', background: 'none', border: 'none', padding: 0,
-                fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'inherit',
-                outline: 'none',
-              }}
-            />
-          </FieldRow>
+          {/* ── Amount hero ──────────────────────────────────────── */}
+          <button type="button" onClick={() => setActiveCalculator('amount')} style={{
+            background: 'var(--surface)', border: `1.5px solid ${hasAmount ? 'var(--accent)' : 'var(--line)'}`,
+            borderRadius: 18, padding: '18px 20px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            boxShadow: hasAmount ? '0 4px 16px -6px var(--accent)' : 'none',
+            transition: 'all .15s',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--muted)' }}>Rp</span>
+              <span style={{
+                fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em',
+                color: hasAmount ? 'var(--ink)' : 'var(--muted)',
+              }}>
+                {hasAmount ? new Intl.NumberFormat('id-ID').format(amount) : '0'}
+              </span>
+            </div>
+            <span style={{ color: 'var(--muted)' }}><CalcIcon /></span>
+          </button>
 
           {/* ── Transfer fee ─────────────────────────────────────── */}
           {showFee && (
@@ -498,6 +502,20 @@ export default function TransactionForm() {
               )}
             </FieldRow>
           )}
+
+          {/* ── Note ─────────────────────────────────────────────── */}
+          <FieldRow icon={<NoteIcon />} label="Note">
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Optional"
+              style={{
+                width: '100%', background: 'none', border: 'none', padding: 0,
+                fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'inherit',
+                outline: 'none',
+              }}
+            />
+          </FieldRow>
 
           {/* ── Recurring ────────────────────────────────────────── */}
           {!isEdit && (
@@ -648,7 +666,7 @@ export default function TransactionForm() {
 
       {/* ── Lookup overlays ──────────────────────────────────────── */}
       {activeLookup === 'account' && (
-        <TileLookup items={accounts} value={accountId} onSelect={setAccountId}
+        <TileLookup items={accounts} value={accountId} onSelect={handleAccountSelect}
           onClose={() => setActiveLookup(null)} allowParentSelection
           title={type === 'transfer' ? 'From Account' : 'Account'} />
       )}
@@ -657,7 +675,7 @@ export default function TransactionForm() {
           onClose={() => setActiveLookup(null)} allowParentSelection title="To Account" />
       )}
       {activeLookup === 'category' && (
-        <TileLookup items={categoryItems} value={categoryId} onSelect={setCategoryId}
+        <TileLookup items={categoryItems} value={categoryId} onSelect={handleCategorySelect}
           onClose={() => setActiveLookup(null)} allowParentSelection={false} title="Category" />
       )}
 

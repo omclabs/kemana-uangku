@@ -19,11 +19,17 @@ describe('/config', () => {
     const res = await SELF.fetch('https://example.com/config', { headers: AUTH });
     expect(res.status).toBe(200);
 
-    const body = (await res.json()) as Record<string, unknown>;
+    const body = (await res.json()) as Record<string, unknown> & {
+      api_build?: { version: string; commit_sha: string; deployed_at: string | null };
+    };
     expect(body.id).toBe(1);
     expect(body.version).toBe('0.1.0');
     expect(body.default_timezone).toBe('Asia/Jakarta');
     expect(body.currency).toBe('IDR');
+    expect(body.api_build).toBeDefined();
+    expect(body.api_build?.version).toBe('dev');
+    expect(body.api_build?.commit_sha).toBe('dev');
+    expect(body.api_build?.deployed_at).toBeNull();
   });
 
   it('PUT /config updates currency and bumps last_updated', async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, apiFetch } from '../lib/api';
 import type { Config as ConfigType } from '../lib/types';
+import { WEB_BUILD } from '../lib/version';
 import PageContainer from '../components/PageContainer';
 import PageHeader from '../components/PageHeader';
 
@@ -31,6 +32,9 @@ export default function ConfigPreferences() {
   const [currency, setCurrency] = useState('');
   const [timezone, setTimezone] = useState('');
   const [version, setVersion] = useState('');
+  const [apiBuildVersion, setApiBuildVersion] = useState('dev');
+  const [apiCommitSha, setApiCommitSha] = useState('dev');
+  const [apiDeployedAt, setApiDeployedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +48,9 @@ export default function ConfigPreferences() {
         setCurrency(config.currency);
         setTimezone(config.default_timezone);
         setVersion(config.version);
+        setApiBuildVersion(config.api_build?.version ?? 'dev');
+        setApiCommitSha(config.api_build?.commit_sha ?? 'dev');
+        setApiDeployedAt(config.api_build?.deployed_at ?? null);
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load config');
@@ -111,7 +118,17 @@ export default function ConfigPreferences() {
             />
           </FieldRow>
 
-          <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>Schema version: {version}</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>Schema version: {version}</p>
+            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>
+              Web build: {WEB_BUILD.version} ({WEB_BUILD.commitSha})
+              {WEB_BUILD.builtAt ? ` · ${WEB_BUILD.builtAt}` : ''}
+            </p>
+            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>
+              API build: {apiBuildVersion} ({apiCommitSha})
+              {apiDeployedAt ? ` · ${apiDeployedAt}` : ''}
+            </p>
+          </div>
 
           {error && (
             <div style={{

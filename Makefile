@@ -11,6 +11,10 @@ WRANGLER := npx wrangler
 API_BASE_URL ?=
 ALLOWED_ORIGINS ?=
 PAGES_PROJECT ?=
+APP_GIT_SHA := $(shell git -C $(CURDIR) rev-parse --short HEAD)
+BUILD_TIME_UTC := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+API_APP_VERSION := $(shell node -p "require('./api/package.json').version")
+WEB_APP_VERSION := $(shell node -p "require('./web/package.json').version")
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -61,7 +65,7 @@ api-build: ## Typecheck the api on the host
 
 web-build: ## Build the web app; requires API_BASE_URL
 	@if [ -z "$(API_BASE_URL)" ]; then echo "API_BASE_URL is required. Example: make web-build API_BASE_URL=https://kemana-uangku-api.example.workers.dev"; exit 1; fi
-	cd $(WEB_DIR) && VITE_API_BASE_URL="$(API_BASE_URL)" npm run build
+	cd $(WEB_DIR) && VITE_API_BASE_URL="$(API_BASE_URL)" VITE_APP_VERSION="$(WEB_APP_VERSION)" VITE_COMMIT_SHA="$(APP_GIT_SHA)" VITE_BUILD_TIME="$(BUILD_TIME_UTC)" npm run build
 
 deploy-api-secret: ## Set the Worker API_TOKEN secret interactively
 	cd $(API_DIR) && $(WRANGLER) secret put API_TOKEN
@@ -74,14 +78,14 @@ deploy-api-migrate: ## Apply remote D1 migrations
 	cd $(API_DIR) && $(WRANGLER) d1 migrations apply kemana-uangku-db --remote
 
 deploy-api: ## Deploy the Cloudflare Worker api
-	cd $(API_DIR) && $(WRANGLER) deploy
+	cd $(API_DIR) && $(WRANGLER) deploy --var APP_VERSION:"$(API_APP_VERSION)" --var COMMIT_SHA:"$(APP_GIT_SHA)" --var DEPLOYED_AT:"$(BUILD_TIME_UTC)"
 
 deploy-web: web-build ## Build production web assets for manual upload or Pages deploy
 	@echo "Web build ready in $(WEB_DIR)/dist"
 
 deploy-web-preview: ## Preview the production web build locally; requires API_BASE_URL
 	@if [ -z "$(API_BASE_URL)" ]; then echo "API_BASE_URL is required. Example: make deploy-web-preview API_BASE_URL=https://kemana-uangku-api.example.workers.dev"; exit 1; fi
-	cd $(WEB_DIR) && VITE_API_BASE_URL="$(API_BASE_URL)" npm run build && npm run preview -- --host 0.0.0.0
+	cd $(WEB_DIR) && VITE_API_BASE_URL="$(API_BASE_URL)" VITE_APP_VERSION="$(WEB_APP_VERSION)" VITE_COMMIT_SHA="$(APP_GIT_SHA)" VITE_BUILD_TIME="$(BUILD_TIME_UTC)" npm run build && npm run preview -- --host 0.0.0.0
 
 deploy-all: deploy-api-migrate deploy-api deploy-web ## Migrate api, deploy api, then build web assets
 	@echo "Deploy flow complete. Upload $(WEB_DIR)/dist or trigger your Pages deploy."
