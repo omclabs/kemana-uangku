@@ -115,50 +115,42 @@ This creates the production bundle in `web/dist/`.
 
 ## 3. Publish the Web App
 
-### Option A: Cloudflare Pages
+Do not publish the web app to Cloudflare Pages for this project.
+The production frontend is served by the existing Worker service:
 
-Recommended if you want both app parts on Cloudflare.
+- Dashboard: `https://dash.cloudflare.com/3949d883a1c39b2e1943c51de1726445/workers/services/view/kemana-uangku/production`
+- Worker service name: `kemana-uangku`
 
-Build command:
+Cloudflare Workers Static Assets supports serving a built asset directory from a Worker service. For current product behavior, refer to the official docs:
 
-```bash
-npm run build
-```
+- Static Assets overview: https://developers.cloudflare.com/workers/static-assets/
+- Direct upload / asset upload flow: https://developers.cloudflare.com/workers/static-assets/direct-upload/
 
-Build output directory:
+### Current deploy flow for this repo
 
-```bash
-dist
-```
-
-Environment variable:
+1. Build the production bundle:
 
 ```bash
-VITE_API_BASE_URL=https://kemana-uangku-api.<subdomain>.workers.dev
+make deploy-web API_BASE_URL="https://kemana-uangku-api.your-account.workers.dev"
 ```
 
-Deploy flow:
+2. Open the existing Worker service in the dashboard:
 
-1. Create a new Pages project pointing at `web/`.
-2. Set the build command to `npm run build`.
-3. Set the output directory to `dist`.
-4. Add `VITE_API_BASE_URL`.
-5. Deploy.
+```text
+https://dash.cloudflare.com/3949d883a1c39b2e1943c51de1726445/workers/services/view/kemana-uangku/production
+```
 
-The web build includes a `_redirects` file with `/* /index.html 200` so shared deep links like `/login` and `/transactions/new` resolve on hosts that support that convention.
+3. Publish the contents of `web/dist/` to the `kemana-uangku` Worker service as the production static assets release.
 
-If you build manually first, `make deploy-web API_BASE_URL=...` prepares the exact `dist/` directory to upload.
+4. Verify SPA deep links such as `/login`, `/transactions`, and `/transactions/new` return the app shell instead of `404`.
 
-### Option B: Any static host
+The web build already includes a `_redirects` file with `/* /index.html 200`, but the Worker service must also be configured to serve SPA routes correctly.
 
-If you use another static host:
+### Notes for future automation
 
-1. build `web/dist`
-2. upload the contents of `dist`
-3. make sure `VITE_API_BASE_URL` points to the deployed Worker before building
-
-Because this is a React SPA, your host must rewrite unknown routes to `index.html`.
-If you publish to a `*.workers.dev` frontend, verify that a direct request to `/login` returns the app shell instead of `404`.
+- The repository already builds the correct `web/dist/` bundle.
+- The repository does not yet contain a dedicated Wrangler config for deploying the web bundle directly to the `kemana-uangku` Worker service.
+- Until that exists, the source of truth for web publishing is the existing Worker service in the Cloudflare dashboard.
 
 ## 4. Post-deploy checks
 
@@ -191,10 +183,16 @@ Run the migrations command first whenever schema or seed migrations changed.
 
 ### Web code changes
 
-Rebuild and redeploy `web/dist` with the same `VITE_API_BASE_URL`:
+Rebuild `web/dist` with the production API URL:
 
 ```bash
-make deploy-web API_BASE_URL="https://kemana-uangku-api.<subdomain>.workers.dev"
+make deploy-web API_BASE_URL="https://kemana-uangku-api.your-account.workers.dev"
+```
+
+Then publish that bundle to:
+
+```text
+https://dash.cloudflare.com/3949d883a1c39b2e1943c51de1726445/workers/services/view/kemana-uangku/production
 ```
 
 ## Notes

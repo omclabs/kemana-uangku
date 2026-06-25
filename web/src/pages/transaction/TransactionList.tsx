@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { categoryVisual } from '../../lib/categories';
 import { ApiError, apiFetch, getUser } from '../../lib/api';
@@ -60,6 +60,18 @@ function groupByDate(txs: Transaction[]) {
   return groups;
 }
 
+function summarizeTransactions(transactions: Transaction[]) {
+  return transactions.reduce(
+    (acc, transaction) => {
+      acc.income += txIncome(transaction);
+      acc.expense += txExpense(transaction);
+      acc.total = acc.income - acc.expense;
+      return acc;
+    },
+    { income: 0, expense: 0, total: 0 },
+  );
+}
+
 type Tab = 'daily' | 'calendar' | 'monthly';
 
 interface DayCell {
@@ -91,6 +103,7 @@ interface YearMonth {
 }
 
 const DAY_MS = 86_400_000;
+const LONG_PRESS_MS = 420;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function startOfDay(date: Date): Date {
@@ -315,6 +328,10 @@ export default function TransactionList() {
   const [accounts,     setAccounts]     = useState<Account[]>([]);
   const [categories,   setCategories]   = useState<Category[]>([]);
   const [tab, setTab] = useState<Tab>('daily');
+  const [selection, setSelection] = useState<{ groupKey: string | null; ids: string[] }>({
+    groupKey: null,
+    ids: [],
+  });
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
@@ -346,21 +363,49 @@ export default function TransactionList() {
     navigate(`/account/${transaction.account_id}/payment?month=${encodeURIComponent(toMonthPreset(transaction.date))}`);
   }
 
+  function clearSelection() {
+    setSelection({ groupKey: null, ids: [] });
+  }
+
+  function startSelection(groupKey: string, transactionId: string) {
+    setSelection({ groupKey, ids: [transactionId] });
+  }
+
+  function toggleTransactionSelection(groupKey: string, transactionId: string) {
+    setSelection((current) => {
+      if (current.groupKey && current.groupKey !== groupKey) return current;
+
+      const exists = current.ids.includes(transactionId);
+      const nextIds = exists
+        ? current.ids.filter((item) => item !== transactionId)
+        : [...current.ids, transactionId];
+
+      return {
+        groupKey: nextIds.length > 0 ? groupKey : null,
+        ids: nextIds,
+      };
+    });
+  }
+
   // ── Derived ──────────────────────────────────────────────────────
   const visible = useMemo(() => transactions.filter((t) => {
     const d = new Date(t.date * 1000);
     return d.getMonth() === selectedMonth.getMonth() && d.getFullYear() === selectedMonth.getFullYear();
   }), [transactions, selectedMonth]);
   const groups = useMemo(() => groupByDate(visible), [visible]);
-  const summary = visible.reduce(
-    (acc, transaction) => {
-      acc.income += txIncome(transaction);
-      acc.expense += txExpense(transaction);
-      acc.total = acc.income - acc.expense;
-      return acc;
-    },
-    { income: 0, expense: 0, total: 0 },
-  );
+  const selectedIds = selection.ids;
+  const selectedGroupKey = selection.groupKey;
+  const selectionMode = tab === 'daily' && selectedIds.length > 0 && selectedGroupKey !== null;
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const selectedRows = useMemo(() => {
+    if (!selectionMode) return [];
+    const rowMap = new Map(visible.map((transaction) => [transaction.id, transaction]));
+    return selectedIds
+      .map((transactionId) => rowMap.get(transactionId))
+      .filter((transaction): transaction is Transaction => Boolean(transaction));
+  }, [selectionMode, selectedIds, visible]);
+  const visibleSummary = useMemo(() => summarizeTransactions(visible), [visible]);
+  const summary = selectionMode ? summarizeTransactions(selectedRows) : visibleSummary;
   const now          = new Date();
   const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const canGoNext = tab === 'monthly'
@@ -487,6 +532,26 @@ export default function TransactionList() {
     cursor: 'pointer',
   });
 
+  useEffect(() => {
+    clearSelection();
+  }, [selectedMonth, tab]);
+
+  useEffect(() => {
+    if (!selectionMode || !selectedGroupKey) return;
+
+    const validIds = selectedIds.filter((transactionId) => {
+      const transaction = visible.find((item) => item.id === transactionId);
+      return transaction && dateKey(transaction.date) === selectedGroupKey;
+    });
+
+    if (validIds.length === selectedIds.length) return;
+
+    setSelection({
+      groupKey: validIds.length > 0 ? selectedGroupKey : null,
+      ids: validIds,
+    });
+  }, [selectionMode, selectedGroupKey, selectedIds, visible]);
+
   return (
     <PageContainer>
 
@@ -603,11 +668,18 @@ export default function TransactionList() {
               (latest, transaction) => Math.max(latest, transaction.date),
               group.date
             );
-            const depositTotal = group.items.reduce((sum, transaction) => {
+            const selectableGroup = !selectionMode || selectedGroupKey === group.key;
+            const selectedGroupItems = selectionMode && selectedGroupKey === group.key
+              ? group.items.filter((transaction) => selectedIdSet.has(transaction.id))
+              : group.items;
+            const totalsSource = selectionMode && selectedGroupKey === group.key
+              ? selectedGroupItems
+              : group.items;
+            const depositTotal = totalsSource.reduce((sum, transaction) => {
               if (transaction.type === 'income') return sum + transaction.amount;
               return sum;
             }, 0);
-            const withdrawalTotal = group.items.reduce((sum, transaction) => {
+            const withdrawalTotal = totalsSource.reduce((sum, transaction) => {
               if (transaction.type === 'expense' || transaction.type === 'transfer') {
                 return sum + transaction.amount;
               }
@@ -658,6 +730,12 @@ export default function TransactionList() {
                       transaction={t}
                       accountName={accountName}
                       categoryName={categoryName}
+                      selected={selectedIdSet.has(t.id)}
+                      selectionMode={selectionMode}
+                      selectable={selectableGroup}
+                      onOpen={() => navigate(`/transactions/${t.id}/edit`)}
+                      onLongPress={() => startSelection(group.key, t.id)}
+                      onToggleSelect={() => toggleTransactionSelection(group.key, t.id)}
                       onMarkPaid={markPaid}
                       showPaymentAction={!isReimbursement}
                     />
@@ -681,16 +759,26 @@ export default function TransactionList() {
 
 function TransactionRow({
   transaction: t, accountName, categoryName, onMarkPaid,
+  selected,
+  selectionMode,
+  selectable,
+  onOpen,
+  onLongPress,
+  onToggleSelect,
   showPaymentAction,
 }: {
   transaction: Transaction;
   accountName: (id: string | null) => string;
   categoryName: (id: string | null) => string;
+  selected: boolean;
+  selectionMode: boolean;
+  selectable: boolean;
+  onOpen: () => void;
+  onLongPress: () => void;
+  onToggleSelect: () => void;
   onMarkPaid: (transaction: Transaction) => void;
   showPaymentAction: boolean;
 }) {
-  const navigate = useNavigate();
-
   const isTransfer = t.transfer_to !== null;
   const isDeposit = t.type === 'income';
   const categoryLabel = categoryName(t.category_id);
@@ -699,11 +787,74 @@ function TransactionRow({
   const sublabel = isTransfer
     ? `Transfer - ${accountName(t.account_id)}`
     : `${categoryLabel} - ${accountName(t.account_id)}`;
+  const timerRef = useRef<number | null>(null);
+  const suppressClickRef = useRef(false);
+
+  function clearTimer() {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (selectionMode || !selectable || event.button !== 0) return;
+
+    suppressClickRef.current = false;
+    clearTimer();
+    timerRef.current = window.setTimeout(() => {
+      suppressClickRef.current = true;
+      onLongPress();
+      clearTimer();
+    }, LONG_PRESS_MS);
+  }
+
+  function handlePointerEnd() {
+    clearTimer();
+  }
+
+  function handleClick() {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+
+    if (selectionMode) {
+      if (selectable) onToggleSelect();
+      return;
+    }
+
+    onOpen();
+  }
+
+  useEffect(() => () => {
+    clearTimer();
+  }, []);
+
+  const selectionAffordance = selectionMode && selectable;
 
   return (
     <div
-      style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 16px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}
-      onClick={() => navigate(`/transactions/${t.id}/edit`)}
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 11,
+        padding: '11px 16px',
+        borderBottom: '1px solid var(--line)',
+        cursor: selectable || !selectionMode ? 'pointer' : 'default',
+        background: selected
+          ? 'color-mix(in srgb, var(--accent) 8%, var(--surface))'
+          : selectionAffordance
+            ? 'color-mix(in srgb, var(--accent) 3%, var(--surface))'
+            : 'transparent',
+        opacity: !selectionMode || selectable ? 1 : 0.66,
+      }}
+      onClick={handleClick}
+      onContextMenu={(event) => event.preventDefault()}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerEnd}
+      onPointerLeave={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
     >
         <span
           style={{
@@ -711,8 +862,17 @@ function TransactionRow({
             height: 38,
             borderRadius: 11,
             flexShrink: 0,
-            background: visual.soft,
-            color: visual.color,
+            border: selectionAffordance ? `1px solid ${selected ? 'var(--accent)' : 'var(--line)'}` : 'none',
+            background: selectionAffordance
+              ? selected
+                ? 'color-mix(in srgb, var(--accent) 16%, transparent)'
+                : 'var(--surface-2)'
+              : visual.soft,
+            color: selectionAffordance
+              ? selected
+                ? 'var(--accent)'
+                : 'var(--muted)'
+              : visual.color,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -720,7 +880,9 @@ function TransactionRow({
             fontWeight: 700,
           }}
         >
-          {isTransfer ? (
+          {selectionAffordance ? (
+            selected ? <CheckIcon /> : ''
+          ) : isTransfer ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d={isDeposit ? 'M5 12h14M15 6l6 6-6 6' : 'M19 12H5M9 6l-6 6 6 6'} />
             </svg>
@@ -756,6 +918,7 @@ function TransactionRow({
                 e.stopPropagation();
                 onMarkPaid(t);
               }}
+              onPointerDown={(e) => e.stopPropagation()}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
