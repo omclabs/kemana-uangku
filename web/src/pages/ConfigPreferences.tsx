@@ -118,18 +118,6 @@ export default function ConfigPreferences() {
             />
           </FieldRow>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>Schema version: {version}</p>
-            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>
-              Web build: {WEB_BUILD.version} ({WEB_BUILD.commitSha})
-              {WEB_BUILD.builtAt ? ` · ${WEB_BUILD.builtAt}` : ''}
-            </p>
-            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>
-              API build: {apiBuildVersion} ({apiCommitSha})
-              {apiDeployedAt ? ` · ${apiDeployedAt}` : ''}
-            </p>
-          </div>
-
           {error && (
             <div style={{
               padding: '10px 14px', background: 'var(--expense-soft)',
@@ -174,6 +162,18 @@ export default function ConfigPreferences() {
             }}>
               Cancel
             </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>Schema version: {version}</p>
+            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>
+              Web build: {WEB_BUILD.version} ({WEB_BUILD.commitSha})
+              {WEB_BUILD.builtAt ? ` · ${WEB_BUILD.builtAt}` : ''}
+            </p>
+            <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)' }}>
+              API build: {apiBuildVersion} ({apiCommitSha})
+              {apiDeployedAt ? ` · ${apiDeployedAt}` : ''}
+            </p>
           </div>
         </div>
       </form>

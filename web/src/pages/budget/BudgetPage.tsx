@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import PageContainer from '../../components/PageContainer';
 import PageHeader from '../../components/PageHeader';
+import { PlusIcon } from '../../components/icons';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
 import type { BudgetItem, BudgetMonth } from '../../lib/types';
@@ -47,8 +48,6 @@ export default function BudgetPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     apiFetch<BudgetMonth>(`/budgets?month=${selectedMonth}`)
       .then((budgetMonth) => {
@@ -123,6 +122,12 @@ export default function BudgetPage() {
     }
   }
 
+  function handleMonthChange(nextMonth: string) {
+    setLoading(true);
+    setError(null);
+    setSelectedMonth(nextMonth);
+  }
+
   return (
     <PageContainer>
       <PageHeader
@@ -134,22 +139,23 @@ export default function BudgetPage() {
             type="button"
             onClick={handleSave}
             disabled={saving || loading}
+            aria-label={saving ? 'Saving budgets' : 'Save budgets'}
             style={{
               border: 'none',
               borderRadius: 13,
-              padding: '0 14px',
+              width: 40,
               height: 40,
               background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
               color: '#fff',
-              fontFamily: 'inherit',
-              fontSize: 13,
-              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               cursor: saving || loading ? 'wait' : 'pointer',
               boxShadow: '0 8px 16px -6px var(--accent)',
               opacity: saving || loading ? 0.7 : 1,
             }}
           >
-            {saving ? 'Saving…' : 'Save'}
+            <PlusIcon className="h-5 w-5" />
           </button>
         )}
       />
@@ -179,7 +185,7 @@ export default function BudgetPage() {
             id="budget-month"
             type="month"
             value={selectedMonth}
-            onChange={(event) => setSelectedMonth(event.target.value)}
+            onChange={(event) => handleMonthChange(event.target.value)}
             style={{
               width: '100%',
               boxSizing: 'border-box',

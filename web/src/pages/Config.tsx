@@ -18,6 +18,9 @@ function TagIcon() {
 function BudgetIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M16 15h0"/></svg>;
 }
+function BellIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>;
+}
 function LogoutIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
 }
@@ -190,6 +193,25 @@ export default function Config() {
                 <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Budgets</span>
                 <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
                   Manage month-specific budget targets
+                </span>
+              </span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+            </Link>
+          )}
+
+          {!isReimbursement && (
+            <Link to="/config/tracked-items" style={cardStyle}>
+              <span style={{
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                background: 'color-mix(in srgb, var(--accent) 8%, transparent)', color: 'var(--accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <BellIcon />
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Tracked Items</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                  Manage stock forecasts and alerts
                 </span>
               </span>
               <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>

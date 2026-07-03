@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import StyledSelect from '../../components/StyledSelect';
 import PageHeader from '../../components/PageHeader';
+import ToggleSwitch from '../../components/ToggleSwitch';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
 import { CATEGORY_TYPES, type Category, type CategoryInput, type CategoryType } from '../../lib/types';
@@ -193,17 +194,16 @@ export default function CategoryForm() {
         )}
 
         {isEdit && (
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-muted">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={isActive}
-                disabled={hasActiveChildren}
-                onChange={(e) => setIsActive(e.target.checked)}
-              />
-              Active
-            </label>
+          <div className="rounded-2xl border border-line bg-surface px-4 py-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink">Active</p>
+                <p className="mt-1 text-xs text-muted">
+                  Inactive categories stay in history but cannot be used for new transactions.
+                </p>
+              </div>
+              <ToggleSwitch checked={isActive} onChange={setIsActive} disabled={hasActiveChildren} />
+            </div>
             {hasActiveChildren && (
               <p className="mt-1 text-xs text-muted">
                 Cannot change: category has active sub-categories.

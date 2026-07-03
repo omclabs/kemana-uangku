@@ -571,8 +571,6 @@ export default function AccountTransactions() {
     if (!id) return;
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     Promise.all([
       apiFetch<Account[]>('/accounts?include_inactive=true'),
@@ -955,7 +953,7 @@ export default function AccountTransactions() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', padding: '0 6px', borderBottom: '1px solid var(--line)', background: 'var(--surface)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', padding: '0 6px', borderBottom: '1px solid var(--line)', background: 'transparent', flexShrink: 0 }}>
           <button style={tabStyle(tab === 'daily')} onClick={() => setTab('daily')}>Daily</button>
           <button style={tabStyle(tab === 'calendar')} onClick={() => setTab('calendar')}>Calendar</button>
           <button style={tabStyle(tab === 'monthly')} onClick={() => setTab('monthly')}>Monthly</button>

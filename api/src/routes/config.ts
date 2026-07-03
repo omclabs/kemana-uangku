@@ -70,16 +70,19 @@ app.post('/clear-data', async (c) => {
     return c.json({ error: 'Current password is incorrect' }, 401);
   }
 
-  const [transactions, budgets, monthlyBalances, accounts] = await Promise.all([
+  const [transactions, budgets, monthlyBalances, accounts, trackedItems] = await Promise.all([
     c.env.DB.prepare('SELECT COUNT(*) AS count FROM transactions').first<{ count: number }>(),
     c.env.DB.prepare('SELECT COUNT(*) AS count FROM budgets').first<{ count: number }>(),
     c.env.DB.prepare('SELECT COUNT(*) AS count FROM monthly_balances').first<{ count: number }>(),
     c.env.DB.prepare('SELECT COUNT(*) AS count FROM accounts').first<{ count: number }>(),
+    c.env.DB.prepare('SELECT COUNT(*) AS count FROM tracked_items').first<{ count: number }>(),
   ]);
 
   await c.env.DB.batch([
     c.env.DB.prepare('DELETE FROM budgets'),
     c.env.DB.prepare('DELETE FROM monthly_balances'),
+    c.env.DB.prepare('DELETE FROM tracked_item_refills'),
+    c.env.DB.prepare('DELETE FROM tracked_items'),
     c.env.DB.prepare('DELETE FROM transactions'),
     c.env.DB.prepare(
       `UPDATE accounts
@@ -100,6 +103,7 @@ app.post('/clear-data', async (c) => {
         budgets: budgets?.count ?? 0,
         monthly_balances: monthlyBalances?.count ?? 0,
         accounts: accounts?.count ?? 0,
+        tracked_items: trackedItems?.count ?? 0,
       },
     },
     200

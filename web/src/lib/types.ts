@@ -161,6 +161,9 @@ export interface Transaction {
   installment_total: number | null;
   parent_transaction_id: string | null;
   payment_transaction_id: string | null;
+  tracked_item_id?: string | null;
+  refill_quantity?: number | null;
+  remaining_qty_before_refill?: number | null;
   is_active: number;
   created_at: number;
   updated_at: number;
@@ -175,7 +178,52 @@ export interface TransactionInput {
   type: TransactionType;
   transfer_to?: string | null;
   fee?: number | null;
+  tracked_item_id?: string | null;
+  refill_quantity?: number | null;
+  remaining_qty_before_refill?: number | null;
   recurring?: { mode: RecurringMode; total: number };
+}
+
+export interface TrackedItem {
+  id: string;
+  name: string;
+  category_id: string;
+  category_name: string;
+  unit: string;
+  warning_days: number;
+  avg_daily_usage: number | null;
+  latest_quantity_added: number | null;
+  estimated_run_out_at: number | null;
+  next_reminder_at: number | null;
+  forecast_ready: number;
+  last_forecasted_at: number | null;
+  is_active: number;
+  created_at: number;
+  updated_at: number;
+  days_remaining?: number | null;
+  alert_active?: boolean;
+}
+
+export interface TrackedItemInput {
+  name: string;
+  category_id: string;
+  unit: string;
+  warning_days: number;
+  is_active?: boolean;
+}
+
+export interface TrackedItemRefill {
+  id: string;
+  tracked_item_id: string;
+  transaction_id: string | null;
+  date: number;
+  quantity_added: number;
+  remaining_qty_before_refill: number | null;
+  note: string | null;
+  created_at: number;
+  updated_at: number;
+  transaction_amount?: number | null;
+  transaction_note?: string | null;
 }
 
 export type ReceiptImportDraftKind = 'item' | 'voucher' | 'manual';

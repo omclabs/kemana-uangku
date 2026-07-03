@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageContainer from '../components/PageContainer';
 import { ApiError, apiFetch, getUser } from '../lib/api';
 import { categoryVisual, initial } from '../lib/categories';
-import type { Account, BudgetMonth, Category, MonthlyBalance, Transaction } from '../lib/types';
+import { useTheme } from '../lib/theme';
+import type { Account, BudgetMonth, Category, MonthlyBalance, TrackedItem, Transaction } from '../lib/types';
 
 const idr = new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -34,6 +36,8 @@ function pctLabel(value: number): string {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { theme, toggle } = useTheme();
   const [accounts,     setAccounts]     = useState<Account[]>([]);
   const [budgetMonth, setBudgetMonth] = useState<BudgetMonth | null>(null);
   const [monthlyBalances, setMonthlyBalances] = useState<MonthlyBalance[]>([]);
@@ -44,6 +48,7 @@ export default function Dashboard() {
   const [selectedMonthKey, setSelectedMonthKey] = useState('');
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [categoryTab, setCategoryTab] = useState<'income' | 'expense'>('expense');
+  const [alertCount, setAlertCount] = useState(0);
 
   const user = getUser();
   const canViewAllDashboardAccounts = user?.role === 'admin' || user?.role === 'reimbursement';
@@ -72,6 +77,23 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (user?.role === 'reimbursement') return;
+
+    let cancelled = false;
+    apiFetch<TrackedItem[]>('/tracked-items/alerts')
+      .then((items) => {
+        if (!cancelled) setAlertCount(items.length);
+      })
+      .catch(() => {
+        if (!cancelled) setAlertCount(0);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
+
   const topLevelAccounts = accounts.filter(
     (a) => a.parent_id === null && a.include_in_total === 1,
   );
@@ -83,7 +105,8 @@ export default function Dashboard() {
   const now = new Date();
   const fallbackMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const availableMonthKeys = monthlyBalances.map((row) => row.month_key);
-  const effectiveMonthKey = selectedMonthKey || availableMonthKeys[0] || fallbackMonthKey;
+  const selectedMonthKeyValue = availableMonthKeys.includes(selectedMonthKey) ? selectedMonthKey : '';
+  const effectiveMonthKey = selectedMonthKeyValue || availableMonthKeys[0] || fallbackMonthKey;
   const [selectedYear, selectedMonthNumber] = effectiveMonthKey.split('-').map(Number);
   const selectedMonth = selectedMonthNumber - 1;
 
@@ -102,16 +125,6 @@ export default function Dashboard() {
       cancelled = true;
     };
   }, [effectiveMonthKey]);
-
-  useEffect(() => {
-    if (!availableMonthKeys.length) {
-      if (selectedMonthKey !== '') setSelectedMonthKey('');
-      return;
-    }
-    if (!selectedMonthKey || !availableMonthKeys.includes(selectedMonthKey)) {
-      setSelectedMonthKey(availableMonthKeys[0]);
-    }
-  }, [availableMonthKeys, selectedMonthKey]);
 
   const monthTx = transactions.filter((t) => {
     const d = new Date(t.date * 1000);
@@ -236,18 +249,69 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <button style={{
-          width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-          border: '1px solid var(--line)', background: 'var(--surface)',
-          color: 'var(--muted)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', cursor: 'pointer',
-          boxShadow: '0 2px 8px rgba(0,0,0,.04)',
-        }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-            <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>
-          </svg>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label="Toggle theme"
+            style={{
+              width: 40, height: 40, borderRadius: 13, flexShrink: 0,
+              border: '1px solid var(--line)', background: 'var(--surface)',
+              color: 'var(--muted)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,.04)',
+            }}
+          >
+            {theme === 'dark' ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+              </svg>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/tracked-items/alerts')}
+            style={{
+              width: 40, height: 40, borderRadius: 13, flexShrink: 0,
+              border: '1px solid var(--line)', background: 'var(--surface)',
+              color: 'var(--muted)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,.04)',
+              position: 'relative',
+            }}
+          >
+            {alertCount > 0 && user?.role !== 'reimbursement' && (
+              <span style={{
+                position: 'absolute',
+                marginTop: -22,
+                marginLeft: 22,
+                minWidth: 18,
+                height: 18,
+                borderRadius: 999,
+                background: 'var(--expense)',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 5px',
+              }}>
+                {alertCount}
+              </span>
+            )}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+              <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       {loading && (

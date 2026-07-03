@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import StyledSelect from '../../components/StyledSelect';
+import ToggleSwitch from '../../components/ToggleSwitch';
 import { ApiError, apiFetch } from '../../lib/api';
 import { ACCOUNT_TYPES, type Account, type AccountInput, type AccountType } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
@@ -37,36 +38,6 @@ const TYPE_META: Record<AccountType, { label: string; color: string; bg: string;
   investment:  { label: 'Investment',  color: '#D97706', bg: 'rgba(245,158,11,.12)',  icon: <><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></> },
   loan:        { label: 'Loan',        color: '#DC2626', bg: 'rgba(239,68,68,.12)',   icon: <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/> },
 };
-
-function Toggle({
-  checked, onChange, disabled = false,
-}: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      style={{
-        width: 44, height: 26, borderRadius: 13, flexShrink: 0,
-        border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
-        background: checked ? 'var(--accent)' : 'var(--line)',
-        position: 'relative', transition: 'background .2s',
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <span style={{
-        position: 'absolute', top: 3,
-        left: checked ? 21 : 3,
-        width: 20, height: 20, borderRadius: '50%',
-        background: '#fff',
-        boxShadow: '0 1px 4px rgba(0,0,0,.22)',
-        transition: 'left .2s',
-      }} />
-    </button>
-  );
-}
 
 function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
@@ -380,7 +351,7 @@ export default function AccountForm() {
                   Count this account in total balance
                 </p>
               </div>
-              <Toggle checked={includeInTotal} onChange={setIncludeInTotal} />
+              <ToggleSwitch checked={includeInTotal} onChange={setIncludeInTotal} />
             </div>
 
             {isEdit && (
@@ -398,7 +369,7 @@ export default function AccountForm() {
                     </p>
                   )}
                 </div>
-                <Toggle checked={isActive} onChange={setIsActive} disabled={hasActiveKids} />
+                <ToggleSwitch checked={isActive} onChange={setIsActive} disabled={hasActiveKids} />
               </div>
             )}
           </div>

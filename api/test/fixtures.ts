@@ -11,6 +11,8 @@ export async function resetFinanceData() {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM budgets'),
     env.DB.prepare('DELETE FROM monthly_balances'),
+    env.DB.prepare('DELETE FROM tracked_item_refills'),
+    env.DB.prepare('DELETE FROM tracked_items'),
     env.DB.prepare('DELETE FROM transactions'),
     env.DB.prepare('DELETE FROM accounts WHERE parent_id IS NOT NULL'),
     env.DB.prepare('DELETE FROM accounts WHERE parent_id IS NULL'),

@@ -10,6 +10,7 @@ import balancesRoute from './routes/balances';
 import budgetsRoute from './routes/budgets';
 import usersRoute from './routes/users';
 import transactionsRoute from './routes/transactions';
+import trackedItemsRoute from './routes/tracked-items';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -60,6 +61,7 @@ protectedApp.route('/balances', balancesRoute);
 protectedApp.route('/budgets', budgetsRoute);
 protectedApp.route('/users', usersRoute);
 protectedApp.route('/transactions', transactionsRoute);
+protectedApp.route('/tracked-items', trackedItemsRoute);
 
 app.route('/auth', authRoute);
 app.route('/', protectedApp);

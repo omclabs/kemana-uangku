@@ -20,6 +20,10 @@ export function setSession(token: string, user: SessionUser): void {
   localStorage.setItem('user', JSON.stringify(user));
 }
 
+export function setStoredUser(user: SessionUser): void {
+  localStorage.setItem('user', JSON.stringify(user));
+}
+
 export function clearSession(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('user');

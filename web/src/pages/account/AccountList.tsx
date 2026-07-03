@@ -1,20 +1,12 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { PlusIcon } from '../../components/icons';
+import SummaryStrip from '../../components/SummaryStrip';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
 import { ACCOUNT_TYPES, type Account, type AccountType } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
-
-function PlusIcon({ className = 'h-5 w-5' }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none"
-      viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 4.5v15m7.5-7.5h-15" />
-    </svg>
-  );
-}
 
 const fmt = new Intl.NumberFormat('id-ID', {
   style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
@@ -153,6 +145,8 @@ export default function AccountList() {
       <div style={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
         marginBottom: 20,
         position: 'sticky',
         top: 0,
@@ -166,45 +160,28 @@ export default function AccountList() {
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
           Accounts
         </h1>
+        <Link
+          to="/accounts/new"
+          aria-label="Add account"
+          style={{
+            width: 40, height: 40, borderRadius: 13, flexShrink: 0,
+            background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
+          }}
+        >
+          <PlusIcon className="h-5 w-5" />
+        </Link>
       </div>
 
       {!loading && !error && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px', background: 'transparent', marginBottom: 12 }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>&nbsp;</div>
-              <div style={{ marginTop: 1, fontSize: 17, fontWeight: 800, color: 'transparent', letterSpacing: '-.02em', userSelect: 'none' }}>.</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Link
-                to="/accounts/new"
-                aria-label="Add account"
-                style={{
-                  width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-                  background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
-                }}
-              >
-                <PlusIcon className="h-5 w-5" />
-              </Link>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', marginBottom: 24 }}>
-            <div style={{ padding: '13px 16px', borderRight: '1px solid var(--line)', minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>Assets</div>
-              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {fmt.format(totalAssets)}
-              </div>
-            </div>
-            <div style={{ padding: '13px 16px', minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>Liabilities</div>
-              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 800, color: 'var(--expense)', letterSpacing: '-.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {fmt.format(totalLiabilities)}
-              </div>
-            </div>
-          </div>
+          <SummaryStrip
+            items={[
+              { label: 'Assets', value: fmt.format(totalAssets) },
+              { label: 'Liabilities', value: fmt.format(totalLiabilities), color: 'var(--expense)' },
+            ]}
+          />
         </>
       )}
 

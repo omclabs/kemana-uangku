@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import PageContainer from '../../components/PageContainer';
 import PageHeader from '../../components/PageHeader';
 import StyledSelect from '../../components/StyledSelect';
-import { ApiError, apiFetch } from '../../lib/api';
+import { ApiError, apiFetch, getUser, setStoredUser } from '../../lib/api';
 import type { Account, Role, User, UserInput } from '../../lib/types';
 
 const inputStyle: CSSProperties = {
@@ -117,6 +117,16 @@ export default function UserForm() {
           method: 'PUT',
           body: JSON.stringify(body),
         });
+
+        const currentUser = getUser();
+        if (currentUser && currentUser.id === id) {
+          setStoredUser({
+            ...currentUser,
+            username,
+            role,
+            assigned_account_ids: role === 'reimbursement' ? assignedAccountIds : [],
+          });
+        }
       } else {
         const createBody: UserInput & { password: string } = {
           username,

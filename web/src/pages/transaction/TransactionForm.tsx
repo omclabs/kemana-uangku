@@ -3,12 +3,14 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ApiError, apiFetch, getUser } from '../../lib/api';
 import {
   INSTALLMENT_OPTIONS, RECURRING_MODES, TRANSACTION_TYPES,
-  type Account, type Category, type RecurringMode,
+  type Account, type Category, type RecurringMode, type TrackedItem,
   type Transaction, type TransactionInput, type TransactionType,
 } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
 import TileLookup from '../../components/TileLookup';
 import Calculator from '../../components/Calculator';
+import StyledSelect from '../../components/StyledSelect';
+import ToggleSwitch from '../../components/ToggleSwitch';
 
 // ── Inlined icons ──────────────────────────────────────────────────
 function WalletIcon()     { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 11h3v4h-3a2 2 0 0 1 0-4z"/></svg>; }
@@ -42,26 +44,6 @@ function fromDatetimeLocal(v: string): number {
   return Math.floor(new Date(v).getTime() / 1000);
 }
 
-// ── Toggle switch ─────────────────────────────────────────────────
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
-      style={{
-        width: 44, height: 26, borderRadius: 13, flexShrink: 0,
-        border: 'none', cursor: 'pointer',
-        background: checked ? 'var(--accent)' : 'var(--line)',
-        position: 'relative', transition: 'background .2s',
-      }}>
-      <span style={{
-        position: 'absolute', top: 3, left: checked ? 21 : 3,
-        width: 20, height: 20, borderRadius: '50%',
-        background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,.22)',
-        transition: 'left .2s',
-      }} />
-    </button>
-  );
-}
-
 // ── Field row wrapper ─────────────────────────────────────────────
 function FieldRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
@@ -89,6 +71,8 @@ export default function TransactionForm() {
   const [searchParams] = useSearchParams();
   const presetAccountId = searchParams.get('account_id');
   const presetDate = normalizeDatePreset(searchParams.get('date'));
+  const presetCategoryId = searchParams.get('category_id');
+  const presetTrackedItemId = searchParams.get('tracked_item_id');
   const continueMode = !isEdit && (presetDate !== null || presetAccountId !== null);
   const user = getUser();
   const assignedAccountIds = user?.assigned_account_ids ?? [];
@@ -106,6 +90,9 @@ export default function TransactionForm() {
   const [fee,        setFee]        = useState<number | null>(null);
   const [parentTxId, setParentTxId] = useState<string | null>(null);
   const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
+  const [trackedItemId, setTrackedItemId] = useState('');
+  const [refillQuantity, setRefillQuantity] = useState('');
+  const [remainingQtyBeforeRefill, setRemainingQtyBeforeRefill] = useState('');
 
   const [recurringEnabled, setRecurringEnabled] = useState(false);
   const [recurringMode,    setRecurringMode]    = useState<RecurringMode>('recurring');
@@ -114,6 +101,7 @@ export default function TransactionForm() {
 
   const [accounts,   setAccounts]   = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [trackedItems, setTrackedItems] = useState<TrackedItem[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [deleting,   setDeleting]   = useState(false);
@@ -127,12 +115,13 @@ export default function TransactionForm() {
     let cancelled = false;
     async function load() {
       try {
-        const [accts, cats] = await Promise.all([
+        const [accts, cats, items] = await Promise.all([
           apiFetch<Account[]>('/accounts?include_inactive=true'),
           apiFetch<Category[]>('/categories?include_inactive=true'),
+          apiFetch<TrackedItem[]>('/tracked-items?include_inactive=true'),
         ]);
         if (cancelled) return;
-        setAccounts(accts); setCategories(cats);
+        setAccounts(accts); setCategories(cats); setTrackedItems(items);
         if (id) {
           const tx = await apiFetch<Transaction>(`/transactions/${id}`);
           if (cancelled) return;
@@ -142,6 +131,11 @@ export default function TransactionForm() {
           setNote(tx.note ?? ''); setFee(tx.fee);
           setParentTxId(tx.parent_transaction_id);
           setPaymentTransactionId(tx.payment_transaction_id);
+          setTrackedItemId(tx.tracked_item_id ?? '');
+          setRefillQuantity(tx.refill_quantity != null ? String(tx.refill_quantity) : '');
+          setRemainingQtyBeforeRefill(
+            tx.remaining_qty_before_refill != null ? String(tx.remaining_qty_before_refill) : ''
+          );
         } else {
           if (lockedAssignedAccountId && accts.some((account) => account.id === lockedAssignedAccountId)) {
             setAccountId(lockedAssignedAccountId);
@@ -150,6 +144,17 @@ export default function TransactionForm() {
           }
           if (presetDate) {
             setDate(presetDate);
+          }
+          const presetTrackedItem = presetTrackedItemId
+            ? items.find((item) => item.id === presetTrackedItemId) ?? null
+            : null;
+          if (presetTrackedItem) {
+            setType('expense');
+            setCategoryId(presetTrackedItem.category_id);
+            setTrackedItemId(presetTrackedItem.id);
+          } else if (presetCategoryId && cats.some((category) => category.id === presetCategoryId)) {
+            setType('expense');
+            setCategoryId(presetCategoryId);
           }
         }
       } catch (err) {
@@ -160,16 +165,29 @@ export default function TransactionForm() {
     }
     load();
     return () => { cancelled = true; };
-  }, [id, lockedAssignedAccountId, presetDate, searchParams]);
+  }, [id, lockedAssignedAccountId, presetAccountId, presetCategoryId, presetDate, presetTrackedItemId]);
 
   function handleTypeChange(t: TransactionType) {
     setType(t); setCategoryId('');
     if (t !== 'transfer') { setTransferTo(''); setFee(null); }
+    if (t !== 'expense') {
+      setTrackedItemId('');
+      setRefillQuantity('');
+      setRemainingQtyBeforeRefill('');
+    }
   }
 
   function handleAccountSelect(nextAccountId: string) {
     setAccountId(nextAccountId);
     if (isEdit) return;
+    const nextAccount = accounts.find((account) => account.id === nextAccountId) ?? null;
+    if (type === 'transfer' && nextAccount?.type === 'credit_card') {
+      setType('expense');
+      setTransferTo('');
+      setFee(null);
+      window.setTimeout(() => setActiveLookup('category'), 0);
+      return;
+    }
     if (type === 'transfer') {
       window.setTimeout(() => setActiveLookup('transferTo'), 0);
       return;
@@ -178,6 +196,12 @@ export default function TransactionForm() {
   }
 
   function handleCategorySelect(nextCategoryId: string) {
+    const selectedTrackedItem = trackedItems.find((item) => item.id === trackedItemId) ?? null;
+    if (selectedTrackedItem && selectedTrackedItem.category_id !== nextCategoryId) {
+      setTrackedItemId('');
+      setRefillQuantity('');
+      setRemainingQtyBeforeRefill('');
+    }
     setCategoryId(nextCategoryId);
     if (!isEdit) {
       setActiveLookup(null);
@@ -192,6 +216,9 @@ export default function TransactionForm() {
   const showTransferTo  = displayType === 'transfer';
   const showFee         = displayType === 'transfer' && (!isEdit || fee !== null);
   const categoryItems   = categories.filter((c) => c.type === type);
+  const trackedItemOptions = trackedItems.filter(
+    (item) => item.category_id === categoryId && (item.is_active === 1 || item.id === trackedItemId)
+  );
   const installmentBase = recurringTotal > 0 ? Math.floor(amount / recurringTotal) : 0;
 
   const accountName  = (v: string) => accounts.find((a) => a.id === v)?.name ?? '';
@@ -201,18 +228,13 @@ export default function TransactionForm() {
     ? TRANSACTION_TYPES.filter((transactionType) => transactionType !== 'transfer')
     : TRANSACTION_TYPES;
 
-  useEffect(() => {
-    if (!isEdit && type === 'transfer' && sourceAccount?.type === 'credit_card') {
-      setType('expense');
-      setTransferTo('');
-      setFee(null);
-    }
-  }, [isEdit, sourceAccount?.type, type]);
-
   function resetForContinue() {
     setAmount(0);
     setNote('');
     setCategoryId('');
+    setTrackedItemId('');
+    setRefillQuantity('');
+    setRemainingQtyBeforeRefill('');
     if (presetDate !== null) {
       setDate(date);
     }
@@ -233,6 +255,12 @@ export default function TransactionForm() {
       } else if (!categoryId) { setError('Select a category'); return; }
     }
     if (amount === 0) { setError('Enter an amount'); return; }
+    if (type === 'expense' && trackedItemId && !refillQuantity) {
+      setError('Enter refill quantity'); return;
+    }
+    if (!isEdit && trackedItemId && recurringEnabled) {
+      setError('Tracked item refill is not available for recurring transactions'); return;
+    }
     if (!isEdit && recurringEnabled && recurringMode === 'installment' && Math.abs(amount) < recurringTotal) {
       setError(`Amount must be at least ${recurringTotal} for installment`); return;
     }
@@ -241,6 +269,13 @@ export default function TransactionForm() {
       if (isEdit) {
         const body: Record<string, unknown> = { date: fromDatetimeLocal(date), amount, note };
         if (!categoryLocked) body.category_id = categoryId;
+        if (displayType !== 'transfer' && type === 'expense') {
+          body.tracked_item_id = trackedItemId || null;
+          if (trackedItemId) {
+            body.refill_quantity = Number(refillQuantity);
+            body.remaining_qty_before_refill = remainingQtyBeforeRefill ? Number(remainingQtyBeforeRefill) : null;
+          }
+        }
         await apiFetch(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(body) });
       } else {
         const body: TransactionInput = {
@@ -252,6 +287,11 @@ export default function TransactionForm() {
           if (fee !== null) body.fee = fee;
         } else {
           body.category_id = categoryId;
+          if (trackedItemId) {
+            body.tracked_item_id = trackedItemId;
+            body.refill_quantity = Number(refillQuantity);
+            body.remaining_qty_before_refill = remainingQtyBeforeRefill ? Number(remainingQtyBeforeRefill) : null;
+          }
         }
         if (recurringEnabled) body.recurring = { mode: recurringMode, total: recurringTotal };
         await apiFetch('/transactions', { method: 'POST', body: JSON.stringify(body) });
@@ -513,6 +553,63 @@ export default function TransactionForm() {
             />
           </FieldRow>
 
+          {displayType === 'expense' && (
+            <>
+              <FieldRow icon={<TagIcon />} label="Tracked">
+                <StyledSelect
+                  value={trackedItemId}
+                  onChange={setTrackedItemId}
+                  placeholder={categoryId ? 'Optional tracked item' : 'Select category first'}
+                  disabled={!categoryId || recurringEnabled}
+                  options={[
+                    { value: '', label: 'None', hint: 'Do not create refill history' },
+                    ...trackedItemOptions.map((item) => ({
+                      value: item.id,
+                      label: item.name,
+                      hint: `${item.category_name} · ${item.unit}`,
+                    })),
+                  ]}
+                />
+              </FieldRow>
+
+              {trackedItemId && (
+                <>
+                  <FieldRow icon={<CalcIcon />} label="Refill Qty">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={refillQuantity}
+                      onChange={(e) => setRefillQuantity(e.target.value)}
+                      required
+                      style={{
+                        width: '100%', background: 'none', border: 'none', padding: 0,
+                        fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
+                        outline: 'none',
+                      }}
+                    />
+                  </FieldRow>
+
+                  <FieldRow icon={<CalcIcon />} label="Remaining">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={remainingQtyBeforeRefill}
+                      onChange={(e) => setRemainingQtyBeforeRefill(e.target.value)}
+                      placeholder="Optional for better forecast"
+                      style={{
+                        width: '100%', background: 'none', border: 'none', padding: 0,
+                        fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
+                        outline: 'none',
+                      }}
+                    />
+                  </FieldRow>
+                </>
+              )}
+            </>
+          )}
+
           {/* ── Recurring ────────────────────────────────────────── */}
           {!isEdit && (
             <div style={{
@@ -533,7 +630,7 @@ export default function TransactionForm() {
                     Repeat or split this transaction
                   </p>
                 </div>
-                <Toggle checked={recurringEnabled} onChange={setRecurringEnabled} />
+                <ToggleSwitch checked={recurringEnabled} onChange={setRecurringEnabled} />
               </div>
 
               {recurringEnabled && (

@@ -22,6 +22,9 @@ import TransactionForm from './pages/transaction/TransactionForm';
 import TransactionReceiptImport from './pages/transaction/TransactionReceiptImport';
 import UserList from './pages/user/UserList';
 import UserForm from './pages/user/UserForm';
+import TrackedItemList from './pages/tracked-item/TrackedItemList';
+import TrackedItemForm from './pages/tracked-item/TrackedItemForm';
+import TrackedItemAlerts from './pages/tracked-item/TrackedItemAlerts';
 
 function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -94,6 +97,16 @@ export default function App() {
                 <TransactionForm />
               </AuthLayout>
             </AuthGuard>
+          }
+        />
+        <Route
+          path="/tracked-items/alerts"
+          element={
+            <RoleGuard allowedRoles={['admin', 'user']}>
+              <AuthLayout>
+                <TrackedItemAlerts />
+              </AuthLayout>
+            </RoleGuard>
           }
         />
         <Route
@@ -182,6 +195,36 @@ export default function App() {
             <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <CategoryList />
+              </AuthLayout>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/config/tracked-items"
+          element={
+            <RoleGuard allowedRoles={['admin', 'user']}>
+              <AuthLayout>
+                <TrackedItemList />
+              </AuthLayout>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/config/tracked-items/new"
+          element={
+            <RoleGuard allowedRoles={['admin', 'user']}>
+              <AuthLayout>
+                <TrackedItemForm />
+              </AuthLayout>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/config/tracked-items/:id/edit"
+          element={
+            <RoleGuard allowedRoles={['admin', 'user']}>
+              <AuthLayout>
+                <TrackedItemForm />
               </AuthLayout>
             </RoleGuard>
           }

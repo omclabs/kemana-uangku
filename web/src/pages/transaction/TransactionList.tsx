@@ -367,6 +367,16 @@ export default function TransactionList() {
     setSelection({ groupKey: null, ids: [] });
   }
 
+  function setTabAndReset(nextTab: Tab) {
+    clearSelection();
+    setTab(nextTab);
+  }
+
+  function setSelectedMonthAndReset(nextMonth: Date) {
+    clearSelection();
+    setSelectedMonth(nextMonth);
+  }
+
   function startSelection(groupKey: string, transactionId: string) {
     setSelection({ groupKey, ids: [transactionId] });
   }
@@ -393,8 +403,23 @@ export default function TransactionList() {
     return d.getMonth() === selectedMonth.getMonth() && d.getFullYear() === selectedMonth.getFullYear();
   }), [transactions, selectedMonth]);
   const groups = useMemo(() => groupByDate(visible), [visible]);
-  const selectedIds = selection.ids;
-  const selectedGroupKey = selection.groupKey;
+  const normalizedSelection = useMemo(() => {
+    if (tab !== 'daily' || selection.groupKey === null || selection.ids.length === 0) {
+      return { groupKey: null, ids: [] as string[] };
+    }
+
+    const validIds = selection.ids.filter((transactionId) => {
+      const transaction = visible.find((item) => item.id === transactionId);
+      return transaction && dateKey(transaction.date) === selection.groupKey;
+    });
+
+    return {
+      groupKey: validIds.length > 0 ? selection.groupKey : null,
+      ids: validIds,
+    };
+  }, [selection, tab, visible]);
+  const selectedIds = normalizedSelection.ids;
+  const selectedGroupKey = normalizedSelection.groupKey;
   const selectionMode = tab === 'daily' && selectedIds.length > 0 && selectedGroupKey !== null;
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedRows = useMemo(() => {
@@ -532,26 +557,6 @@ export default function TransactionList() {
     cursor: 'pointer',
   });
 
-  useEffect(() => {
-    clearSelection();
-  }, [selectedMonth, tab]);
-
-  useEffect(() => {
-    if (!selectionMode || !selectedGroupKey) return;
-
-    const validIds = selectedIds.filter((transactionId) => {
-      const transaction = visible.find((item) => item.id === transactionId);
-      return transaction && dateKey(transaction.date) === selectedGroupKey;
-    });
-
-    if (validIds.length === selectedIds.length) return;
-
-    setSelection({
-      groupKey: validIds.length > 0 ? selectedGroupKey : null,
-      ids: validIds,
-    });
-  }, [selectionMode, selectedGroupKey, selectedIds, visible]);
-
   return (
     <PageContainer>
 
@@ -574,7 +579,7 @@ export default function TransactionList() {
           Transactions
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-          <button type="button" onClick={() => setSelectedMonth((m) => tab === 'monthly' ? new Date(m.getFullYear() - 1, m.getMonth(), 1) : new Date(m.getFullYear(), m.getMonth() - 1, 1))} style={{
+          <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() - 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))} style={{
             width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
             alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8,
           }}>
@@ -583,7 +588,7 @@ export default function TransactionList() {
           <span style={{ minWidth: 76, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
             {periodTitle}
           </span>
-          <button type="button" onClick={() => setSelectedMonth((m) => tab === 'monthly' ? new Date(m.getFullYear() + 1, m.getMonth(), 1) : new Date(m.getFullYear(), m.getMonth() + 1, 1))} disabled={!canGoNext}
+          <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() + 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))} disabled={!canGoNext}
             style={{
               width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
               alignItems: 'center', justifyContent: 'center', cursor: canGoNext ? 'pointer' : 'not-allowed', opacity: canGoNext ? 1 : 0.35, borderRadius: 8,
@@ -593,10 +598,10 @@ export default function TransactionList() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', padding: '0 6px', borderBottom: '1px solid var(--line)', background: 'var(--surface)', flexShrink: 0, marginBottom: 14 }}>
-        <button style={tabStyle(tab === 'daily')} onClick={() => setTab('daily')}>Daily</button>
-        <button style={tabStyle(tab === 'calendar')} onClick={() => setTab('calendar')}>Calendar</button>
-        <button style={tabStyle(tab === 'monthly')} onClick={() => setTab('monthly')}>Monthly</button>
+      <div style={{ display: 'flex', padding: '0 6px', borderBottom: '1px solid var(--line)', background: 'transparent', flexShrink: 0, marginBottom: 14 }}>
+        <button style={tabStyle(tab === 'daily')} onClick={() => setTabAndReset('daily')}>Daily</button>
+        <button style={tabStyle(tab === 'calendar')} onClick={() => setTabAndReset('calendar')}>Calendar</button>
+        <button style={tabStyle(tab === 'monthly')} onClick={() => setTabAndReset('monthly')}>Monthly</button>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px', background: 'transparent', flexShrink: 0 }}>

@@ -88,6 +88,9 @@ export const transactionCreate = z
     type: z.enum(['income', 'expense', 'transfer']),
     transfer_to: z.string().min(1).nullable().optional(),
     fee: z.number().nonnegative().nullable().optional(),
+    tracked_item_id: z.string().min(1).nullable().optional(),
+    refill_quantity: z.number().positive().nullable().optional(),
+    remaining_qty_before_refill: z.number().nonnegative().nullable().optional(),
     recurring: z
       .object({
         mode: z.enum(['recurring', 'installment']),
@@ -105,8 +108,22 @@ export const transactionUpdate = z.object({
   category_id: z.string().min(1).nullable().optional(),
   amount: z.number().refine((value) => value !== 0, { message: 'amount must not be zero' }).optional(),
   note: z.string().optional(),
+  tracked_item_id: z.string().min(1).nullable().optional(),
+  refill_quantity: z.number().positive().nullable().optional(),
+  remaining_qty_before_refill: z.number().nonnegative().nullable().optional(),
   is_active: z.boolean().optional(),
   paid_status: z.enum(['paid', 'settle']).optional(),
+});
+
+export const trackedItemCreate = z.object({
+  name: z.string().min(1),
+  category_id: z.string().min(1),
+  unit: z.string().min(1).max(20),
+  warning_days: z.number().int().min(1),
+});
+
+export const trackedItemUpdate = trackedItemCreate.partial().extend({
+  is_active: z.boolean().optional(),
 });
 
 export const accountPaymentCreate = z.object({
@@ -162,6 +179,8 @@ export type AuthLogin = z.infer<typeof authLogin>;
 export type ChangePassword = z.infer<typeof changePassword>;
 export type TransactionCreate = z.infer<typeof transactionCreate>;
 export type TransactionUpdate = z.infer<typeof transactionUpdate>;
+export type TrackedItemCreate = z.infer<typeof trackedItemCreate>;
+export type TrackedItemUpdate = z.infer<typeof trackedItemUpdate>;
 export type AccountPaymentCreate = z.infer<typeof accountPaymentCreate>;
 export type ReceiptImportWarning = z.infer<typeof receiptImportWarning>;
 export type ReceiptImportDraftItem = z.infer<typeof receiptImportDraftItem>;

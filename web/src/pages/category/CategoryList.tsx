@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import PageContainer from '../../components/PageContainer';
 import PageHeader from '../../components/PageHeader';
 import { PlusIcon } from '../../components/icons';
+import SummaryStrip from '../../components/SummaryStrip';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
 import { CATEGORY_TYPES, type Category, type CategoryType } from '../../lib/types';
@@ -72,6 +73,8 @@ export default function CategoryList() {
   const groups = CATEGORY_TYPES
     .map((type) => ({ type, items: topLevel.filter((category) => category.type === type).sort(byName) }))
     .filter((group) => group.items.length > 0);
+  const incomeCount = visibleCategories.filter((category) => category.type === 'income').length;
+  const expenseCount = visibleCategories.filter((category) => category.type === 'expense').length;
 
   return (
     <PageContainer>
@@ -98,152 +101,161 @@ export default function CategoryList() {
       {error && <p style={{ textAlign: 'center', color: 'var(--expense)', padding: '32px 0' }}>{error}</p>}
 
       {!loading && !error && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-          {groups.map(({ type, items }) => {
-            const meta = TYPE_META[type];
-            return (
-              <section key={type}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 7,
-                  marginBottom: 10, color: 'var(--muted)',
-                }}>
-                  <span style={{ opacity: 0.7 }}>{meta.icon}</span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, letterSpacing: '.08em',
-                    textTransform: 'uppercase',
-                  }}>
-                    {meta.label}
-                  </span>
-                  <span style={{
-                    marginLeft: 4, fontSize: 11, fontWeight: 700, color: 'var(--muted)',
-                    background: 'var(--line)', padding: '1px 7px', borderRadius: 999,
-                  }}>
-                    {items.length}
-                  </span>
-                </div>
+        <>
+          <SummaryStrip
+            items={[
+              { label: 'Income', value: `${incomeCount} categor${incomeCount === 1 ? 'y' : 'ies'}` },
+              { label: 'Expense', value: `${expenseCount} categor${expenseCount === 1 ? 'y' : 'ies'}`, color: 'var(--expense)' },
+            ]}
+          />
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {items.map((category) => {
-                    const children = childrenOf(category.id);
-                    const hasKids = children.length > 0;
-                    const visual = categoryVisual(category.name);
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+            {groups.map(({ type, items }) => {
+              const meta = TYPE_META[type];
+              return (
+                <section key={type}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 7,
+                    marginBottom: 10, color: 'var(--muted)',
+                  }}>
+                    <span style={{ opacity: 0.7 }}>{meta.icon}</span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, letterSpacing: '.08em',
+                      textTransform: 'uppercase',
+                    }}>
+                      {meta.label}
+                    </span>
+                    <span style={{
+                      marginLeft: 4, fontSize: 11, fontWeight: 700, color: 'var(--muted)',
+                      background: 'var(--line)', padding: '1px 7px', borderRadius: 999,
+                    }}>
+                      {items.length}
+                    </span>
+                  </div>
 
-                    return (
-                      <div
-                        key={category.id}
-                        style={{
-                          background: 'var(--surface)', border: '1px solid var(--line)',
-                          borderRadius: 20, overflow: 'hidden',
-                          boxShadow: '0 2px 12px rgba(0,0,0,.04)',
-                        }}
-                      >
-                        <Link
-                          to={`/config/categories/${category.id}/edit`}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {items.map((category) => {
+                      const children = childrenOf(category.id);
+                      const hasKids = children.length > 0;
+                      const visual = categoryVisual(category.name);
+
+                      return (
+                        <div
+                          key={category.id}
                           style={{
-                            display: 'flex', alignItems: 'center', gap: 12,
-                            padding: '14px 16px', textDecoration: 'none',
+                            background: 'var(--surface)', border: '1px solid var(--line)',
+                            borderRadius: 20, overflow: 'hidden',
+                            boxShadow: '0 2px 12px rgba(0,0,0,.04)',
                           }}
                         >
-                          <span style={{
-                            width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                            background: visual.soft, color: visual.color,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 15, fontWeight: 800,
-                          }}>
-                            {initial(category.name)}
-                          </span>
+                          <Link
+                            to={`/config/categories/${category.id}/edit`}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 12,
+                              padding: '14px 16px', textDecoration: 'none',
+                            }}
+                          >
+                            <span style={{
+                              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                              background: visual.soft, color: visual.color,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 15, fontWeight: 800,
+                            }}>
+                              {initial(category.name)}
+                            </span>
 
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                              <span style={{
-                                fontSize: 15, fontWeight: 700, color: 'var(--ink)',
-                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                              }}>
-                                {category.name}
-                              </span>
-                              {hasKids && (
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                                 <span style={{
-                                  fontSize: 10, fontWeight: 700,
-                                  color: 'var(--accent)',
-                                  background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
-                                  padding: '2px 7px', borderRadius: 999, flexShrink: 0,
+                                  fontSize: 15, fontWeight: 700, color: 'var(--ink)',
+                                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                 }}>
-                                  {children.length} sub
+                                  {category.name}
                                 </span>
-                              )}
-                            </div>
-                            <p style={{ margin: '3px 0 0', fontSize: 11.5, color: 'var(--muted)', fontWeight: 500 }}>
-                              {hasKids ? 'Parent category' : 'Leaf category'}
-                            </p>
-                          </div>
-
-                          <span style={{ color: 'var(--muted)', flexShrink: 0 }}>
-                            <Chevron />
-                          </span>
-                        </Link>
-
-                        {hasKids && children.map((child, idx) => {
-                          const isLast = idx === children.length - 1;
-                          return (
-                            <Link
-                              key={child.id}
-                              to={`/config/categories/${child.id}/edit`}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: 10,
-                                padding: '11px 16px 11px 20px',
-                                borderTop: '1px solid var(--line)',
-                                textDecoration: 'none',
-                                background: 'var(--surface-2)',
-                              }}
-                            >
-                              <div style={{
-                                display: 'flex', flexDirection: 'column',
-                                alignItems: 'center', width: 20, flexShrink: 0, alignSelf: 'stretch',
-                              }}>
-                                <div style={{
-                                  width: 1.5, flex: 1,
-                                  background: isLast ? 'transparent' : 'var(--line)',
-                                }} />
-                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                  <path d="M2 0 L2 7 L12 7" stroke="var(--line)" strokeWidth="1.5" strokeLinecap="round" />
-                                </svg>
-                                {!isLast && <div style={{ width: 1.5, flex: 1, background: 'var(--line)' }} />}
+                                {hasKids && (
+                                  <span style={{
+                                    fontSize: 10, fontWeight: 700,
+                                    color: 'var(--accent)',
+                                    background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+                                    padding: '2px 7px', borderRadius: 999, flexShrink: 0,
+                                  }}>
+                                    {children.length} sub
+                                  </span>
+                                )}
                               </div>
+                              <p style={{ margin: '3px 0 0', fontSize: 11.5, color: 'var(--muted)', fontWeight: 500 }}>
+                                {hasKids ? 'Parent category' : 'Leaf category'}
+                              </p>
+                            </div>
 
-                              <span style={{
-                                flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--ink)',
-                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                              }}>
-                                {child.name}
-                              </span>
+                            <span style={{ color: 'var(--muted)', flexShrink: 0 }}>
+                              <Chevron />
+                            </span>
+                          </Link>
 
-                              <span style={{
-                                fontSize: 10, fontWeight: 700, color: 'var(--muted)',
-                                background: 'var(--line)', padding: '2px 7px', borderRadius: 999, flexShrink: 0,
-                              }}>
-                                Child
-                              </span>
+                          {hasKids && children.map((child, idx) => {
+                            const isLast = idx === children.length - 1;
+                            return (
+                              <Link
+                                key={child.id}
+                                to={`/config/categories/${child.id}/edit`}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 10,
+                                  padding: '11px 16px 11px 20px',
+                                  borderTop: '1px solid var(--line)',
+                                  textDecoration: 'none',
+                                  background: 'var(--surface-2)',
+                                }}
+                              >
+                                <div style={{
+                                  display: 'flex', flexDirection: 'column',
+                                  alignItems: 'center', width: 20, flexShrink: 0, alignSelf: 'stretch',
+                                }}>
+                                  <div style={{
+                                    width: 1.5, flex: 1,
+                                    background: isLast ? 'transparent' : 'var(--line)',
+                                  }} />
+                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                    <path d="M2 0 L2 7 L12 7" stroke="var(--line)" strokeWidth="1.5" strokeLinecap="round" />
+                                  </svg>
+                                  {!isLast && <div style={{ width: 1.5, flex: 1, background: 'var(--line)' }} />}
+                                </div>
 
-                              <span style={{ color: 'var(--muted)', flexShrink: 0 }}>
-                                <Chevron size={14} />
-                              </span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
+                                <span style={{
+                                  flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--ink)',
+                                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                }}>
+                                  {child.name}
+                                </span>
+
+                                <span style={{
+                                  fontSize: 10, fontWeight: 700, color: 'var(--muted)',
+                                  background: 'var(--line)', padding: '2px 7px', borderRadius: 999, flexShrink: 0,
+                                }}>
+                                  Child
+                                </span>
+
+                                <span style={{ color: 'var(--muted)', flexShrink: 0 }}>
+                                  <Chevron size={14} />
+                                </span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
 
           {groups.length === 0 && (
             <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>
               No categories yet.
             </p>
           )}
-        </div>
+        </>
       )}
     </PageContainer>
   );

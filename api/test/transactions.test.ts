@@ -12,6 +12,8 @@ const CATEGORY_IDS = {
   expenseParent: 'cat-food',
   expenseLeaf: 'cat-food-dining',
   expenseCoffee: 'cat-food-coffee',
+  expenseUtilities: 'cat-housing-utilities',
+  expenseHomeSupplies: 'cat-household-supplies',
   financeFees: 'cat-finance-fees',
 } as const;
 
@@ -32,6 +34,9 @@ type TxRow = {
   installment_total: number | null;
   parent_transaction_id: string | null;
   payment_transaction_id: string | null;
+  tracked_item_id?: string | null;
+  refill_quantity?: number | null;
+  remaining_qty_before_refill?: number | null;
   is_active: number;
   created_by?: string | null;
   updated_by?: string | null;
@@ -197,6 +202,64 @@ describe('/transactions', () => {
 
     const after = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(after - before).toBeCloseTo(-50000, 5);
+  });
+
+  it('POST expense can create one linked tracked refill', async () => {
+    const trackedItemRes = await SELF.fetch('https://example.com/tracked-items', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        name: 'Electricity',
+        category_id: CATEGORY_IDS.expenseUtilities,
+        unit: 'kWh',
+        warning_days: 3,
+      }),
+    });
+    expect(trackedItemRes.status).toBe(201);
+    const trackedItem = await trackedItemRes.json() as { id: string };
+
+    const res = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseUtilities,
+      amount: 100000,
+      type: 'expense',
+      tracked_item_id: trackedItem.id,
+      refill_quantity: 72.5,
+      remaining_qty_before_refill: 5,
+      note: 'PLN token',
+    });
+    expect(res.status).toBe(201);
+    const rows = (await res.json()) as TxRow[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].tracked_item_id).toBe(trackedItem.id);
+    expect(rows[0].refill_quantity).toBe(72.5);
+    expect(rows[0].remaining_qty_before_refill).toBe(5);
+  });
+
+  it('POST expense rejects tracked item from mismatched category', async () => {
+    const trackedItemRes = await SELF.fetch('https://example.com/tracked-items', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        name: 'Soap',
+        category_id: CATEGORY_IDS.expenseHomeSupplies,
+        unit: 'bottle',
+        warning_days: 2,
+      }),
+    });
+    const trackedItem = await trackedItemRes.json() as { id: string };
+
+    const res = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseUtilities,
+      amount: 10000,
+      type: 'expense',
+      tracked_item_id: trackedItem.id,
+      refill_quantity: 1,
+    });
+    expect(res.status).toBe(400);
   });
 
   it('POST transfer moves balance from -> to, category_id stays null', async () => {

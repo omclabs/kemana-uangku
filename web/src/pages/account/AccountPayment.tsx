@@ -106,8 +106,6 @@ export default function AccountPayment() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     Promise.all([
       apiFetch<Account[]>('/accounts?include_inactive=true'),
@@ -211,6 +209,7 @@ export default function AccountPayment() {
       });
       setSelectedIds([]);
       setSuccess(`Payment saved: Rp ${statFmt(response.total_amount)}`);
+      setLoading(true);
       setRefreshKey((current) => current + 1);
     } catch (nextError) {
       setError(nextError instanceof ApiError ? nextError.message : 'Failed to save payment');
@@ -431,11 +430,17 @@ export default function AccountPayment() {
           WebkitBackdropFilter: 'blur(10px)',
           padding: '8px 0 4px',
         }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}>
-            <SummaryItem label="Selected" value={String(selectedIds.length)} color="var(--ink)" />
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            borderTop: '1px solid var(--line)',
+            borderBottom: '1px solid var(--line)',
+            background: 'var(--surface)',
+          }}>
+            <SummaryItem label="Selected" value={String(selectedIds.length)} color="var(--ink)" bordered />
             <SummaryItem label="Total" value={`Rp ${statFmt(selectedTotal)}`} color="var(--expense)" />
-            <SummaryItem label="From" value={paymentAccountId ? accountName(paymentAccountId) : '—'} color="var(--ink)" />
-            <SummaryItem label="To" value={account.name} color="var(--accent)" />
+            <SummaryItem label="From" value={paymentAccountId ? accountName(paymentAccountId) : '—'} color="var(--ink)" bordered topBorder />
+            <SummaryItem label="To" value={account.name} color="var(--accent)" topBorder />
           </div>
           <button
             type="button"
@@ -473,11 +478,36 @@ export default function AccountPayment() {
   );
 }
 
-function SummaryItem({ label, value, color }: { label: string; value: string; color: string }) {
+function SummaryItem({
+  label,
+  value,
+  color,
+  bordered = false,
+  topBorder = false,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  bordered?: boolean;
+  topBorder?: boolean;
+}) {
   return (
-    <div style={{ padding: '13px 12px', minWidth: 0 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{label}</div>
-      <div style={{ marginTop: 4, fontSize: 12, fontWeight: 800, color, letterSpacing: '-.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <div style={{
+      padding: '12px 12px 11px',
+      minWidth: 0,
+      borderRight: bordered ? '1px solid var(--line)' : 'none',
+      borderTop: topBorder ? '1px solid var(--line)' : 'none',
+    }}>
+      <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{label}</div>
+      <div style={{
+        marginTop: 4,
+        fontSize: 11,
+        lineHeight: 1.35,
+        fontWeight: 800,
+        color,
+        letterSpacing: '-.01em',
+        overflowWrap: 'anywhere',
+      }}>
         {value}
       </div>
     </div>
