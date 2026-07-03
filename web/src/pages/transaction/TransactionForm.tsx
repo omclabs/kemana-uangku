@@ -38,10 +38,6 @@ function normalizeDatePreset(value: string | null): string | null {
   return null;
 }
 
-function toDateOnly(value: string): string {
-  return value.split('T')[0];
-}
-
 function fromDatetimeLocal(v: string): number {
   return Math.floor(new Date(v).getTime() / 1000);
 }
@@ -263,7 +259,7 @@ export default function TransactionForm() {
       if (continueMode && !isEdit) {
         const nextSearchParams = new URLSearchParams();
         if (presetDate) {
-          nextSearchParams.set('date', toDateOnly(date));
+          nextSearchParams.set('date', date);
         }
         if (presetAccountId) {
           nextSearchParams.set('account_id', accountId || presetAccountId);

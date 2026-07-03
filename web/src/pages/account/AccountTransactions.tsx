@@ -87,6 +87,12 @@ function cellFmt(value: number): string {
   return statFmt(value);
 }
 
+function toDatetimePreset(unix: number): string {
+  const date = new Date(unix * 1000);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 type Tab = 'daily' | 'calendar' | 'monthly';
 type View = 'chart' | 'list';
 
@@ -1065,7 +1071,28 @@ export default function AccountTransactions() {
                 ) : (
                   dayGroups.map((group) => (
                     <div key={group.key}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 16px 9px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const latestGroupDate = group.items.reduce(
+                            (latest, transaction) => Math.max(latest, transaction.date),
+                            Math.floor(group.date.getTime() / 1000),
+                          );
+                          navigate(`/transactions/new?account_id=${id}&date=${encodeURIComponent(toDatetimePreset(latestGroupDate))}`);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 7,
+                          padding: '11px 16px 9px',
+                          background: 'var(--surface-2)',
+                          border: 'none',
+                          borderBottom: '1px solid var(--line)',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                        }}
+                      >
                         <span style={{ minWidth: 30, fontSize: 22, fontWeight: 800, color: 'var(--ink)', lineHeight: 1 }}>
                           {String(group.day).padStart(2, '0')}
                         </span>
@@ -1079,7 +1106,7 @@ export default function AccountTransactions() {
                             Rp {statFmt(group.withdrawal)}
                           </span>
                         )}
-                      </div>
+                      </button>
 
                       {group.items.map((transaction) => {
                         const category = catMap.get(transaction.category_id ?? '');
@@ -1148,7 +1175,7 @@ export default function AccountTransactions() {
         </div>
 
         <button
-          onClick={() => navigate(`/transactions/new?account_id=${id}`)}
+          onClick={() => navigate(`/transactions/new?account_id=${id}&date=${encodeURIComponent(toDatetimePreset(Math.floor(Date.now() / 1000)))}`)}
           style={{
             position: 'fixed',
             right: 20,
