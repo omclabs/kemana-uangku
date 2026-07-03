@@ -103,10 +103,15 @@ never talks to Cloudflare. Replace it with a real ID only when deploying.
 | `make shell-web` | Open a shell in the running web container |
 | `make build` | Build the api and web Docker images |
 | `make clean` | Stop + remove containers and the `node_modules` volumes (D1 data untouched) |
+| `make deploy-db-backup` | Export the remote D1 database to `backups/db-yyyymmdd-hhmmss.sql` |
+| `make backup-db-production` | Alias for `make deploy-db-backup` |
 | `make deploy-api-migrate` | Apply remote D1 migrations with Wrangler |
+| `make migration-up-production` | Alias for `make deploy-api-migrate` |
 | `make deploy-api` | Deploy the Worker api with Wrangler |
-| `make deploy-web API_BASE_URL=...` | Build `web/dist` for production upload |
-| `make deploy-all API_BASE_URL=...` | Migrate api, deploy api, then build web assets |
+| `make deploy-api-production` | Alias for `make deploy-api` |
+| `make deploy-web API_BASE_URL=...` | Build `web/dist` and deploy the frontend Worker |
+| `make deploy-web-production API_BASE_URL=...` | Alias for `make deploy-web` |
+| `make deploy-all API_BASE_URL=...` | If prod has unapplied migrations: backup DB, migrate api, then deploy api and web; otherwise deploy api and web only |
 | `make help` | List all targets (default) |
 
 `migrate`, `test`, `logs`, `logs-web`, `shell`, and `shell-web` use

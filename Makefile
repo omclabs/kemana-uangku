@@ -2,7 +2,8 @@
 
 .PHONY: help start-dev stop restart migrate test logs logs-web shell shell-web build clean \
 	api-install web-install api-test web-build api-build \
-	deploy-api-migrate deploy-api deploy-api-secret deploy-api-origins \
+	deploy-db-backup deploy-api-migrate deploy-api deploy-api-secret deploy-api-origins \
+	backup-db-production migration-up-production deploy-api-production deploy-web-production \
 	deploy-web deploy-web-preview deploy-all
 
 API_DIR := api
@@ -10,11 +11,13 @@ WEB_DIR := web
 WRANGLER := npx wrangler
 API_BASE_URL ?=
 ALLOWED_ORIGINS ?=
-PAGES_PROJECT ?=
 APP_GIT_SHA := $(shell git -C $(CURDIR) rev-parse --short HEAD)
 BUILD_TIME_UTC := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 API_APP_VERSION := $(shell node -p "require('./api/package.json').version")
 WEB_APP_VERSION := $(shell node -p "require('./web/package.json').version")
+DB_BACKUP_TIMESTAMP := $(shell date +"%Y%m%d-%H%M%S")
+DB_BACKUP_DIR := backups
+DB_BACKUP_FILE := $(DB_BACKUP_DIR)/db-$(DB_BACKUP_TIMESTAMP).sql
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -71,8 +74,13 @@ deploy-api-secret: ## Set the Worker API_TOKEN secret interactively
 	cd $(API_DIR) && $(WRANGLER) secret put API_TOKEN
 
 deploy-api-origins: ## Set the Worker ALLOWED_ORIGINS secret interactively
-	@if [ -z "$(ALLOWED_ORIGINS)" ]; then echo "ALLOWED_ORIGINS is required. Example: make deploy-api-origins ALLOWED_ORIGINS=https://kemana-uangku.pages.dev,https://app.example.com"; exit 1; fi
+	@if [ -z "$(ALLOWED_ORIGINS)" ]; then echo "ALLOWED_ORIGINS is required. Example: make deploy-api-origins ALLOWED_ORIGINS=https://kemana-uangku.your-account.workers.dev,https://app.example.com"; exit 1; fi
 	cd $(API_DIR) && printf '%s' "$(ALLOWED_ORIGINS)" | $(WRANGLER) secret put ALLOWED_ORIGINS
+
+deploy-db-backup: ## Export the remote D1 database to backups/db-yyyymmdd-hhmmss.sql
+	mkdir -p $(DB_BACKUP_DIR)
+	cd $(API_DIR) && $(WRANGLER) d1 export kemana-uangku-db --remote --output ../$(DB_BACKUP_FILE) -y
+	@echo "Database backup written to $(DB_BACKUP_FILE)"
 
 deploy-api-migrate: ## Apply remote D1 migrations
 	cd $(API_DIR) && $(WRANGLER) d1 migrations apply kemana-uangku-db --remote
@@ -80,12 +88,32 @@ deploy-api-migrate: ## Apply remote D1 migrations
 deploy-api: ## Deploy the Cloudflare Worker api
 	cd $(API_DIR) && $(WRANGLER) deploy --var APP_VERSION:"$(API_APP_VERSION)" --var COMMIT_SHA:"$(APP_GIT_SHA)" --var DEPLOYED_AT:"$(BUILD_TIME_UTC)"
 
-deploy-web: web-build ## Build production web assets for manual upload or Pages deploy
-	@echo "Web build ready in $(WEB_DIR)/dist"
+backup-db-production: deploy-db-backup ## Alias: export the remote production D1 database
+
+migration-up-production: deploy-api-migrate ## Alias: apply unapplied production D1 migrations
+
+deploy-api-production: deploy-api ## Alias: deploy the production api Worker
+
+deploy-web: web-build ## Build and deploy the production web assets to the Cloudflare Worker frontend
+	cd $(WEB_DIR) && $(WRANGLER) deploy
+	@echo "Web deployed from $(WEB_DIR)/dist"
+
+deploy-web-production: deploy-web ## Alias: deploy the production web Worker
 
 deploy-web-preview: ## Preview the production web build locally; requires API_BASE_URL
 	@if [ -z "$(API_BASE_URL)" ]; then echo "API_BASE_URL is required. Example: make deploy-web-preview API_BASE_URL=https://kemana-uangku-api.example.workers.dev"; exit 1; fi
 	cd $(WEB_DIR) && VITE_API_BASE_URL="$(API_BASE_URL)" VITE_APP_VERSION="$(WEB_APP_VERSION)" VITE_COMMIT_SHA="$(APP_GIT_SHA)" VITE_BUILD_TIME="$(BUILD_TIME_UTC)" npm run build && npm run preview -- --host 0.0.0.0
 
-deploy-all: deploy-api-migrate deploy-api deploy-web ## Migrate api, deploy api, then build web assets
-	@echo "Deploy flow complete. Upload $(WEB_DIR)/dist or trigger your Pages deploy."
+deploy-all: ## If remote migrations exist, backup DB then migrate; always deploy api and web
+	@set -e; \
+	MIGRATION_STATUS="$$(cd $(API_DIR) && $(WRANGLER) d1 migrations list kemana-uangku-db --remote)"; \
+	if printf '%s\n' "$$MIGRATION_STATUS" | grep -q "No migrations to apply!"; then \
+		echo "No unapplied production migrations detected."; \
+	else \
+		echo "Unapplied production migrations detected."; \
+		$(MAKE) deploy-db-backup; \
+		$(MAKE) deploy-api-migrate; \
+	fi; \
+	$(MAKE) deploy-api; \
+	$(MAKE) deploy-web API_BASE_URL="$(API_BASE_URL)"; \
+	echo "Deploy flow complete."

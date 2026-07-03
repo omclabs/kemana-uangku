@@ -3,7 +3,7 @@
 Deployment is split into 2 parts:
 
 1. `api/` deploys to a Cloudflare Worker and uses a remote D1 database.
-2. `web/` builds to static assets and can be deployed to Cloudflare Pages or any static host.
+2. `web/` builds to static assets and deploys to the existing Cloudflare Worker frontend.
 
 ## Prerequisites
 
@@ -51,7 +51,7 @@ Use a long random value. The app returns this token after a successful `/auth/lo
 ### Set the allowed frontend origins
 
 ```bash
-make deploy-api-origins ALLOWED_ORIGINS=https://kemana-uangku.pages.dev,https://app.example.com
+make deploy-api-origins ALLOWED_ORIGINS=https://kemana-uangku.your-account.workers.dev,https://app.example.com
 ```
 
 Set only your real frontend origins. Do not include `localhost` in production.
@@ -60,6 +60,12 @@ Set only your real frontend origins. Do not include `localhost` in production.
 
 ```bash
 make deploy-api-migrate
+```
+
+Alias:
+
+```bash
+make migration-up-production
 ```
 
 This will:
@@ -83,6 +89,12 @@ Change the admin password immediately after first login.
 make deploy-api
 ```
 
+Alias:
+
+```bash
+make deploy-api-production
+```
+
 After deploy, note the Worker URL, for example:
 
 ```text
@@ -103,15 +115,19 @@ The repo's `make deploy-api` and `make deploy-web` commands also inject minimal 
 
 These values are shown in the app config screens as `Web build` and `API build`.
 
-From `web/`:
+Build and deploy from the repo root:
 
 ```bash
-cd web
-npm install
 make deploy-web API_BASE_URL="https://kemana-uangku-api.<subdomain>.workers.dev"
 ```
 
-This creates the production bundle in `web/dist/`.
+This builds `web/dist/` and publishes it to the existing `kemana-uangku` Worker service.
+
+Alias:
+
+```bash
+make deploy-web-production API_BASE_URL="https://kemana-uangku-api.<subdomain>.workers.dev"
+```
 
 ## 3. Publish the Web App
 
@@ -125,20 +141,13 @@ The repo now includes a dedicated Wrangler config at [web/wrangler.toml](/Users/
 
 ### Current deploy flow for this repo
 
-1. Build the production bundle:
+1. Build and deploy the production bundle:
 
 ```bash
 make deploy-web API_BASE_URL="https://kemana-uangku-api.your-account.workers.dev"
 ```
 
-2. Publish the existing Worker service from `web/`:
-
-```bash
-cd web
-npx wrangler deploy
-```
-
-3. Verify SPA deep links such as `/login`, `/transactions`, and `/transactions/new` return the app shell instead of `404`.
+2. Verify SPA deep links such as `/login`, `/transactions`, and `/transactions/new` return the app shell instead of `404`.
 
 ## 4. Post-deploy checks
 
@@ -160,29 +169,41 @@ After both sides are deployed:
 
 ### API code changes
 
-From `api/`:
+From the repo root:
 
 ```bash
+make deploy-db-backup
 make deploy-api-migrate
 make deploy-api
 ```
 
-Run the migrations command first whenever schema or seed migrations changed.
+Run the backup first. Run migrations whenever schema or seed migrations changed.
+
+Alias commands:
+
+```bash
+make backup-db-production
+make migration-up-production
+make deploy-api-production
+```
 
 ### Web code changes
 
-Rebuild `web/dist` with the production API URL:
+Deploy the frontend with the production API URL:
 
 ```bash
 make deploy-web API_BASE_URL="https://kemana-uangku-api.your-account.workers.dev"
 ```
 
-Then deploy it from `web/`:
+### Full production deploy
+
+From the repo root:
 
 ```bash
-cd web
-npx wrangler deploy
+make deploy-all API_BASE_URL="https://kemana-uangku-api.your-account.workers.dev"
 ```
+
+`make deploy-all` checks the remote D1 migration state first. If there are unapplied migrations, it runs backup, then migration, then deploys the API and web. If there are no unapplied migrations, it skips backup and migration and only deploys the API and web.
 
 ## Notes
 
