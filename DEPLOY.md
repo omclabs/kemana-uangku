@@ -121,10 +121,7 @@ The production frontend is served by the existing Worker service:
 - Dashboard: `https://dash.cloudflare.com/3949d883a1c39b2e1943c51de1726445/workers/services/view/kemana-uangku/production`
 - Worker service name: `kemana-uangku`
 
-Cloudflare Workers Static Assets supports serving a built asset directory from a Worker service. For current product behavior, refer to the official docs:
-
-- Static Assets overview: https://developers.cloudflare.com/workers/static-assets/
-- Direct upload / asset upload flow: https://developers.cloudflare.com/workers/static-assets/direct-upload/
+The repo now includes a dedicated Wrangler config at [web/wrangler.toml](/Users/fajar.pratama/Documents/projects/kemana-uangku/web/wrangler.toml:1) that publishes `web/dist/` as Worker static assets with SPA fallback.
 
 ### Current deploy flow for this repo
 
@@ -134,23 +131,14 @@ Cloudflare Workers Static Assets supports serving a built asset directory from a
 make deploy-web API_BASE_URL="https://kemana-uangku-api.your-account.workers.dev"
 ```
 
-2. Open the existing Worker service in the dashboard:
+2. Publish the existing Worker service from `web/`:
 
-```text
-https://dash.cloudflare.com/3949d883a1c39b2e1943c51de1726445/workers/services/view/kemana-uangku/production
+```bash
+cd web
+npx wrangler deploy
 ```
 
-3. Publish the contents of `web/dist/` to the `kemana-uangku` Worker service as the production static assets release.
-
-4. Verify SPA deep links such as `/login`, `/transactions`, and `/transactions/new` return the app shell instead of `404`.
-
-The web build already includes a `_redirects` file with `/* /index.html 200`, but the Worker service must also be configured to serve SPA routes correctly.
-
-### Notes for future automation
-
-- The repository already builds the correct `web/dist/` bundle.
-- The repository does not yet contain a dedicated Wrangler config for deploying the web bundle directly to the `kemana-uangku` Worker service.
-- Until that exists, the source of truth for web publishing is the existing Worker service in the Cloudflare dashboard.
+3. Verify SPA deep links such as `/login`, `/transactions`, and `/transactions/new` return the app shell instead of `404`.
 
 ## 4. Post-deploy checks
 
@@ -189,10 +177,11 @@ Rebuild `web/dist` with the production API URL:
 make deploy-web API_BASE_URL="https://kemana-uangku-api.your-account.workers.dev"
 ```
 
-Then publish that bundle to:
+Then deploy it from `web/`:
 
-```text
-https://dash.cloudflare.com/3949d883a1c39b2e1943c51de1726445/workers/services/view/kemana-uangku/production
+```bash
+cd web
+npx wrangler deploy
 ```
 
 ## Notes
