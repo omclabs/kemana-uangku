@@ -183,14 +183,13 @@ export default function Dashboard() {
   const donutSource = categoryTab === 'income' ? incomeByCategory : expenseByCategory;
   const donutTotal = categoryTab === 'income' ? income : expense;
   const donutTitle = categoryTab === 'income' ? 'Incoming' : 'Spending';
-  const topCategories = [...donutSource.entries()]
+  const donutCategories = [...donutSource.entries()]
     .sort(([, left], [, right]) => right - left)
-    .slice(0, 4)
     .map(([name, amount], index) => ({
       name,
       amount,
-      pct: donutTotal > 0 ? Math.round((amount / donutTotal) * 100) : 0,
-      color: DONUT_COLORS[index],
+      pct: donutTotal > 0 ? (amount / donutTotal) * 100 : 0,
+      color: DONUT_COLORS[index % DONUT_COLORS.length],
     }));
   const totalBudget = budgetMonth?.total_budget ?? categories
     .filter((category) => category.type === 'expense' && category.is_active === 1)
@@ -211,7 +210,7 @@ export default function Dashboard() {
     .sort((left, right) => right.total - left.total);
   const visibleCategorySummaries = categorySummaries.filter((group) => group.type === categoryTab);
 
-  const segments = topCategories.reduce<{
+  const segments = donutCategories.reduce<{
     offset: number;
     items: { color: string; dash: string; offset: number }[];
   }>(
@@ -423,7 +422,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {(topCategories.length > 0 || (categoryTab === 'expense' && (totalBudget > 0 || expense > 0))) && (
+          {(donutCategories.length > 0 || (categoryTab === 'expense' && (totalBudget > 0 || expense > 0))) && (
             <div style={{
               background: 'var(--surface)', border: '1px solid var(--line)',
               borderRadius: 22, padding: 18,
@@ -451,7 +450,7 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {topCategories.length > 0 && (
+              {donutCategories.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 16 }}>
                 <div style={{ position: 'relative', width: 104, height: 104, flexShrink: 0 }}>
                   <svg viewBox="0 0 36 36" style={{ width: 104, height: 104 }}>
@@ -483,13 +482,13 @@ export default function Dashboard() {
                 </div>
 
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  {topCategories.map((cat) => (
+                  {donutCategories.map((cat) => (
                     <div key={cat.name} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
                       <span style={{ width: 9, height: 9, borderRadius: 3, background: cat.color, flexShrink: 0 }}/>
                       <span style={{ flex: 1, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {cat.name}
                       </span>
-                      <span style={{ fontWeight: 700, color: 'var(--muted)' }}>{cat.pct}%</span>
+                      <span style={{ fontWeight: 700, color: 'var(--muted)' }}>{Math.round(cat.pct)}%</span>
                     </div>
                   ))}
                 </div>

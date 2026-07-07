@@ -904,10 +904,13 @@ export default function AccountTransactions() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
+            gap: 10,
             padding: '10px 16px 8px',
-            background: 'var(--surface)',
-            borderBottom: '1px solid var(--line)',
+            background: 'color-mix(in srgb, var(--bg) 84%, transparent)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            borderBottom: '1px solid color-mix(in srgb, var(--line) 75%, transparent)',
             position: 'sticky',
             top: 0,
             zIndex: 10,
@@ -932,11 +935,11 @@ export default function AccountTransactions() {
             <BackIcon />
           </button>
 
-          <span style={{ margin: '0 8px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 16, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.01em' }}>
+          <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 16, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.01em', textAlign: 'left' }}>
             {account.name}
           </span>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, marginLeft: 'auto' }}>
             <button
               onClick={() => setSelectedMonth((date) => isYearScope ? new Date(date.getFullYear() - 1, date.getMonth(), 1) : new Date(date.getFullYear(), date.getMonth() - 1, 1))}
               style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8 }}
@@ -959,7 +962,17 @@ export default function AccountTransactions() {
           <button style={tabStyle(tab === 'monthly')} onClick={() => setTab('monthly')}>Monthly</button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 8px', background: 'var(--surface)', flexShrink: 0 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px 8px',
+            background: 'color-mix(in srgb, var(--bg) 72%, transparent)',
+            borderBottom: '1px solid color-mix(in srgb, var(--line) 65%, transparent)',
+            flexShrink: 0,
+          }}
+        >
           <div>
             <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Statement</div>
             <div style={{ marginTop: 1, fontSize: 17, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.02em' }}>{statementLabel}</div>
