@@ -598,6 +598,8 @@ export default function AccountTransactions() {
   }, [id]);
 
   const account = useMemo(() => accounts.find((item) => item.id === id) ?? null, [accounts, id]);
+  const hasChildren = useMemo(() => (id ? accounts.some((item) => item.parent_id === id) : false), [accounts, id]);
+  const ownBalance = hasChildren ? account?.balance ?? 0 : account?.computed_balance ?? 0;
   const billingDay = account?.type === 'credit_card' ? account.billing_date : null;
   const isCreditCardStatement = billingDay !== null;
   const statementRange = useMemo(() => {
@@ -628,7 +630,7 @@ export default function AccountTransactions() {
   );
 
   const summary = useMemo(() => {
-    if (!id) return { deposit: 0, withdrawal: 0, total: 0, balance: account?.computed_balance ?? 0 };
+    if (!id) return { deposit: 0, withdrawal: 0, total: 0, balance: ownBalance };
 
     let deposit = 0;
     let withdrawal = 0;
@@ -641,9 +643,9 @@ export default function AccountTransactions() {
       deposit,
       withdrawal,
       total: deposit - withdrawal,
-      balance: account?.computed_balance ?? 0,
+      balance: ownBalance,
     };
-  }, [monthTxs, account, id]);
+  }, [monthTxs, ownBalance, id]);
 
   const monthStats = useMemo<MonthStat[]>(() => {
     const slots: MonthStat[] = Array.from({ length: 6 }, (_, index) => {
@@ -668,14 +670,14 @@ export default function AccountTransactions() {
       else slot.withdrawal += transaction.amount;
     }
 
-    let balance = account?.computed_balance ?? 0;
+    let balance = ownBalance;
     for (let index = slots.length - 1; index >= 0; index -= 1) {
       slots[index].balance = balance;
       balance -= slots[index].deposit - slots[index].withdrawal;
     }
 
     return slots;
-  }, [accountTxs, account, id, selectedMonth]);
+  }, [accountTxs, ownBalance, id, selectedMonth]);
 
   const dayGroups = useMemo<DayGroup[]>(() => {
     if (!id) return [];
@@ -896,7 +898,7 @@ export default function AccountTransactions() {
         { label: 'Withdrawal', value: statFmt(summary.withdrawal), color: 'var(--expense)' },
         {
           label: 'Available',
-          value: statFmt(account.credit_limit != null ? account.credit_limit + account.computed_balance : summary.balance),
+          value: statFmt(account.credit_limit != null ? account.credit_limit + ownBalance : summary.balance),
           color: 'var(--accent)',
         },
       ] as const)
