@@ -5,19 +5,13 @@ import { PlusIcon } from '../../components/icons';
 import SummaryStrip from '../../components/SummaryStrip';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
+import { trimCompactDecimals } from '../../lib/format';
 import { ACCOUNT_TYPES, type Account, type AccountType } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
 
 const fmt = new Intl.NumberFormat('id-ID', {
   style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
 });
-
-function trimCompactDecimals(value: number, digits: number): string {
-  return value
-    .toFixed(digits)
-    .replace(/\.?0+$/, '')
-    .replace('.', ',');
-}
 
 function shortFmt(value: number): string {
   const abs = Math.abs(value);

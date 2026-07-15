@@ -11,14 +11,13 @@ import TileLookup from '../../components/TileLookup';
 import Calculator from '../../components/Calculator';
 import StyledSelect from '../../components/StyledSelect';
 import ToggleSwitch from '../../components/ToggleSwitch';
+import FieldRow from '../../components/FieldRow';
+import { ChevronRightIcon, TagIcon, WalletIcon } from '../../components/compactIcons';
 
 // ── Inlined icons ──────────────────────────────────────────────────
-function WalletIcon()     { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 11h3v4h-3a2 2 0 0 1 0-4z"/></svg>; }
-function TagIcon()        { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3zm-2.318 3h.008v.008H7.25V6z"/></svg>; }
 function CalcIcon()       { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4M8 18h2"/></svg>; }
 function CalendarIcon()   { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>; }
 function NoteIcon()       { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>; }
-function ChevronRight()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>; }
 
 // ── Formatter ─────────────────────────────────────────────────────
 const fmt = new Intl.NumberFormat('id-ID', {
@@ -42,23 +41,6 @@ function normalizeDatePreset(value: string | null): string | null {
 
 function fromDatetimeLocal(v: string): number {
   return Math.floor(new Date(v).getTime() / 1000);
-}
-
-// ── Field row wrapper ─────────────────────────────────────────────
-function FieldRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      background: 'var(--surface)', border: '1px solid var(--line)',
-      borderRadius: 16, padding: '12px 14px',
-    }}>
-      <span style={{ color: 'var(--muted)', flexShrink: 0 }}>{icon}</span>
-      <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', minWidth: 72, flexShrink: 0 }}>
-        {label}
-      </span>
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-    </div>
-  );
 }
 
 type LookupTarget    = 'account' | 'transferTo' | 'category';
@@ -426,7 +408,7 @@ export default function TransactionForm() {
                 <span style={{ fontSize: 14, fontWeight: 600, color: accountId ? 'var(--ink)' : 'var(--muted)' }}>
                   {accountId ? accountName(accountId) : 'Select account'}
                 </span>
-                <span style={{ color: 'var(--muted)' }}><ChevronRight /></span>
+                <span style={{ color: 'var(--muted)' }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
               </button>
             )}
           </FieldRow>
@@ -445,7 +427,7 @@ export default function TransactionForm() {
                   <span style={{ fontSize: 14, fontWeight: 600, color: transferTo ? 'var(--ink)' : 'var(--muted)' }}>
                     {transferTo ? accountName(transferTo) : 'Select account'}
                   </span>
-                  <span style={{ color: 'var(--muted)' }}><ChevronRight /></span>
+                  <span style={{ color: 'var(--muted)' }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
                 </button>
               )}
             </FieldRow>
@@ -465,7 +447,7 @@ export default function TransactionForm() {
                   <span style={{ fontSize: 14, fontWeight: 600, color: categoryId ? 'var(--ink)' : 'var(--muted)' }}>
                     {categoryId ? categoryName(categoryId) : 'Select category'}
                   </span>
-                  <span style={{ color: 'var(--muted)' }}><ChevronRight /></span>
+                  <span style={{ color: 'var(--muted)' }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
                 </button>
               )}
             </FieldRow>

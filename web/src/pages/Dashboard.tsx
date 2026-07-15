@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import PageContainer from '../components/PageContainer';
 import { ApiError, apiFetch, getUser } from '../lib/api';
 import { categoryVisual, initial } from '../lib/categories';
+import { trimCompactDecimals } from '../lib/format';
 import { useTheme } from '../lib/theme';
 import type { Account, BudgetMonth, Category, MonthlyBalance, TrackedItem, Transaction } from '../lib/types';
 
@@ -13,13 +14,6 @@ const idr = new Intl.NumberFormat('id-ID', {
 });
 
 const DONUT_COLORS = ['#F59E0B', '#3B82F6', '#8B5CF6', '#F43F5E', '#10B981'];
-
-function trimCompactDecimals(value: number, digits: number): string {
-  return value
-    .toFixed(digits)
-    .replace(/\.?0+$/, '')
-    .replace('.', ',');
-}
 
 function shortCurrency(value: number): string {
   if (value >= 1_000_000) return `Rp ${trimCompactDecimals(value / 1_000_000, 1)} jt`;

@@ -4,28 +4,13 @@ import type { Config as ConfigType } from '../lib/types';
 import { WEB_BUILD } from '../lib/version';
 import PageContainer from '../components/PageContainer';
 import PageHeader from '../components/PageHeader';
+import FieldRow from '../components/FieldRow';
 
 function CurrencyIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 8.5a3 3 0 0 0-5 2.5c0 3 5 3 5 6a3 3 0 0 1-5 0M12 6v2M12 16v2"/></svg>;
 }
 function ClockIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>;
-}
-
-function FieldRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      background: 'var(--surface)', border: '1px solid var(--line)',
-      borderRadius: 16, padding: '12px 14px',
-    }}>
-      <span style={{ color: 'var(--muted)', flexShrink: 0 }}>{icon}</span>
-      <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', minWidth: 80, flexShrink: 0 }}>
-        {label}
-      </span>
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-    </div>
-  );
 }
 
 export default function ConfigPreferences() {
@@ -92,7 +77,7 @@ export default function ConfigPreferences() {
 
       <form onSubmit={handleSubmit}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <FieldRow icon={<CurrencyIcon />} label="Currency">
+          <FieldRow icon={<CurrencyIcon />} label="Currency" labelWidth={80}>
             <input
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
@@ -105,7 +90,7 @@ export default function ConfigPreferences() {
             />
           </FieldRow>
 
-          <FieldRow icon={<ClockIcon />} label="Timezone">
+          <FieldRow icon={<ClockIcon />} label="Timezone" labelWidth={80}>
             <input
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { categoryVisual } from '../../lib/categories';
 import { ApiError, apiFetch, getUser } from '../../lib/api';
+import { statFmt, signedFmt, cellFmt } from '../../lib/format';
 import type { Account, Category, Transaction } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
 
@@ -16,22 +17,6 @@ function ChevronRight() { return <svg width="20" height="20" viewBox="0 0 24 24"
 const monthFmt = new Intl.DateTimeFormat('id-ID', {
   month: 'long', year: 'numeric',
 });
-
-function statFmt(value: number): string {
-  return new Intl.NumberFormat('id-ID').format(Math.round(Math.abs(value)));
-}
-
-function signedFmt(value: number): string {
-  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
-  return `${sign}Rp ${statFmt(value)}`;
-}
-
-function cellFmt(value: number): string {
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(2).replace('.', ',')}jt`;
-  if (abs >= 1_000) return statFmt(value);
-  return statFmt(value);
-}
 
 function toDatetimePreset(unix: number): string {
   const d = new Date(unix * 1000);

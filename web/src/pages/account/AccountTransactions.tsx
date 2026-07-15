@@ -3,36 +3,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { categoryVisual } from '../../lib/categories';
 import { ApiError, apiFetch } from '../../lib/api';
+import { statFmt, signedFmt, cellFmt } from '../../lib/format';
+import { ChevronLeftIcon, ChevronRightIcon } from '../../components/compactIcons';
 import type { Account, Category, Transaction } from '../../lib/types';
-
-function BackIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
 
 function PlusIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-function ChevronLeft() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function ChevronRight() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 6l6 6-6 6" />
     </svg>
   );
 }
@@ -65,26 +43,11 @@ function PencilIcon() {
   );
 }
 
-function statFmt(value: number): string {
-  return new Intl.NumberFormat('id-ID').format(Math.round(Math.abs(value)));
-}
-
-function signedFmt(value: number): string {
-  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
-  return `${sign}Rp ${statFmt(value)}`;
-}
-
 function chartLabel(value: number): string {
   const abs = Math.abs(value);
   if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(1)}M`;
   if (abs >= 1_000) return `${Math.round(abs / 1_000)}K`;
   return String(Math.round(abs));
-}
-
-function cellFmt(value: number): string {
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(2).replace('.', ',')}jt`;
-  return statFmt(value);
 }
 
 function toDatetimePreset(unix: number): string {
@@ -946,7 +909,7 @@ export default function AccountTransactions() {
               flexShrink: 0,
             }}
           >
-            <BackIcon />
+            <ChevronLeftIcon size={20} />
           </button>
 
           <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 16, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.01em', textAlign: 'left' }}>
@@ -958,14 +921,14 @@ export default function AccountTransactions() {
               onClick={() => setSelectedMonth((date) => isYearScope ? new Date(date.getFullYear() - 1, date.getMonth(), 1) : new Date(date.getFullYear(), date.getMonth() - 1, 1))}
               style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8 }}
             >
-              <ChevronLeft />
+              <ChevronLeftIcon />
             </button>
             <span style={{ minWidth: 76, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{periodTitle}</span>
             <button
               onClick={() => setSelectedMonth((date) => isYearScope ? new Date(date.getFullYear() + 1, date.getMonth(), 1) : new Date(date.getFullYear(), date.getMonth() + 1, 1))}
               style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8 }}
             >
-              <ChevronRight />
+              <ChevronRightIcon />
             </button>
           </div>
         </div>

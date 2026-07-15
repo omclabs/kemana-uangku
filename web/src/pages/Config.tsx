@@ -5,16 +5,8 @@ import type { Config as ConfigType } from '../lib/types';
 import { WEB_BUILD } from '../lib/version';
 import PageContainer from '../components/PageContainer';
 import PageHeader from '../components/PageHeader';
+import { ChevronRightIcon, LockIcon, TagIcon, WalletIcon } from '../components/compactIcons';
 
-function WalletIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 11h3v4h-3a2 2 0 0 1 0-4z"/></svg>;
-}
-function LockIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
-}
-function TagIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3z"/><path d="M7.25 6h.008v.008H7.25V6z"/></svg>;
-}
 function BudgetIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M16 15h0"/></svg>;
 }
@@ -30,10 +22,6 @@ function UserIcon() {
 function TrashIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>;
 }
-function ChevronRight() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
-}
-
 const cardStyle: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 12,
   borderRadius: 20, border: '1px solid var(--line)',
@@ -146,7 +134,7 @@ export default function Config() {
                 background: 'var(--income-soft)', color: 'var(--accent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <WalletIcon />
+                <WalletIcon size={20} />
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>General Settings</span>
@@ -157,7 +145,7 @@ export default function Config() {
                   {currency} · {timezone}
                 </span>
               </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
             </Link>
           )}
 
@@ -168,7 +156,7 @@ export default function Config() {
                 background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <TagIcon />
+                <TagIcon size={20} />
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Categories</span>
@@ -176,7 +164,7 @@ export default function Config() {
                   Manage income and expense categories
                 </span>
               </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
             </Link>
           )}
 
@@ -195,7 +183,7 @@ export default function Config() {
                   Manage month-specific budget targets
                 </span>
               </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
             </Link>
           )}
 
@@ -214,7 +202,7 @@ export default function Config() {
                   Manage stock forecasts and alerts
                 </span>
               </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
             </Link>
           )}
 
@@ -224,7 +212,7 @@ export default function Config() {
               background: 'var(--expense-soft)', color: 'var(--expense)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <LockIcon />
+              <LockIcon size={20} />
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Change Password</span>
@@ -232,7 +220,7 @@ export default function Config() {
                 Update your login credentials
               </span>
             </span>
-            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
           </Link>
 
           {user?.role === 'admin' && (
@@ -250,7 +238,7 @@ export default function Config() {
                   Manage user access and roles
                 </span>
               </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
             </Link>
           )}
 
@@ -285,7 +273,7 @@ export default function Config() {
                   Delete transactions, budgets, monthly summaries, and accounts
                 </span>
               </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
             </button>
           )}
 
@@ -307,7 +295,7 @@ export default function Config() {
                 End this session on the device
               </span>
             </span>
-            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
           </button>
         </div>
       )}

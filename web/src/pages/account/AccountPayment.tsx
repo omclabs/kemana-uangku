@@ -4,44 +4,9 @@ import PageContainer from '../../components/PageContainer';
 import TileLookup from '../../components/TileLookup';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual } from '../../lib/categories';
+import { statFmt } from '../../lib/format';
+import { ChevronLeftIcon, ChevronRightIcon, WalletIcon } from '../../components/compactIcons';
 import type { Account, Category, Transaction } from '../../lib/types';
-
-function BackIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function ChevronLeft() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
-function ChevronRight() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-function WalletIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="5" width="20" height="14" rx="2" />
-      <path d="M16 11h3v4h-3a2 2 0 0 1 0-4z" />
-    </svg>
-  );
-}
-
-function statFmt(value: number): string {
-  return new Intl.NumberFormat('id-ID').format(Math.round(Math.abs(value)));
-}
 
 function fmtMD(date: Date): string {
   return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
@@ -249,20 +214,20 @@ export default function AccountPayment() {
           color: 'var(--muted)', display: 'flex', alignItems: 'center',
           justifyContent: 'center', cursor: 'pointer',
         }}>
-          <BackIcon />
+          <ChevronLeftIcon size={20} />
         </button>
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', flex: 1 }}>
           {account.name} Payment
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <button type="button" onClick={() => setSelectedMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8 }}>
-            <ChevronLeft />
+            <ChevronLeftIcon />
           </button>
           <span style={{ minWidth: 88, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
             {selectedMonth.toLocaleString('en', { month: 'short', year: 'numeric' })}
           </span>
           <button type="button" onClick={() => setSelectedMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8 }}>
-            <ChevronRight />
+            <ChevronRightIcon />
           </button>
         </div>
       </div>
@@ -301,7 +266,7 @@ export default function AccountPayment() {
                 {paymentAccountId ? accountName(paymentAccountId) : 'Select payment account'}
               </span>
             </span>
-            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRight /></span>
+            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon /></span>
           </button>
         </div>
 
