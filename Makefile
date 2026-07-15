@@ -3,7 +3,6 @@
 .PHONY: help start-dev stop restart migrate test logs logs-web shell shell-web build clean \
 	api-install web-install api-test web-build api-build \
 	deploy-db-backup deploy-api-migrate deploy-api deploy-api-secret deploy-api-origins \
-	backup-db-production migration-up-production deploy-api-production deploy-web-production \
 	deploy-web deploy-web-preview deploy-all
 
 API_DIR := api
@@ -88,17 +87,9 @@ deploy-api-migrate: ## Apply remote D1 migrations
 deploy-api: ## Deploy the Cloudflare Worker api
 	cd $(API_DIR) && $(WRANGLER) deploy --var APP_VERSION:"$(API_APP_VERSION)" --var COMMIT_SHA:"$(APP_GIT_SHA)" --var DEPLOYED_AT:"$(BUILD_TIME_UTC)"
 
-backup-db-production: deploy-db-backup ## Alias: export the remote production D1 database
-
-migration-up-production: deploy-api-migrate ## Alias: apply unapplied production D1 migrations
-
-deploy-api-production: deploy-api ## Alias: deploy the production api Worker
-
 deploy-web: web-build ## Build and deploy the production web assets to the Cloudflare Worker frontend
 	cd $(WEB_DIR) && $(WRANGLER) deploy
 	@echo "Web deployed from $(WEB_DIR)/dist"
-
-deploy-web-production: deploy-web ## Alias: deploy the production web Worker
 
 deploy-web-preview: ## Preview the production web build locally; requires API_BASE_URL
 	@if [ -z "$(API_BASE_URL)" ]; then echo "API_BASE_URL is required. Example: make deploy-web-preview API_BASE_URL=https://kemana-uangku-api.example.workers.dev"; exit 1; fi

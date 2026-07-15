@@ -62,12 +62,6 @@ Set only your real frontend origins. Do not include `localhost` in production.
 make deploy-api-migrate
 ```
 
-Alias:
-
-```bash
-make migration-up-production
-```
-
 This will:
 
 - create the schema
@@ -87,12 +81,6 @@ Change the admin password immediately after first login.
 
 ```bash
 make deploy-api
-```
-
-Alias:
-
-```bash
-make deploy-api-production
 ```
 
 After deploy, note the Worker URL, for example:
@@ -122,12 +110,6 @@ make deploy-web API_BASE_URL="https://kemana-uangku-api.<subdomain>.workers.dev"
 ```
 
 This builds `web/dist/` and publishes it to the existing `kemana-uangku` Worker service.
-
-Alias:
-
-```bash
-make deploy-web-production API_BASE_URL="https://kemana-uangku-api.<subdomain>.workers.dev"
-```
 
 ## 3. Publish the Web App
 
@@ -178,14 +160,6 @@ make deploy-api
 ```
 
 Run the backup first. Run migrations whenever schema or seed migrations changed.
-
-Alias commands:
-
-```bash
-make backup-db-production
-make migration-up-production
-make deploy-api-production
-```
 
 ### Web code changes
 
