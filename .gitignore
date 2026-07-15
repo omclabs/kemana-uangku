@@ -13,3 +13,5 @@ web/.env.production
 
 backups
 .tmp-home
+
+DEPLOY.md
