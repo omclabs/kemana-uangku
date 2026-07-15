@@ -133,6 +133,8 @@ If `wrangler dev` fails inside the container with a `workerd`/SQLite error (e.g.
 | `make build` | Build the api and web Docker images |
 | `make clean` | Stop + remove containers and the `node_modules` volumes (D1 data untouched) |
 | `make deploy-db-backup` | Export the remote D1 database to `backups/db-yyyymmdd-hhmmss.sql` |
+| `make backup-db-prod` | Interactive: backup production D1 to `backups/<yyyymmdd>-<unixtime>.sql` (prompts for Cloudflare auth, confirms before touching prod) |
+| `make restore-db-local` | Interactive: restore a `backups/*.sql` file into the local D1 database (prompts to pick a file, confirms before overwriting local data) |
 | `make deploy-api-migrate` | Apply remote D1 migrations with Wrangler |
 | `make deploy-api` | Deploy the Worker api with Wrangler |
 | `make deploy-api-secret` | Set the Worker `API_TOKEN` secret interactively |

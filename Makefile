@@ -3,7 +3,8 @@
 .PHONY: help start-dev stop restart migrate test logs logs-web shell shell-web build clean \
 	api-install web-install api-test web-build api-build \
 	deploy-db-backup deploy-api-migrate deploy-api deploy-api-secret deploy-api-origins \
-	deploy-web deploy-web-preview deploy-all
+	deploy-web deploy-web-preview deploy-all \
+	backup-db-prod restore-db-local
 
 API_DIR := api
 WEB_DIR := web
@@ -80,6 +81,12 @@ deploy-db-backup: ## Export the remote D1 database to backups/db-yyyymmdd-hhmmss
 	mkdir -p $(DB_BACKUP_DIR)
 	cd $(API_DIR) && $(WRANGLER) d1 export kemana-uangku-db --remote --output ../$(DB_BACKUP_FILE) -y
 	@echo "Database backup written to $(DB_BACKUP_FILE)"
+
+backup-db-prod: ## Interactive: backup production D1 to backups/<yyyymmdd>-<unixtime>.sql (prompts for auth/confirmation)
+	@bash scripts/db-backup-prod.sh
+
+restore-db-local: ## Interactive: restore a backups/*.sql file into the local D1 database (prompts for file/confirmation)
+	@bash scripts/db-restore-local.sh
 
 deploy-api-migrate: ## Apply remote D1 migrations
 	cd $(API_DIR) && $(WRANGLER) d1 migrations apply kemana-uangku-db --remote

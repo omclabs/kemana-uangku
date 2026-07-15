@@ -179,6 +179,17 @@ make deploy-all API_BASE_URL="https://kemana-uangku-api.your-account.workers.dev
 
 `make deploy-all` checks the remote D1 migration state first. If there are unapplied migrations, it runs backup, then migration, then deploys the API and web. If there are no unapplied migrations, it skips backup and migration and only deploys the API and web.
 
+## Pulling prod data to local
+
+To inspect or debug with a real snapshot of production data in your local dev D1 instance:
+
+```bash
+make backup-db-prod    # exports prod DB to backups/<yyyymmdd>-<unixtime>.sql (prompts for Cloudflare login if needed, confirms before touching prod)
+make restore-db-local  # lets you pick a backups/*.sql file, confirms, then restores it into the local D1 database
+```
+
+`restore-db-local` fully replaces the local database's schema and data with the chosen backup — any existing local data is lost. It never touches production; only `backup-db-prod` talks to the remote D1 database.
+
 ## Notes
 
 - Local `.wrangler/` data is only for development. It is unrelated to the remote D1 database.
