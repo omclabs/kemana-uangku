@@ -1,73 +1,68 @@
-# React + TypeScript + Vite
+# kemana-uangku web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Mobile-first React 19 + TypeScript + Tailwind CSS v4 SPA, consuming the [api](../api). See the [root README](../README.md) for the full feature overview and `docs/adr/` (repo root) for design rationale.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Vite, React 19, react-router-dom v7 (`BrowserRouter`), Tailwind v4 (`@tailwindcss/vite`, no separate config file), `vite-plugin-pwa`. See `docs/adr/ADR-006` and `ADR-007`.
 
-## React Compiler
+## Local dev
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Requires the api running (`http://localhost:8787` by default — see [api/README.md](../api/README.md)). Env var: `VITE_API_BASE_URL` (defaults to the local api URL; set explicitly for a deployed api target, see [DEPLOY.md](../DEPLOY.md)).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Or via Docker from the repo root: `make start-dev` (Vite dev server on `http://localhost:5173`, hot reload from bind-mounted `./web`).
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Default login: **`admin` / `admin`**. You're prompted to change it on first login.
+
+## Layout
+
+Responsive shell (`docs/adr/ADR-007`): `Sidebar` (desktop, `md:` and up) + `Topbar` (always visible, title/username/logout) + `BottomNav` (mobile only). Nav entries are a single source of truth in `src/lib/nav.tsx`, consumed by all three.
+
+## Pages (`src/pages/`)
+
+| Page | Route | Role |
+|---|---|---|
+| `Login.tsx` | `/login` | public |
+| `Dashboard.tsx` | `/dashboard` | any |
+| `ChangePassword.tsx` | (post-login prompt) | any |
+| `account/AccountList.tsx`, `AccountForm.tsx` | `/accounts`, `/accounts/:id/edit` | any (reimbursement scoped) |
+| `account/AccountTransactions.tsx` | `/accounts/:id/transactions` | any (reimbursement scoped) |
+| `account/AccountPayment.tsx` | `/accounts/:id/pay` | admin, user, reimbursement (assigned cards) |
+| `category/CategoryList.tsx`, `CategoryForm.tsx` | `/categories`, `/categories/:id/edit` | admin, user |
+| `transaction/TransactionList.tsx`, `TransactionForm.tsx` | `/transactions`, `/transactions/:id/edit` | any (reimbursement scoped) |
+| `transaction/TransactionReceiptImport.tsx` | `/transactions/import` | admin, user |
+| `budget/BudgetPage.tsx` | `/budgets` | admin, user |
+| `tracked-item/TrackedItemList.tsx`, `TrackedItemForm.tsx`, `TrackedItemAlerts.tsx` | `/tracked-items`, ... | admin, user |
+| `user/UserList.tsx`, `UserForm.tsx` | `/config/users`, ... | admin |
+| `Config.tsx`, `ConfigPreferences.tsx` | `/config` | admin (write), any (read) |
+
+## Components (`src/components/`)
+
+| Component | Purpose |
+|---|---|
+| `AuthGuard.tsx` | Redirects to `/login` if no session token; renders the shell otherwise |
+| `RoleGuard.tsx` | Redirects if current user's role isn't in the allowed list |
+| `AdminGuard.tsx` | Redirects non-admins away from admin-only pages |
+| `Sidebar.tsx` / `Topbar.tsx` / `BottomNav.tsx` | Responsive shell, driven by `lib/nav.tsx` |
+| `PageContainer.tsx` / `PageHeader.tsx` | Shared layout wrappers |
+| `TileLookup.tsx` | Tile-grid picker for accounts/categories (parent-vs-leaf selection rules) |
+| `Calculator.tsx` | Bottom-sheet numeric input for transaction amounts |
+| `ToggleSwitch.tsx` / `StyledSelect.tsx` / `SummaryStrip.tsx` | Shared form/display primitives |
+
+**Client-side guards (`AuthGuard`/`RoleGuard`/`AdminGuard`) are UX only** — the actual access control is enforced server-side (`api/src/lib/access.ts`). Don't rely on hiding a nav item as a security boundary.
+
+## Key libs (`src/lib/`)
+
+- `api.ts` — `apiFetch` helper, session token storage (`localStorage`)
+- `types.ts` — shared API response/request types, kept in sync with `api/src/lib/validation.ts` by hand
+- `nav.tsx` — single source of truth for nav entries (route, icon, label, allowed roles)
+- `calculator.ts` — pure reducer behind the `Calculator` component
+
+## Testing
+
+No frontend test suite currently exists — verify changes manually against a running `api` (`make start-dev`, then check the golden path in a browser).
