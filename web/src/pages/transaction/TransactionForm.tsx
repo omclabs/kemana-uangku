@@ -541,14 +541,15 @@ export default function TransactionForm() {
 
           {/* ── Note ─────────────────────────────────────────────── */}
           <FieldRow icon={<NoteIcon />} label="Note">
-            <input
+            <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Optional"
+              rows={2}
               style={{
                 width: '100%', background: 'none', border: 'none', padding: 0,
                 fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'inherit',
-                outline: 'none',
+                outline: 'none', resize: 'vertical', lineHeight: 1.4,
               }}
             />
           </FieldRow>

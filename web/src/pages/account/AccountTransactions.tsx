@@ -888,12 +888,24 @@ export default function AccountTransactions() {
     );
   }
 
-  const summaryItems = [
-    { label: 'Deposit', value: statFmt(summary.deposit), color: 'var(--income)' },
-    { label: 'Withdrawal', value: statFmt(summary.withdrawal), color: 'var(--expense)' },
-    { label: 'Total', value: statFmt(summary.total), color: 'var(--ink)' },
-    { label: 'Balance', value: statFmt(summary.balance), color: 'var(--accent)' },
-  ] as const;
+  const isCreditCard = account.type === 'credit_card';
+
+  const summaryItems = isCreditCard
+    ? ([
+        { label: 'Deposit', value: statFmt(summary.deposit), color: 'var(--income)' },
+        { label: 'Withdrawal', value: statFmt(summary.withdrawal), color: 'var(--expense)' },
+        {
+          label: 'Available',
+          value: statFmt(account.credit_limit != null ? account.credit_limit + account.computed_balance : summary.balance),
+          color: 'var(--accent)',
+        },
+      ] as const)
+    : ([
+        { label: 'Deposit', value: statFmt(summary.deposit), color: 'var(--income)' },
+        { label: 'Withdrawal', value: statFmt(summary.withdrawal), color: 'var(--expense)' },
+        { label: 'Total', value: statFmt(summary.total), color: 'var(--ink)' },
+        { label: 'Balance', value: statFmt(summary.balance), color: 'var(--accent)' },
+      ] as const);
 
   const showViewToggle = tab === 'daily';
 
@@ -1015,15 +1027,15 @@ export default function AccountTransactions() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${summaryItems.length}, 1fr)`, borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
           {summaryItems.map((item, index) => (
             <div
               key={item.label}
               style={{
                 padding: '9px 6px',
                 paddingLeft: index === 0 ? 12 : 6,
-                paddingRight: index === 3 ? 12 : 6,
-                borderRight: index < 3 ? '1px solid var(--line)' : 'none',
+                paddingRight: index === summaryItems.length - 1 ? 12 : 6,
+                borderRight: index < summaryItems.length - 1 ? '1px solid var(--line)' : 'none',
                 minWidth: 0,
               }}
             >
@@ -1123,7 +1135,8 @@ export default function AccountTransactions() {
                         const category = catMap.get(transaction.category_id ?? '');
                         const isDeposit = id ? classifyTx(transaction, id) === 'deposit' : false;
                         const visual = categoryVisual(transaction.type === 'transfer' ? 'transfer' : category?.name);
-                        const label = transaction.note ?? '';
+                        const noteLines = (transaction.note ?? '').split('\n');
+                        const label = noteLines.length > 1 ? `${noteLines[0]}…` : noteLines[0];
                         const sublabel = transaction.type === 'transfer'
                           ? 'Transfer'
                           : category?.name ?? '';

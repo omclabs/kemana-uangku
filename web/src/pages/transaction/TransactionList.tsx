@@ -788,7 +788,8 @@ function TransactionRow({
   const isDeposit = t.type === 'income';
   const categoryLabel = categoryName(t.category_id);
   const visual = categoryVisual(isTransfer ? 'transfer' : categoryLabel);
-  const label = t.note ?? '';
+  const noteLines = (t.note ?? '').split('\n');
+  const label = noteLines.length > 1 ? `${noteLines[0]}…` : noteLines[0];
   const sublabel = isTransfer
     ? `Transfer - ${accountName(t.account_id)}`
     : `${categoryLabel} - ${accountName(t.account_id)}`;
