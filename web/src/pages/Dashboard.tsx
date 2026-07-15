@@ -170,7 +170,7 @@ export default function Dashboard() {
 
   const categoryTransactions = monthTx.filter(
     (transaction): transaction is Transaction & { type: 'income' | 'expense' } =>
-      transaction.type === 'income' || transaction.type === 'expense',
+      (transaction.type === 'income' || transaction.type === 'expense') && transaction.transfer_to === null,
   );
   const incomeByCategory = new Map<string, number>();
   const expenseByCategory = new Map<string, number>();
