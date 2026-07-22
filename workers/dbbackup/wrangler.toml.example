@@ -1,0 +1,19 @@
+# Copy this file to wrangler.toml (gitignored) before running `wrangler dev`
+# or `wrangler deploy`. See ../SETUP.md for how to obtain the secret values
+# referenced below (they are NOT set in this file — see "Secrets").
+
+name = "kemana-uangku-dbbackup"
+main = "src/index.ts"
+compatibility_date = "2026-06-18"
+
+[triggers]
+crons = ["0 18 * * *"] # daily at 18:00 UTC — adjust to your preferred time
+
+# Secrets (never stored in this file — set via `wrangler secret put <NAME>`
+# for the deployed Worker, and in a gitignored `.dev.vars` file for local dev):
+#   CF_API_TOKEN        Cloudflare API token, D1 edit permission on this database
+#   CF_ACCOUNT_ID       Cloudflare account id
+#   CF_DATABASE_ID      kemana-uangku-db database id
+#   GOOGLE_CLIENT_ID     Google OAuth client id (Desktop app type)
+#   GOOGLE_CLIENT_SECRET Google OAuth client secret
+#   GOOGLE_REFRESH_TOKEN Long-lived refresh token minted once via scripts/get-refresh-token.mjs

@@ -4,10 +4,12 @@
 	api-install web-install api-test web-build api-build \
 	deploy-db-backup deploy-api-migrate deploy-api deploy-api-secret deploy-api-origins \
 	deploy-web deploy-web-preview deploy-all \
-	backup-db-prod restore-db-local
+	backup-db-prod restore-db-local \
+	dbbackup-install dbbackup-build dbbackup-test deploy-dbbackup dbbackup-secrets
 
 API_DIR := api
 WEB_DIR := web
+DBBACKUP_DIR := workers/dbbackup
 WRANGLER := npx wrangler
 API_BASE_URL ?=
 ALLOWED_ORIGINS ?=
@@ -101,6 +103,26 @@ deploy-web: web-build ## Build and deploy the production web assets to the Cloud
 deploy-web-preview: ## Preview the production web build locally; requires API_BASE_URL
 	@if [ -z "$(API_BASE_URL)" ]; then echo "API_BASE_URL is required. Example: make deploy-web-preview API_BASE_URL=https://kemana-uangku-api.example.workers.dev"; exit 1; fi
 	cd $(WEB_DIR) && VITE_API_BASE_URL="$(API_BASE_URL)" VITE_APP_VERSION="$(WEB_APP_VERSION)" VITE_COMMIT_SHA="$(APP_GIT_SHA)" VITE_BUILD_TIME="$(BUILD_TIME_UTC)" npm run build && npm run preview -- --host 0.0.0.0
+
+dbbackup-install: ## Install dbbackup worker dependencies on the host
+	cd $(DBBACKUP_DIR) && npm install
+
+dbbackup-build: ## Typecheck the dbbackup worker on the host
+	cd $(DBBACKUP_DIR) && npm run build
+
+dbbackup-test: ## Run the dbbackup worker test suite on the host
+	cd $(DBBACKUP_DIR) && npm test
+
+deploy-dbbackup: ## Deploy the dbbackup Cloudflare Worker (D1 -> Google Drive daily backup)
+	cd $(DBBACKUP_DIR) && $(WRANGLER) deploy
+
+dbbackup-secrets: ## Set all dbbackup Worker secrets interactively (CF + Google OAuth); see workers/dbbackup/SETUP.md
+	cd $(DBBACKUP_DIR) && $(WRANGLER) secret put CF_API_TOKEN
+	cd $(DBBACKUP_DIR) && $(WRANGLER) secret put CF_ACCOUNT_ID
+	cd $(DBBACKUP_DIR) && $(WRANGLER) secret put CF_DATABASE_ID
+	cd $(DBBACKUP_DIR) && $(WRANGLER) secret put GOOGLE_CLIENT_ID
+	cd $(DBBACKUP_DIR) && $(WRANGLER) secret put GOOGLE_CLIENT_SECRET
+	cd $(DBBACKUP_DIR) && $(WRANGLER) secret put GOOGLE_REFRESH_TOKEN
 
 deploy-all: ## If remote migrations exist, backup DB then migrate; always deploy api and web
 	@set -e; \

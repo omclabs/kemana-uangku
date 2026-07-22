@@ -10,8 +10,11 @@ handoff
 tmp
 api/wrangler.toml
 web/.env.production
+workers/dbbackup/wrangler.toml
+workers/dbbackup/.dev.vars
 
 backups
 .tmp-home
 
 DEPLOY.md
+docs
