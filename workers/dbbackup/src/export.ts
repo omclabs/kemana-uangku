@@ -6,7 +6,7 @@ import { reorderDump } from './reorder';
 // tracked_items, tracked_item_refills — see api/migrations/*.sql). Bump this if
 // a future migration adds or drops a table; querying it dynamically would need
 // an extra D1 REST round trip for a value that only changes with a migration.
-export const EXPECTED_TABLE_COUNT = 11;
+const EXPECTED_TABLE_COUNT = 11;
 
 const MAX_POLL_ATTEMPTS = 10;
 const POLL_DELAY_MS = 1000;

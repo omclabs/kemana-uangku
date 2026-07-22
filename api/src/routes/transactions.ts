@@ -782,22 +782,14 @@ app.put('/:id', async (c) => {
   const statements: D1PreparedStatement[] = [];
   const trackedItemIdsToRebuild = new Set<string>();
 
-  if (fields.length > 0) {
-    statements.push(
-      c.env.DB.prepare(
-        `UPDATE transactions
-         SET ${fields.join(', ')}, updated_by = ?, updated_at = unixepoch()
-         WHERE id = ?`
-      )
-        .bind(...values, actor?.id ?? null, id)
-    );
-  } else {
-    statements.push(
-      c.env.DB.prepare(
-        'UPDATE transactions SET updated_by = ?, updated_at = unixepoch() WHERE id = ?'
-      ).bind(actor?.id ?? null, id)
-    );
-  }
+  statements.push(
+    c.env.DB.prepare(
+      `UPDATE transactions
+       SET ${[...fields, 'updated_by = ?', 'updated_at = unixepoch()'].join(', ')}
+       WHERE id = ?`
+    )
+      .bind(...values, actor?.id ?? null, id)
+  );
 
   if (existingRefill && resultingTrackedItemId === null) {
     statements.push(

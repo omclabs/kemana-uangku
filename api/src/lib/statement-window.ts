@@ -1,8 +1,8 @@
-export function statementCycleStart(year: number, month: number, billingDate: number): Date {
+function statementCycleStart(year: number, month: number, billingDate: number): Date {
   return new Date(year, month, billingDate + 1, 0, 0, 0, 0);
 }
 
-export function nextStatementCycleStart(start: Date, billingDate: number): Date {
+function nextStatementCycleStart(start: Date, billingDate: number): Date {
   return new Date(start.getFullYear(), start.getMonth() + 1, billingDate + 1, 0, 0, 0, 0);
 }
 

@@ -6,6 +6,10 @@ import { ApiError, apiFetch, getUser } from '../../lib/api';
 import { statFmt, signedFmt, cellFmt } from '../../lib/format';
 import type { Account, Category, Transaction } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
+import {
+  DAY_MS, WEEKDAYS, startOfDay, sameDay, weekStart,
+  fmtMD, toDatetimePreset, dateKey,
+} from '../../lib/dateUtils';
 
 // ── Inlined icons ──────────────────────────────────────────────────
 function PlusIcon()  { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>; }
@@ -18,20 +22,9 @@ const monthFmt = new Intl.DateTimeFormat('id-ID', {
   month: 'long', year: 'numeric',
 });
 
-function toDatetimePreset(unix: number): string {
-  const d = new Date(unix * 1000);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
 function toMonthPreset(unix: number): string {
   const d = new Date(unix * 1000);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function dateKey(unix: number): string {
-  const d = new Date(unix * 1000);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
 function groupByDate(txs: Transaction[]) {
@@ -87,29 +80,7 @@ interface YearMonth {
   weeks: WeekRange[];
 }
 
-const DAY_MS = 86_400_000;
 const LONG_PRESS_MS = 420;
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function sameDay(left: Date, right: Date): boolean {
-  return left.getFullYear() === right.getFullYear()
-    && left.getMonth() === right.getMonth()
-    && left.getDate() === right.getDate();
-}
-
-function weekStart(date: Date): Date {
-  const start = startOfDay(date);
-  start.setDate(start.getDate() - start.getDay());
-  return start;
-}
-
-function fmtMD(date: Date): string {
-  return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
-}
 
 function txIncome(transaction: Transaction): number {
   return transaction.type === 'income' ? transaction.amount : 0;

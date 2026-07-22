@@ -1,15 +1,8 @@
-import { getCurrentUser } from '../middleware/auth';
-
-type Role = 'admin' | 'user' | 'reimbursement';
+import { getCurrentUser, type AuthUser } from '../middleware/auth';
 
 type CurrentUserContext = {
   get(name: 'currentUser'): unknown;
   json: (body: unknown, status?: number) => Response;
-};
-
-type CurrentUser = {
-  id: string;
-  role: Role;
 };
 
 export function requireAdmin(c: CurrentUserContext): Response | null {
@@ -30,7 +23,7 @@ export function requireNonReimbursement(c: CurrentUserContext): Response | null 
 
 export async function listAccessibleAccountIds(
   db: D1Database,
-  user: CurrentUser | null | undefined
+  user: AuthUser | null | undefined
 ): Promise<string[] | null> {
   if (!user || user.role !== 'reimbursement') {
     return null;

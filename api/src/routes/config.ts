@@ -27,24 +27,16 @@ app.put('/', async (c) => {
   const actor = getCurrentUser(c);
 
   const fields = Object.keys(body) as (keyof typeof body)[];
-  if (fields.length > 0) {
-    const setClause = fields.map((field) => `${field} = ?`).join(', ');
-    const values = fields.map((field) => body[field]);
+  const setClauses = [...fields.map((field) => `${field} = ?`), 'updated_by = ?', 'last_updated = unixepoch()'];
+  const values = fields.map((field) => body[field]);
 
-    await c.env.DB.prepare(
-      `UPDATE config
-       SET ${setClause}, updated_by = ?, last_updated = unixepoch()
-       WHERE id = 1`
-    )
-      .bind(...values, actor?.id ?? null)
-      .run();
-  } else {
-    await c.env.DB.prepare(
-      'UPDATE config SET updated_by = ?, last_updated = unixepoch() WHERE id = 1'
-    )
-      .bind(actor?.id ?? null)
-      .run();
-  }
+  await c.env.DB.prepare(
+    `UPDATE config
+     SET ${setClauses.join(', ')}
+     WHERE id = 1`
+  )
+    .bind(...values, actor?.id ?? null)
+    .run();
 
   const row = await c.env.DB.prepare('SELECT * FROM config WHERE id = 1').first();
   return c.json({ ...row, api_build: apiBuildInfo(c.env) }, 200);

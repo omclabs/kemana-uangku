@@ -13,6 +13,7 @@ import StyledSelect from '../../components/StyledSelect';
 import ToggleSwitch from '../../components/ToggleSwitch';
 import FieldRow from '../../components/FieldRow';
 import { ChevronRightIcon, TagIcon, WalletIcon } from '../../components/compactIcons';
+import { toDatetimePreset as toDatetimeLocal } from '../../lib/dateUtils';
 
 // ── Inlined icons ──────────────────────────────────────────────────
 function CalcIcon()       { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4M8 18h2"/></svg>; }
@@ -23,12 +24,6 @@ function NoteIcon()       { return <svg width="18" height="18" viewBox="0 0 24 2
 const fmt = new Intl.NumberFormat('id-ID', {
   style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
 });
-
-function toDatetimeLocal(unix: number): string {
-  const d = new Date(unix * 1000);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-}
 
 function normalizeDatePreset(value: string | null): string | null {
   if (!value) return null;

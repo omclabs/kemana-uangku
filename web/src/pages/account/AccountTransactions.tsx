@@ -6,6 +6,11 @@ import { ApiError, apiFetch } from '../../lib/api';
 import { statFmt, signedFmt, cellFmt } from '../../lib/format';
 import { ChevronLeftIcon, ChevronRightIcon } from '../../components/compactIcons';
 import type { Account, Category, Transaction } from '../../lib/types';
+import {
+  DAY_MS, WEEKDAYS, startOfDay, sameDay, weekStart,
+  fmtMD, fmtMDY, monthKey, toDatetimePreset, dateKey,
+  statementCycleStart, nextStatementCycleStart, statementCycleEndInclusive,
+} from '../../lib/dateUtils';
 
 function PlusIcon() {
   return (
@@ -48,12 +53,6 @@ function chartLabel(value: number): string {
   if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(1)}M`;
   if (abs >= 1_000) return `${Math.round(abs / 1_000)}K`;
   return String(Math.round(abs));
-}
-
-function toDatetimePreset(unix: number): string {
-  const date = new Date(unix * 1000);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 type Tab = 'daily' | 'calendar' | 'monthly';
@@ -117,57 +116,10 @@ function classifyTx(transaction: Transaction, accountId: string): 'deposit' | 'w
   return 'withdrawal';
 }
 
-const DAY_MS = 86_400_000;
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CHART_LEFT = 36;
 const CHART_WIDTH = 264;
 const CHART_HEIGHT = 110;
 const CHART_BOTTOM = 46;
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function sameDay(left: Date, right: Date): boolean {
-  return left.getFullYear() === right.getFullYear()
-    && left.getMonth() === right.getMonth()
-    && left.getDate() === right.getDate();
-}
-
-function weekStart(date: Date): Date {
-  const start = startOfDay(date);
-  start.setDate(start.getDate() - start.getDay());
-  return start;
-}
-
-function fmtMD(date: Date): string {
-  return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function fmtMDY(date: Date): string {
-  return `${fmtMD(date)}.${String(date.getFullYear()).slice(2)}`;
-}
-
-function monthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function dateKey(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-}
-
-function statementCycleStart(year: number, month: number, billingDay: number): Date {
-  return new Date(year, month, billingDay + 1, 0, 0, 0, 0);
-}
-
-function nextStatementCycleStart(start: Date, billingDay: number): Date {
-  return new Date(start.getFullYear(), start.getMonth() + 1, billingDay + 1, 0, 0, 0, 0);
-}
-
-function statementCycleEndInclusive(endExclusive: Date): Date {
-  return new Date(endExclusive.getFullYear(), endExclusive.getMonth(), endExclusive.getDate() - 1, 0, 0, 0, 0);
-}
 
 function periodTitleRange(start: Date, endExclusive: Date): string {
   const endInclusive = statementCycleEndInclusive(endExclusive);

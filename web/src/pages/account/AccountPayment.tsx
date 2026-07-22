@@ -7,35 +7,15 @@ import { categoryVisual } from '../../lib/categories';
 import { statFmt } from '../../lib/format';
 import { ChevronLeftIcon, ChevronRightIcon, WalletIcon } from '../../components/compactIcons';
 import type { Account, Category, Transaction } from '../../lib/types';
-
-function fmtMD(date: Date): string {
-  return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function fmtMDY(date: Date): string {
-  return `${fmtMD(date)}.${String(date.getFullYear()).slice(2)}`;
-}
-
-function monthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
+import {
+  fmtMDY, monthKey,
+  statementCycleStart, nextStatementCycleStart, statementCycleEndInclusive,
+} from '../../lib/dateUtils';
 
 function parseMonthKey(value: string | null): Date | null {
   if (!value || !/^\d{4}-\d{2}$/.test(value)) return null;
   const [year, month] = value.split('-').map(Number);
   return new Date(year, month - 1, 1);
-}
-
-function statementCycleStart(year: number, month: number, billingDate: number): Date {
-  return new Date(year, month, billingDate + 1, 0, 0, 0, 0);
-}
-
-function nextStatementCycleStart(start: Date, billingDate: number): Date {
-  return new Date(start.getFullYear(), start.getMonth() + 1, billingDate + 1, 0, 0, 0, 0);
-}
-
-function statementCycleEndInclusive(endExclusive: Date): Date {
-  return new Date(endExclusive.getFullYear(), endExclusive.getMonth(), endExclusive.getDate() - 1, 0, 0, 0, 0);
 }
 
 function buildStatementRange(anchor: Date, billingDate: number, offset: number) {

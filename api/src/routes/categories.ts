@@ -191,21 +191,13 @@ app.put('/:id', async (c) => {
     applyActiveToggleFields(fields, values, body.is_active, actor?.id ?? null);
   }
 
-  if (fields.length > 0) {
-    await c.env.DB.prepare(
-      `UPDATE categories
-       SET ${fields.join(', ')}, updated_by = ?, updated_at = unixepoch()
-       WHERE id = ?`
-    )
-      .bind(...values, actor?.id ?? null, id)
-      .run();
-  } else {
-    await c.env.DB.prepare(
-      'UPDATE categories SET updated_by = ?, updated_at = unixepoch() WHERE id = ?'
-    )
-      .bind(actor?.id ?? null, id)
-      .run();
-  }
+  await c.env.DB.prepare(
+    `UPDATE categories
+     SET ${[...fields, 'updated_by = ?', 'updated_at = unixepoch()'].join(', ')}
+     WHERE id = ?`
+  )
+    .bind(...values, actor?.id ?? null, id)
+    .run();
 
   const row = await c.env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first();
 

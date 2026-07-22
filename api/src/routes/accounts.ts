@@ -448,21 +448,13 @@ app.put('/:id', async (c) => {
     applyActiveToggleFields(fields, values, body.is_active, actor?.id ?? null);
   }
 
-  if (fields.length > 0) {
-    await c.env.DB.prepare(
-      `UPDATE accounts
-       SET ${fields.join(', ')}, updated_by = ?, updated_at = unixepoch()
-       WHERE id = ?`
-    )
-      .bind(...values, actor?.id ?? null, id)
-      .run();
-  } else {
-    await c.env.DB.prepare(
-      'UPDATE accounts SET updated_by = ?, updated_at = unixepoch() WHERE id = ?'
-    )
-      .bind(actor?.id ?? null, id)
-      .run();
-  }
+  await c.env.DB.prepare(
+    `UPDATE accounts
+     SET ${[...fields, 'updated_by = ?', 'updated_at = unixepoch()'].join(', ')}
+     WHERE id = ?`
+  )
+    .bind(...values, actor?.id ?? null, id)
+    .run();
 
   if (targetBalance !== undefined && balanceDelta !== 0) {
     const adjustmentType = balanceDelta > 0 ? 'income' : 'expense';
