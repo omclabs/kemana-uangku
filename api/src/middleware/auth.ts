@@ -1,5 +1,5 @@
 import { createMiddleware } from 'hono/factory';
-import { hashToken } from '../lib/session';
+import { constantTimeEqual, hashToken } from '../lib/session';
 import { assertRequiredBindings, isApiTokenAuthEnabled } from '../lib/security';
 
 export type Bindings = {
@@ -10,6 +10,7 @@ export type Bindings = {
   APP_VERSION?: string;
   COMMIT_SHA?: string;
   DEPLOYED_AT?: string;
+  RATE_LIMIT_KV?: KVNamespace;
 };
 
 export type Role = 'admin' | 'user' | 'reimbursement';
@@ -46,7 +47,7 @@ export const authMiddleware = createMiddleware<{
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  if (!isApiTokenAuthEnabled(c.env) || token !== c.env.API_TOKEN) {
+  if (!isApiTokenAuthEnabled(c.env) || !constantTimeEqual(token, c.env.API_TOKEN)) {
     const sessionUser = await c.env.DB.prepare(
       `SELECT u.id, u.username, u.role, u.is_active
        FROM sessions s

@@ -13,3 +13,12 @@ export async function hashToken(token: string): Promise<string> {
 export function newSessionToken(): string {
   return `${crypto.randomUUID()}${crypto.randomUUID()}`;
 }
+
+export function constantTimeEqual(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  if (aBytes.length !== bBytes.length) return false;
+  let result = 0;
+  for (let i = 0; i < aBytes.length; i++) result |= aBytes[i] ^ bBytes[i];
+  return result === 0;
+}

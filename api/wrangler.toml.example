@@ -9,3 +9,7 @@ compatibility_date = "2026-06-18"
 binding = "DB"
 database_name = "your-database-name"
 database_id = "REPLACE_WITH_REAL_ID"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "REPLACE_WITH_REAL_ID"

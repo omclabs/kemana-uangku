@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 export const categoryCreate = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(200),
   type: z.enum(['income', 'expense']),
   parent_id: z.string().min(1).nullable().optional(),
-  budget_monthly: z.number().nonnegative().optional(),
+  budget_monthly: z.number().nonnegative().finite().max(999_999_999).optional(),
 });
 
 export const categoryUpdate = categoryCreate.partial().extend({
@@ -17,13 +17,13 @@ export const budgetUpsert = z.object({
   items: z.array(
     z.object({
       category_id: z.string().min(1),
-      amount: z.number().nonnegative(),
+      amount: z.number().nonnegative().finite().max(999_999_999),
     })
   ),
 });
 
 export const accountCreate = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(200),
   type: z.enum([
     'bank',
     'cash',
@@ -34,9 +34,9 @@ export const accountCreate = z.object({
     'investment',
     'loan',
   ]),
-  balance: z.number().optional(),
+  balance: z.number().finite().max(999_999_999).optional(),
   parent_id: z.string().min(1).nullable().optional(),
-  credit_limit: z.number().nonnegative().nullable().optional(),
+  credit_limit: z.number().nonnegative().finite().max(999_999_999).nullable().optional(),
   billing_date: z.number().int().min(1).max(28).nullable().optional(),
   include_in_total: z.boolean().optional(),
 });
@@ -57,9 +57,9 @@ export const configClearData = z.object({
 });
 
 export const userCreate = z.object({
-  username: z.string().min(3),
-  email: z.string().email(),
-  password: z.string().min(8),
+  username: z.string().min(3).max(100),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(128),
   role: z.enum(['admin', 'user', 'reimbursement']).optional(),
   assigned_account_ids: z.array(z.string().min(1)).optional(),
 });
@@ -69,8 +69,8 @@ export const userUpdate = userCreate.partial().extend({
 });
 
 export const authLogin = z.object({
-  username: z.string().min(1),
-  password: z.string().min(1),
+  username: z.string().min(1).max(100),
+  password: z.string().min(1).max(128),
 });
 
 export const changePassword = z.object({
@@ -83,11 +83,11 @@ export const transactionCreate = z
     date: z.number().int(),
     account_id: z.string().min(1),
     category_id: z.string().min(1).nullable().optional(),
-    amount: z.number().refine((value) => value !== 0, { message: 'amount must not be zero' }),
-    note: z.string().optional(),
+    amount: z.number().finite().max(999_999_999).refine((value) => value !== 0, { message: 'amount must not be zero' }),
+    note: z.string().max(1000).optional(),
     type: z.enum(['income', 'expense', 'transfer']),
     transfer_to: z.string().min(1).nullable().optional(),
-    fee: z.number().nonnegative().nullable().optional(),
+    fee: z.number().nonnegative().finite().max(999_999_999).nullable().optional(),
     tracked_item_id: z.string().min(1).nullable().optional(),
     refill_quantity: z.number().positive().nullable().optional(),
     remaining_qty_before_refill: z.number().nonnegative().nullable().optional(),
@@ -106,8 +106,8 @@ export const transactionCreate = z
 export const transactionUpdate = z.object({
   date: z.number().int().optional(),
   category_id: z.string().min(1).nullable().optional(),
-  amount: z.number().refine((value) => value !== 0, { message: 'amount must not be zero' }).optional(),
-  note: z.string().optional(),
+  amount: z.number().finite().max(999_999_999).refine((value) => value !== 0, { message: 'amount must not be zero' }).optional(),
+  note: z.string().max(1000).optional(),
   tracked_item_id: z.string().min(1).nullable().optional(),
   refill_quantity: z.number().positive().nullable().optional(),
   remaining_qty_before_refill: z.number().nonnegative().nullable().optional(),
@@ -116,7 +116,7 @@ export const transactionUpdate = z.object({
 });
 
 export const trackedItemCreate = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(200),
   category_id: z.string().min(1),
   unit: z.string().min(1).max(20),
   warning_days: z.number().int().min(1),
@@ -148,8 +148,8 @@ export const receiptImportWarning = z.object({
 export const receiptImportDraftItem = z.object({
   id: z.string().min(1),
   kind: z.enum(['item', 'voucher', 'manual']),
-  note: z.string(),
-  amount: z.number().refine((value) => value !== 0, { message: 'amount must not be zero' }),
+  note: z.string().max(1000),
+  amount: z.number().finite().max(999_999_999).refine((value) => value !== 0, { message: 'amount must not be zero' }),
   date: z.number().int(),
   category_id: z.string().min(1).nullable(),
   included: z.boolean(),

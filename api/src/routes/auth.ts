@@ -4,6 +4,7 @@ import type { Bindings } from '../middleware/auth';
 import { authLogin } from '../lib/validation';
 import { assertRequiredBindings, isDefaultAdminPasswordHash } from '../lib/security';
 import { hashToken, newSessionToken, SESSION_TTL_SECONDS } from '../lib/session';
+import { checkLoginRateLimit } from '../lib/ratelimit';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -19,6 +20,11 @@ app.post('/login', async (c) => {
   assertRequiredBindings(c.env);
 
   const body = authLogin.parse(await c.req.json());
+
+  const rateLimit = await checkLoginRateLimit(c.env.RATE_LIMIT_KV, body.username);
+  if (!rateLimit.allowed) {
+    return c.json({ error: 'Too many login attempts, try again later' }, 429);
+  }
 
   const row = await c.env.DB.prepare(
     'SELECT id, username, role, password_hash, is_active FROM users WHERE username = ?'
@@ -74,6 +80,25 @@ app.post('/login', async (c) => {
         : [],
     },
   }, 200);
+});
+
+app.post('/logout', async (c) => {
+  assertRequiredBindings(c.env);
+
+  const authHeader = c.req.header('Authorization');
+  const [scheme, token] = authHeader?.split(' ') ?? [];
+
+  if (scheme !== 'Bearer' || !token) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const tokenHash = await hashToken(token);
+
+  await c.env.DB.prepare('UPDATE sessions SET is_active = 0 WHERE token_hash = ?')
+    .bind(tokenHash)
+    .run();
+
+  return c.json({ success: true }, 200);
 });
 
 export default app;

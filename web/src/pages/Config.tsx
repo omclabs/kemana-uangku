@@ -67,7 +67,12 @@ export default function Config() {
     return () => { cancelled = true; };
   }, []);
 
-  function handleLogout() {
+  async function handleLogout() {
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' });
+    } catch {
+      // client-side logout must succeed regardless of network errors
+    }
     clearSession();
     navigate('/login', { replace: true });
   }

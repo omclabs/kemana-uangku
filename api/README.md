@@ -13,6 +13,7 @@ Declared in `src/middleware/auth.ts`'s `Bindings` type:
 | `ALLOWED_ORIGINS` | no | Comma-separated CORS allowlist; falls back to a hardcoded localhost dev list if unset |
 | `ALLOW_API_TOKEN_AUTH` | no | `'true'` to accept `API_TOKEN` as a bearer credential (resolves to the first active admin). Off by default. |
 | `APP_VERSION` / `COMMIT_SHA` / `DEPLOYED_AT` | no | Build metadata injected by `make deploy-api`, surfaced in the Config screen |
+| `RATE_LIMIT_KV` | no | Workers KV namespace for login rate limiting; skipped (always allowed) if unset |
 
 `assertRequiredBindings()` (`src/lib/security.ts`) throws if `DB`/`API_TOKEN` are missing — every request fails fast rather than hitting a null-binding error deep in a route.
 
@@ -47,7 +48,7 @@ Or via Docker from the repo root: `make start-dev` (see [root README](../README.
 
 ## Auth
 
-Session-based. `POST /auth/login` verifies `{username, password}` (bcrypt) against `users`, creates a row in `sessions` (30-day expiry, only the SHA-256 hash of the token is stored), and returns the raw token once. Every other route requires `Authorization: Bearer <token>`, checked against `sessions` (or, if `ALLOW_API_TOKEN_AUTH=true` and the token matches `API_TOKEN`, resolved to the first active admin as a fallback path).
+Session-based. `POST /auth/login` verifies `{username, password}` (bcrypt) against `users`, creates a row in `sessions` (30-day expiry, only the SHA-256 hash of the token is stored), and returns the raw token once. Every other route requires `Authorization: Bearer <token>`, checked against `sessions` (or, if `ALLOW_API_TOKEN_AUTH=true` and the token matches `API_TOKEN`, resolved to the first active admin as a fallback path). `POST /auth/logout` hashes the bearer token and sets `sessions.is_active = 0` for the matching row, revoking it immediately; it's idempotent, returning `{ success: true }` even if no matching session exists. Login attempts are rate-limited per username (5 per 15 minutes) via the optional `RATE_LIMIT_KV` binding.
 
 Roles: `admin` (full access), `user` (full app access, no user management), `reimbursement` (scoped to specific credit card accounts granted via `user_account_access`, read-only on budgets/tracked-items, no user management).
 
@@ -58,6 +59,7 @@ Changing a password (`POST /users/:id/change-password`) invalidates every sessio
 | Method | Path | Access |
 |---|---|---|
 | POST | `/auth/login` | public |
+| POST | `/auth/logout` | any authenticated user |
 | GET | `/config` | any authenticated user |
 | PUT | `/config` | admin |
 | POST | `/config/clear-data` | admin |
