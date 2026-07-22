@@ -1,16 +1,15 @@
 # kemana-uangku dbbackup
 
-Standalone Cloudflare Worker that backs up the `kemana-uangku-db` D1 database
+Standalone Cloudflare Worker that backs up the `your-database-name` D1 database
 to Google Drive on a daily cron. Sibling to `api/` and `web/`, but fully
 independent — it has no D1 binding and no HTTP routes; it only runs on a
-schedule. See `docs/adr/ADR-021-d1-drive-backup-worker.md` for the design
-rationale.
+schedule.
 
 ## What it does
 
 On each cron trigger:
 
-1. Exports `kemana-uangku-db` twice via Cloudflare's D1 REST export API
+1. Exports `your-database-name` twice via Cloudflare's D1 REST export API
    (Workers can't shell out to `wrangler d1 export`, and can't do the
    interactive `wrangler login` the existing manual backup scripts use):
    - **data-only**: `dump_options.no_schema = true`
@@ -48,7 +47,7 @@ cp .env.example .dev.vars                # gitignored; fill in real values, see 
 |---|---|
 | `CF_API_TOKEN` | Cloudflare API token, D1 edit permission, used for the export REST calls |
 | `CF_ACCOUNT_ID` | Cloudflare account id |
-| `CF_DATABASE_ID` | `kemana-uangku-db` database id |
+| `CF_DATABASE_ID` | `your-database-name` database id |
 | `GOOGLE_CLIENT_ID` | Google OAuth client id (Desktop app type) |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `GOOGLE_REFRESH_TOKEN` | Long-lived refresh token, minted once via `scripts/get-refresh-token.mjs` |

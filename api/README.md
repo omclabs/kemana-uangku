@@ -1,6 +1,6 @@
 # kemana-uangku api
 
-Cloudflare Worker (Hono + TypeScript) on D1 (SQLite). See the [root README](../README.md) for the full feature overview and `docs/adr/` (repo root) for design rationale.
+Cloudflare Worker (Hono + TypeScript) on D1 (SQLite). See the [root README](../README.md) for the full feature overview.
 
 ## Bindings / environment
 
@@ -8,22 +8,48 @@ Declared in `src/middleware/auth.ts`'s `Bindings` type:
 
 | Binding | Required | Purpose |
 |---|---|---|
-| `DB` | yes | D1 database (`kemana-uangku-db`) |
+| `DB` | yes | D1 database (`your-database-name`) |
 | `API_TOKEN` | yes | Fallback shared-token auth (see Auth below) |
 | `ALLOWED_ORIGINS` | no | Comma-separated CORS allowlist; falls back to a hardcoded localhost dev list if unset |
 | `ALLOW_API_TOKEN_AUTH` | no | `'true'` to accept `API_TOKEN` as a bearer credential (resolves to the first active admin). Off by default. |
 | `APP_VERSION` / `COMMIT_SHA` / `DEPLOYED_AT` | no | Build metadata injected by `make deploy-api`, surfaced in the Config screen |
-| `AI` / `RECEIPT_OCR_MODEL` | no | Declared for a future receipt-image OCR flow; not wired to any route yet (see `docs/adr/ADR-014`) |
 
 `assertRequiredBindings()` (`src/lib/security.ts`) throws if `DB`/`API_TOKEN` are missing — every request fails fast rather than hitting a null-binding error deep in a route.
 
-Local dev needs both `wrangler.toml` (gitignored, not tracked in git — create from the template in the [root README](../README.md#setup)) and `.dev.vars` (gitignored) with `API_TOKEN=<any value>`.
+Local dev needs both `wrangler.toml` (gitignored, not tracked in git — create from [`wrangler.toml.example`](./wrangler.toml.example), see Setup below) and `.dev.vars` (gitignored) with `API_TOKEN=<any value>`.
+
+## Setup
+
+```bash
+npm install
+
+# Create the wrangler config (gitignored, not tracked)
+cp wrangler.toml.example wrangler.toml
+
+# Create the local D1 database and copy the returned database_id into wrangler.toml
+npx wrangler d1 create your-database-name
+
+# Apply the schema migrations to the local D1 instance
+npx wrangler d1 migrations apply your-database-name --local
+
+# Set the bearer token used by the API_TOKEN fallback auth path
+# Local dev: create .dev.vars (gitignored) with API_TOKEN=<your-token>
+# Deployed:
+npx wrangler secret put API_TOKEN
+
+# Run the dev server
+npm run dev
+```
+
+`compatibility_date` must not exceed what your installed `wrangler`/`workerd` version supports — if `wrangler dev` fails with "newest date supported by this server binary is X," lower it to X.
+
+Or via Docker from the repo root: `make start-dev` (see [root README](../README.md)).
 
 ## Auth
 
 Session-based. `POST /auth/login` verifies `{username, password}` (bcrypt) against `users`, creates a row in `sessions` (30-day expiry, only the SHA-256 hash of the token is stored), and returns the raw token once. Every other route requires `Authorization: Bearer <token>`, checked against `sessions` (or, if `ALLOW_API_TOKEN_AUTH=true` and the token matches `API_TOKEN`, resolved to the first active admin as a fallback path).
 
-Roles: `admin` (full access), `user` (full app access, no user management), `reimbursement` (scoped to specific credit card accounts granted via `user_account_access`, read-only on budgets/tracked-items, no user management). See `docs/adr/ADR-015` and `docs/adr/ADR-019`.
+Roles: `admin` (full access), `user` (full app access, no user management), `reimbursement` (scoped to specific credit card accounts granted via `user_account_access`, read-only on budgets/tracked-items, no user management).
 
 Changing a password (`POST /users/:id/change-password`) invalidates every session for that user.
 
@@ -65,23 +91,12 @@ Applied in filename order via `wrangler d1 migrations apply`. **Note:** `0006_al
 | `0005_transactions.sql` | `transactions` table + indexes |
 | `0006_allow_negative_transaction_amounts.sql` | Recreates `transactions` with a relaxed amount `CHECK` |
 | `0006_bump_config_version.sql` | `config.version` bump |
-| `0007_roles_sessions_audit.sql` | `users.role`, `sessions` table, `created_by`/`updated_by`/`deleted_by`/`deleted_at` audit columns on `config`/`categories`/`accounts`/`transactions` (`ADR-015`) |
-| `0008_monthly_balances.sql` | `monthly_balances` cache table (`ADR-016`) |
-| `0009_budgets.sql` | `budgets` table (`ADR-017`) |
-| `0010_credit_card_payment_links.sql` | `transactions.payment_transaction_id` (`ADR-018`) |
-| `0011_reimbursement_access.sql` | `reimbursement` role, `user_account_access` grant table (`ADR-019`) |
-| `0012_tracked_items.sql` | `tracked_items`, `tracked_item_refills` tables (`ADR-020`) |
-
-## Local dev
-
-```bash
-npm install
-# create wrangler.toml and .dev.vars — see root README Setup section
-npx wrangler d1 migrations apply kemana-uangku-db --local
-npm run dev
-```
-
-Or via Docker from the repo root: `make start-dev` (see root README).
+| `0007_roles_sessions_audit.sql` | `users.role`, `sessions` table, `created_by`/`updated_by`/`deleted_by`/`deleted_at` audit columns on `config`/`categories`/`accounts`/`transactions` |
+| `0008_monthly_balances.sql` | `monthly_balances` cache table |
+| `0009_budgets.sql` | `budgets` table |
+| `0010_credit_card_payment_links.sql` | `transactions.payment_transaction_id` |
+| `0011_reimbursement_access.sql` | `reimbursement` role, `user_account_access` grant table |
+| `0012_tracked_items.sql` | `tracked_items`, `tracked_item_refills` tables |
 
 ## Testing
 
@@ -90,6 +105,71 @@ npm test
 ```
 
 vitest + `@cloudflare/vitest-pool-workers`, against an isolated local D1 instance with migrations applied.
+
+## Deploy
+
+Deploys to a Cloudflare Worker backed by a remote D1 database. Prerequisites: Node.js 20+, npm, a Cloudflare account, and `npx wrangler login` run once.
+
+### Create the production D1 database
+
+```bash
+npx wrangler d1 create your-database-name
+```
+
+Copy the returned `database_id` into `wrangler.toml` (see [`wrangler.toml.example`](./wrangler.toml.example)), replacing the placeholder:
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "your-database-name"
+database_id = "REPLACE_WITH_REAL_ID"
+```
+
+### Set the Worker secret
+
+```bash
+make deploy-secret   # from api/, or `make deploy-api-secret` from the repo root
+```
+
+Use a long random value. The app returns this token after a successful `/auth/login`, and every protected API request uses it as bearer auth.
+
+### Set the allowed frontend origins
+
+```bash
+make deploy-origins ALLOWED_ORIGINS=https://<your-web-subdomain>.workers.dev,https://app.example.com
+# or from the repo root: make deploy-api-origins ALLOWED_ORIGINS=...
+```
+
+Set only your real frontend origins. Do not include `localhost` in production.
+
+### Apply remote migrations
+
+```bash
+make deploy-migrate   # or `make deploy-api-migrate` from the repo root
+```
+
+This creates the schema, seeds default categories, and seeds the default admin user. Fresh production data after migration: no accounts, no budgets, compact seeded categories, default login `admin / admin`. Change the admin password immediately after first login.
+
+### Deploy the Worker
+
+```bash
+make deploy   # or `make deploy-api` from the repo root
+```
+
+After deploy, note the Worker URL, for example `https://<your-api-worker>.<subdomain>.workers.dev`. This also injects build metadata (`APP_VERSION`, `COMMIT_SHA`, `DEPLOYED_AT`) shown in the app's Config screen as `API build`.
+
+## Pulling prod data to local
+
+To inspect or debug with a real snapshot of production data in your local dev D1 instance:
+
+```bash
+make backup-prod    # or `make backup-db-prod` from the repo root — exports prod DB to ../backups/<yyyymmdd>-<unixtime>.sql (prompts for Cloudflare login if needed, confirms before touching prod)
+make restore-local  # or `make restore-db-local` from the repo root — lets you pick a backups/*.sql file, confirms, then restores it into the local D1 database
+```
+
+`restore-local` fully replaces the local database's schema and data with the chosen backup — any existing local data is lost. It never touches production; only `backup-prod` talks to the remote D1 database.
+
+Local `.wrangler/` data is only for development and is unrelated to the remote D1 database. Account balance edits create adjustment transactions, so production troubleshooting should check the `transactions` ledger, not only the `accounts` table.
 
 ## Structure
 

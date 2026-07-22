@@ -10,10 +10,6 @@ export type Bindings = {
   APP_VERSION?: string;
   COMMIT_SHA?: string;
   DEPLOYED_AT?: string;
-  AI?: {
-    run(model: string, input: unknown): Promise<unknown>;
-  };
-  RECEIPT_OCR_MODEL?: string;
 };
 
 export type Role = 'admin' | 'user' | 'reimbursement';

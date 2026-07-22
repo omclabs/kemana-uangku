@@ -1,10 +1,10 @@
 # kemana-uangku web
 
-Mobile-first React 19 + TypeScript + Tailwind CSS v4 SPA, consuming the [api](../api). See the [root README](../README.md) for the full feature overview and `docs/adr/` (repo root) for design rationale.
+Mobile-first React 19 + TypeScript + Tailwind CSS v4 SPA, consuming the [api](../api). See the [root README](../README.md) for the full feature overview.
 
 ## Stack
 
-Vite, React 19, react-router-dom v7 (`BrowserRouter`), Tailwind v4 (`@tailwindcss/vite`, no separate config file), `vite-plugin-pwa`. See `docs/adr/ADR-006` and `ADR-007`.
+Vite, React 19, react-router-dom v7 (`BrowserRouter`), Tailwind v4 (`@tailwindcss/vite`, no separate config file), `vite-plugin-pwa`.
 
 ## Local dev
 
@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Requires the api running (`http://localhost:8787` by default — see [api/README.md](../api/README.md)). Env var: `VITE_API_BASE_URL` (defaults to the local api URL; set explicitly for a deployed api target, see [DEPLOY.md](../DEPLOY.md)).
+Requires the api running (`http://localhost:8787` by default — see [api/README.md](../api/README.md)). Env var: `VITE_API_BASE_URL` (defaults to the local api URL; set explicitly for a deployed api target, see Deploy below).
 
 Or via Docker from the repo root: `make start-dev` (Vite dev server on `http://localhost:5173`, hot reload from bind-mounted `./web`).
 
@@ -21,7 +21,7 @@ Default login: **`admin` / `admin`**. You're prompted to change it on first logi
 
 ## Layout
 
-Responsive shell (`docs/adr/ADR-007`): `Sidebar` (desktop, `md:` and up) + `Topbar` (always visible, title/username/logout) + `BottomNav` (mobile only). Nav entries are a single source of truth in `src/lib/nav.tsx`, consumed by all three.
+Responsive shell: `Sidebar` (desktop, `md:` and up) + `Topbar` (always visible, title/username/logout) + `BottomNav` (mobile only). Nav entries are a single source of truth in `src/lib/nav.tsx`, consumed by all three.
 
 ## Pages (`src/pages/`)
 
@@ -66,3 +66,18 @@ Responsive shell (`docs/adr/ADR-007`): `Sidebar` (desktop, `md:` and up) + `Topb
 ## Testing
 
 No frontend test suite currently exists — verify changes manually against a running `api` (`make start-dev`, then check the golden path in a browser).
+
+## Deploy
+
+The frontend only needs one runtime input at build time: `VITE_API_BASE_URL`, your deployed api Worker's base URL. `make deploy` (or `make build`) also injects build metadata automatically (package version, git commit short SHA, UTC build timestamp) — shown in the app's Config screen as `Web build`.
+
+```bash
+make deploy API_BASE_URL="https://<your-api-worker>.<subdomain>.workers.dev"
+# or from the repo root: make deploy-web API_BASE_URL="https://<your-api-worker>.<subdomain>.workers.dev"
+```
+
+This builds `web/dist/` and publishes it to the existing `kemana-uangku` Worker service.
+
+**Do not** deploy the web app to Cloudflare Pages for this project. The production frontend is served by the existing Worker service (Workers & Pages > `kemana-uangku` > Production in the Cloudflare dashboard), via the dedicated Wrangler config at [`wrangler.toml`](./wrangler.toml) which publishes `web/dist/` as Worker static assets with SPA fallback.
+
+After deploying, verify SPA deep links such as `/login`, `/transactions`, and `/transactions/new` return the app shell instead of `404`.

@@ -1,0 +1,11 @@
+# Copy this file to wrangler.toml (gitignored) before running `wrangler dev`
+# or `wrangler deploy`. See README.md's Setup section for D1 database creation.
+
+name = "your-worker-name"
+main = "src/index.ts"
+compatibility_date = "2026-06-18"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "your-database-name"
+database_id = "REPLACE_WITH_REAL_ID"

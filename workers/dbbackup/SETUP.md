@@ -53,10 +53,10 @@ https://myaccount.google.com/permissions and re-run the script.
 
 1. https://dash.cloudflare.com/profile/api-tokens → **Create Token** → **Custom token**.
 2. Permissions: **Account → D1 → Edit**, scoped to the account containing
-   `kemana-uangku-db`.
+   `your-database-name`.
 3. Save the generated token as `CF_API_TOKEN`.
 4. `CF_ACCOUNT_ID` and `CF_DATABASE_ID` — find on the Cloudflare dashboard
-   (Workers & Pages → Overview for the account id; D1 → kemana-uangku-db for
+   (Workers & Pages → Overview for the account id; D1 → your-database-name for
    the database id), or read them from `api/wrangler.toml`
    (`account_id` if present, `[[d1_databases]].database_id`).
 

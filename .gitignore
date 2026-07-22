@@ -16,5 +16,4 @@ workers/dbbackup/.dev.vars
 backups
 .tmp-home
 
-DEPLOY.md
 docs
