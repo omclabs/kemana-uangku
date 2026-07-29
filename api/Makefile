@@ -27,7 +27,7 @@ deploy-secret: ## Set the Worker API_TOKEN secret interactively
 	$(WRANGLER) secret put API_TOKEN
 
 deploy-origins: ## Set the Worker ALLOWED_ORIGINS secret interactively
-	@if [ -z "$(ALLOWED_ORIGINS)" ]; then echo "ALLOWED_ORIGINS is required. Example: make deploy-origins ALLOWED_ORIGINS=https://kemana-uangku.your-account.workers.dev,https://app.example.com"; exit 1; fi
+	@if [ -z "$(ALLOWED_ORIGINS)" ]; then echo "ALLOWED_ORIGINS is required. Example: make deploy-origins ALLOWED_ORIGINS=https://kemana-uangku-api.example.workers.dev,https://app.example.com"; exit 1; fi
 	printf '%s' "$(ALLOWED_ORIGINS)" | $(WRANGLER) secret put ALLOWED_ORIGINS
 
 db-backup: ## Export the remote D1 database to ../backups/db-yyyymmdd-hhmmss.sql
