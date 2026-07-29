@@ -1,26 +1,36 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ApiError, apiFetch, clearSession, getUser } from '../lib/api';
+import { ApiError, apiFetch, getUser, logout } from '../lib/api';
 import type { Config as ConfigType } from '../lib/types';
 import { WEB_BUILD } from '../lib/version';
 import PageContainer from '../components/PageContainer';
 import PageHeader from '../components/PageHeader';
-import { ChevronRightIcon, LockIcon, TagIcon, WalletIcon } from '../components/compactIcons';
+import { BellIcon, ChevronRightIcon, LockIcon, LogoutIcon, TagIcon, WalletIcon } from '../components/compactIcons';
 
 function BudgetIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M16 15h0"/></svg>;
-}
-function BellIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>;
-}
-function LogoutIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
 }
 function UserIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>;
 }
 function TrashIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>;
+}
+function UploadIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4"/><path d="M6 10l6-6 6 6"/><path d="M4 20h16"/></svg>;
+}
+function DownloadIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v12"/><path d="M6 10l6 6 6-6"/><path d="M4 20h16"/></svg>;
+}
+function downloadCsvTemplate() {
+  const csv = 'amount,description\n45000,Lunch at warteg\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'transactions-import-template.csv';
+  link.click();
+  URL.revokeObjectURL(url);
 }
 const cardStyle: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 12,
@@ -66,16 +76,6 @@ export default function Config() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
-
-  async function handleLogout() {
-    try {
-      await apiFetch('/auth/logout', { method: 'POST' });
-    } catch {
-      // client-side logout must succeed regardless of network errors
-    }
-    clearSession();
-    navigate('/login', { replace: true });
-  }
 
   async function handleClearData() {
     if (clearValue.trim().toLowerCase() !== 'confirm') {
@@ -211,6 +211,54 @@ export default function Config() {
             </Link>
           )}
 
+          {!isReimbursement && (
+            <Link to="/transactions/import-csv" style={cardStyle}>
+              <span style={{
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <UploadIcon />
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Import Transactions (CSV)</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                  Bulk-import expenses from a CSV file
+                </span>
+              </span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+            </Link>
+          )}
+
+          {!isReimbursement && (
+            <button
+              type="button"
+              onClick={downloadCsvTemplate}
+              style={{
+                ...cardStyle,
+                width: '100%',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              <span style={{
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                background: 'color-mix(in srgb, var(--accent-2) 10%, transparent)', color: 'var(--accent-2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <DownloadIcon />
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Download CSV Template</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                  Get a blank template for bulk imports
+                </span>
+              </span>
+              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+            </button>
+          )}
+
           <Link to="/config/change-password" style={cardStyle}>
             <span style={{
               width: 44, height: 44, borderRadius: 13, flexShrink: 0,
@@ -284,7 +332,7 @@ export default function Config() {
 
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => logout(navigate)}
             style={{ ...cardStyle, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
           >
             <span style={{

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from '
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '../../components/PageContainer';
 import { ApiError, apiFetch } from '../../lib/api';
+import { byName, isLeafExpenseCategory } from '../../lib/transaction-import-helpers';
+import { fromDateInput, toDateInput } from '../../lib/date';
 import type {
   Account,
   Category,
@@ -15,24 +17,6 @@ const formatter = new Intl.NumberFormat('id-ID', {
   currency: 'IDR',
   maximumFractionDigits: 0,
 });
-
-function toDateInput(unixSeconds: number): string {
-  const date = new Date(unixSeconds * 1000);
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function fromDateInput(value: string): number {
-  const [year, month, day] = value.split('-').map(Number);
-  return Math.floor(Date.UTC(year, month - 1, day, 0, 0, 0) / 1000);
-}
-
-function isLeafExpenseCategory(categories: Category[], candidate: Category): boolean {
-  if (candidate.type !== 'expense' || candidate.is_active !== 1) return false;
-  return !categories.some((category) => category.parent_id === candidate.id && category.is_active === 1);
-}
 
 function rowIsValid(row: ReceiptImportDraftItem): boolean {
   if (!row.included) return true;
@@ -77,8 +61,6 @@ export default function TransactionReceiptImport() {
     };
   }, []);
 
-  const byName = <T extends { name: string }>(left: T, right: T) =>
-    left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
   const sortedAccounts = useMemo(() => [...accounts].sort(byName), [accounts]);
   const expenseCategories = useMemo(
     () => categories.filter((category) => isLeafExpenseCategory(categories, category)).sort(byName),

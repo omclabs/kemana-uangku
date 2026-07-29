@@ -166,6 +166,23 @@ export const receiptImportCommitInput = z.object({
 
 export const receiptImportMerchant = z.enum(['generic', 'superindo']);
 
+export const csvImportDraftItem = z.object({
+  id: z.string().min(1),
+  amount: z.number().finite().max(999_999_999).refine((v) => v !== 0, { message: 'amount must not be zero' }),
+  description: z.string().max(1000),
+  category_id: z.string().min(1).nullable(),
+  included: z.boolean(),
+  raw_line: z.string().nullable(),
+});
+
+export const csvImportCommitInput = z.object({
+  account_id: z.string().min(1),
+  date: z.number().int(),
+  file_hash: z.string().length(64),
+  file_name: z.string().max(255).nullable().optional(),
+  draft_items: z.array(csvImportDraftItem).min(1),
+});
+
 export type CategoryCreate = z.infer<typeof categoryCreate>;
 export type CategoryUpdate = z.infer<typeof categoryUpdate>;
 export type BudgetUpsert = z.infer<typeof budgetUpsert>;
@@ -185,3 +202,5 @@ export type AccountPaymentCreate = z.infer<typeof accountPaymentCreate>;
 export type ReceiptImportWarning = z.infer<typeof receiptImportWarning>;
 export type ReceiptImportDraftItem = z.infer<typeof receiptImportDraftItem>;
 export type ReceiptImportCommitInput = z.infer<typeof receiptImportCommitInput>;
+export type CsvImportDraftItem = z.infer<typeof csvImportDraftItem>;
+export type CsvImportCommitInput = z.infer<typeof csvImportCommitInput>;

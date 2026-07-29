@@ -270,3 +270,40 @@ export interface ReceiptImportCommitInput {
   account_id: string;
   draft_items: ReceiptImportDraftItem[];
 }
+
+export type CsvImportWarningCode = 'invalid_csv' | 'line_uncertain' | 'no_rows_detected';
+
+export interface CsvImportWarning {
+  code: CsvImportWarningCode;
+  message: string;
+  row_id?: string;
+}
+
+export interface CsvImportDraftItem {
+  id: string;
+  amount: number;
+  description: string;
+  category_id: string | null;
+  included: boolean;
+  warnings: CsvImportWarning[];
+  raw_line: string | null;
+}
+
+export interface CsvImportDraft {
+  account_id: string;
+  date: number;
+  file_hash: string;
+  file_name: string | null;
+  already_imported: boolean;
+  included_total: number;
+  draft_items: CsvImportDraftItem[];
+  warnings: CsvImportWarning[];
+}
+
+export interface CsvImportCommitInput {
+  account_id: string;
+  date: number;
+  file_hash: string;
+  file_name?: string | null;
+  draft_items: CsvImportDraftItem[];
+}

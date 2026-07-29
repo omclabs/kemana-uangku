@@ -1,3 +1,4 @@
+import type { NavigateFunction } from 'react-router-dom';
 import type { SessionUser } from './types';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787';
@@ -27,6 +28,16 @@ export function setStoredUser(user: SessionUser): void {
 export function clearSession(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+}
+
+export async function logout(navigate: NavigateFunction): Promise<void> {
+  try {
+    await apiFetch('/auth/logout', { method: 'POST' });
+  } catch {
+    // client-side logout must succeed regardless of network errors
+  }
+  clearSession();
+  navigate('/login', { replace: true });
 }
 
 export function getUser(): SessionUser | null {

@@ -1,6 +1,14 @@
 import type { Role } from './types';
 
-const ALL_NAV_ITEMS = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: JSX.Element;
+  roles?: Role[];
+  desktopOnly?: boolean;
+};
+
+const ALL_NAV_ITEMS: NavItem[] = [
   {
     to: '/dashboard',
     label: 'Home',
@@ -32,6 +40,29 @@ const ALL_NAV_ITEMS = [
     ),
   },
   {
+    to: '/config/categories',
+    label: 'Categories',
+    icon: (
+      <>
+        <path d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3zm-2.318 3h.008v.008H7.25V6z" />
+      </>
+    ),
+    roles: ['admin', 'user'],
+    desktopOnly: true,
+  },
+  {
+    to: '/config/tracked-items',
+    label: 'Tracked',
+    icon: (
+      <>
+        <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+        <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" />
+      </>
+    ),
+    roles: ['admin', 'user'],
+    desktopOnly: true,
+  },
+  {
     to: '/config',
     label: 'More',
     icon: (
@@ -44,9 +75,10 @@ const ALL_NAV_ITEMS = [
   },
 ];
 
-export function navItemsForRole(role: Role | undefined) {
-  if (role === 'reimbursement') {
-    return ALL_NAV_ITEMS.filter((item) => item.to === '/dashboard' || item.to === '/transactions' || item.to === '/config');
-  }
-  return ALL_NAV_ITEMS;
+export function navItemsForRole(role: Role | undefined, options: { desktopOnly?: boolean } = {}) {
+  return ALL_NAV_ITEMS.filter((item) => {
+    if (item.roles && !item.roles.includes(role as Role)) return false;
+    if (item.desktopOnly && !options.desktopOnly) return false;
+    return true;
+  });
 }

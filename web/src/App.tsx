@@ -20,6 +20,7 @@ import CategoryForm from './pages/category/CategoryForm';
 import TransactionList from './pages/transaction/TransactionList';
 import TransactionForm from './pages/transaction/TransactionForm';
 import TransactionReceiptImport from './pages/transaction/TransactionReceiptImport';
+import TransactionCsvImport from './pages/transaction/TransactionCsvImport';
 import UserList from './pages/user/UserList';
 import UserForm from './pages/user/UserForm';
 import TrackedItemList from './pages/tracked-item/TrackedItemList';
@@ -85,6 +86,16 @@ export default function App() {
             <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <TransactionReceiptImport />
+              </AuthLayout>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/transactions/import-csv"
+          element={
+            <RoleGuard allowedRoles={['admin', 'user']}>
+              <AuthLayout>
+                <TransactionCsvImport />
               </AuthLayout>
             </RoleGuard>
           }

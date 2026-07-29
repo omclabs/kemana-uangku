@@ -74,6 +74,7 @@ Changing a password (`POST /users/:id/change-password`) invalidates every sessio
 | POST | `/users/:id/change-password` | self or admin |
 | GET / POST / PUT / DELETE | `/transactions`, `/transactions/:id` | any (reimbursement scoped) |
 | POST | `/transactions/import-receipt/parse`, `/commit` | admin, user |
+| POST | `/transactions/import-csv/parse`, `/commit` | admin, user |
 | GET | `/tracked-items`, `/tracked-items/:id`, `/tracked-items/:id/refills` | any authenticated user |
 | GET | `/tracked-items/alerts` | admin, user |
 | POST / PUT | `/tracked-items`, `/tracked-items/:id` | admin, user |
@@ -184,6 +185,7 @@ src/
     balance.ts             # Transaction balance delta helpers
     month-balance.ts        # Monthly balances cache rebuild
     receipt-import.ts        # CSV parsing for receipt import
+    csv-import.ts            # CSV parsing for simple amount+description bulk import
     security.ts               # CORS origin resolution, binding checks
     session.ts                 # Session token generation/hashing
     tracked-items.ts            # Refill forecast calculation

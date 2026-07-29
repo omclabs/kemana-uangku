@@ -5,7 +5,7 @@ import {
   requireAccountAccess,
   requireNonReimbursement,
 } from '../lib/access';
-import { receiptImportCommitInput, transactionCreate, transactionUpdate } from '../lib/validation';
+import { csvImportCommitInput, receiptImportCommitInput, transactionCreate, transactionUpdate } from '../lib/validation';
 import {
   adjustBalanceStatement,
   mergeBalanceOps,
@@ -14,9 +14,10 @@ import {
   type TransactionBalanceRow,
 } from '../lib/balance';
 import { LIABILITY_ACCOUNT_TYPES } from '../lib/constants';
-import { inPlaceholders } from '../lib/db';
+import { inPlaceholders, sha256Hex } from '../lib/db';
 import { rebuildMonthlyBalancesFrom } from '../lib/month-balance';
 import { buildReceiptDraft } from '../lib/receipt-import';
+import { buildCsvImportDraft } from '../lib/csv-import';
 import { rebuildTrackedItemForecast } from '../lib/tracked-items';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -202,7 +203,8 @@ async function createImportedExpenseRows(
   db: D1Database,
   actorId: string | null,
   accountId: string,
-  rows: Array<{ date: number; category_id: string; amount: number; note: string; paid_status: 'paid' | 'settle' }>
+  rows: Array<{ date: number; category_id: string; amount: number; note: string; paid_status: 'paid' | 'settle' }>,
+  extraStatements: D1PreparedStatement[] = []
 ): Promise<TransactionRow[]> {
   const insertedIds: string[] = [];
   const statements: D1PreparedStatement[] = [];
@@ -231,6 +233,7 @@ async function createImportedExpenseRows(
     statements.push(adjustBalanceStatement(db, op));
   }
 
+  statements.push(...extraStatements);
   await db.batch(statements);
 
   const minDate = Math.min(...rows.map((row) => row.date));
@@ -412,6 +415,131 @@ app.post('/import-receipt/commit', async (c) => {
       paid_status: paidStatus,
     }))
   );
+
+  return c.json(created, 201);
+});
+
+app.post('/import-csv/parse', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
+  const form = await c.req.formData();
+  const accountId = form.get('account_id');
+  const date = form.get('date');
+  const file = form.get('file');
+
+  if (typeof accountId !== 'string' || !accountId) {
+    return c.json({ error: 'account_id required' }, 400);
+  }
+  if (typeof date !== 'string' || !date || !Number.isFinite(Number(date))) {
+    return c.json({ error: 'date required' }, 400);
+  }
+  const hasFile =
+    file
+    && typeof file === 'object'
+    && 'arrayBuffer' in file
+    && 'name' in file;
+  if (!hasFile) {
+    return c.json({ error: 'csv file required' }, 400);
+  }
+
+  const account = await loadActiveAccount(c.env.DB, accountId);
+  if (!account) {
+    return c.json({ error: 'account_id not found or inactive' }, 400);
+  }
+
+  const fileObject = file as File;
+  const fileBuffer = await fileObject.arrayBuffer();
+  const fileHash = await sha256Hex(fileBuffer);
+  const csvText = new TextDecoder().decode(fileBuffer);
+  const draft = buildCsvImportDraft(accountId, Number(date), csvText);
+
+  const existingImport = await c.env.DB.prepare(
+    'SELECT id FROM transaction_csv_imports WHERE file_hash = ?'
+  )
+    .bind(fileHash)
+    .first<{ id: string }>();
+
+  return c.json(
+    {
+      ...draft,
+      file_hash: fileHash,
+      file_name: fileObject.name ?? null,
+      already_imported: Boolean(existingImport),
+    },
+    200
+  );
+});
+
+app.post('/import-csv/commit', async (c) => {
+  const forbidden = requireNonReimbursement(c);
+  if (forbidden) return forbidden;
+
+  const actor = getCurrentUser(c);
+  const body = csvImportCommitInput.parse(await c.req.json());
+  const account = await loadActiveAccount(c.env.DB, body.account_id);
+  if (!account) {
+    return c.json({ error: 'account_id not found or inactive' }, 400);
+  }
+
+  const includedRows = body.draft_items.filter((row) => row.included);
+  if (includedRows.length === 0) {
+    return c.json({ error: 'at least one included row is required' }, 400);
+  }
+
+  for (const row of includedRows) {
+    if (!row.description.trim()) {
+      return c.json({ error: `description required for row ${row.id}` }, 400);
+    }
+    if (!row.category_id) {
+      return c.json({ error: `category_id required for row ${row.id}` }, 400);
+    }
+    const categoryError = await validateCategoryForType(
+      c.env.DB,
+      row.category_id,
+      row.amount < 0 ? undefined : 'expense'
+    );
+    if (categoryError) {
+      return c.json({ error: `row ${row.id}: ${categoryError}` }, 400);
+    }
+  }
+
+  const paidStatus: 'paid' | 'settle' = account.type === 'credit_card' ? 'settle' : 'paid';
+
+  const guardStatement = c.env.DB.prepare(
+    `INSERT INTO transaction_csv_imports (id, file_hash, file_name, account_id, date, row_count, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    crypto.randomUUID(),
+    body.file_hash,
+    body.file_name ?? null,
+    body.account_id,
+    body.date,
+    includedRows.length,
+    actor?.id ?? null
+  );
+
+  let created: TransactionRow[];
+  try {
+    created = await createImportedExpenseRows(
+      c.env.DB,
+      actor?.id ?? null,
+      body.account_id,
+      includedRows.map((row) => ({
+        date: body.date,
+        category_id: row.category_id as string,
+        amount: row.amount,
+        note: row.description.trim(),
+        paid_status: paidStatus,
+      })),
+      [guardStatement]
+    );
+  } catch (err) {
+    if (err instanceof Error && /UNIQUE constraint failed:\s*transaction_csv_imports\.file_hash/i.test(err.message)) {
+      return c.json({ error: 'This file has already been imported.' }, 409);
+    }
+    throw err;
+  }
 
   return c.json(created, 201);
 });

@@ -36,7 +36,7 @@ export type ReceiptImportDraft = {
   ocr_text: string | null;
 };
 
-function parseCsvLine(line: string): string[] {
+export function parseCsvLine(line: string): string[] {
   const values: string[] = [];
   let current = '';
   let inQuotes = false;
@@ -77,7 +77,7 @@ function parseDate(value: string): number | null {
   return Math.floor(parsed / 1000);
 }
 
-function parseAmount(value: string): number | null {
+export function parseAmount(value: string): number | null {
   const normalized = value.trim().replace(/[^\d,.\-]/g, '');
   if (!normalized) return null;
 

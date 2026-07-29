@@ -36,6 +36,7 @@ Responsive shell: `Sidebar` (desktop, `md:` and up) + `Topbar` (always visible, 
 | `category/CategoryList.tsx`, `CategoryForm.tsx` | `/categories`, `/categories/:id/edit` | admin, user |
 | `transaction/TransactionList.tsx`, `TransactionForm.tsx` | `/transactions`, `/transactions/:id/edit` | any (reimbursement scoped) |
 | `transaction/TransactionReceiptImport.tsx` | `/transactions/import` | admin, user |
+| `transaction/TransactionCsvImport.tsx` | `/transactions/import-csv` | admin, user |
 | `budget/BudgetPage.tsx` | `/budgets` | admin, user |
 | `tracked-item/TrackedItemList.tsx`, `TrackedItemForm.tsx`, `TrackedItemAlerts.tsx` | `/tracked-items`, ... | admin, user |
 | `user/UserList.tsx`, `UserForm.tsx` | `/config/users`, ... | admin |

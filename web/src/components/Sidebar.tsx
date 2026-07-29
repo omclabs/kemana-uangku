@@ -1,9 +1,11 @@
-import { NavLink } from 'react-router-dom';
-import { getUser } from '../lib/api';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { getUser, logout } from '../lib/api';
 import { navItemsForRole } from '../lib/nav';
+import { LogoutIcon } from './compactIcons';
 
 export default function Sidebar() {
-  const items = navItemsForRole(getUser()?.role);
+  const items = navItemsForRole(getUser()?.role, { desktopOnly: true });
+  const navigate = useNavigate();
 
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r border-line bg-surface md:flex">
@@ -37,6 +39,16 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      <button
+        type="button"
+        onClick={async () => {
+          await logout(navigate);
+        }}
+        className="mx-2 mb-3 flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface-2"
+      >
+        <LogoutIcon size={18} />
+        Logout
+      </button>
     </aside>
   );
 }
