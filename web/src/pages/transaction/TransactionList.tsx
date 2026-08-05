@@ -83,11 +83,11 @@ interface YearMonth {
 const LONG_PRESS_MS = 420;
 
 function txIncome(transaction: Transaction): number {
-  return transaction.type === 'income' ? transaction.amount : 0;
+  return transaction.type === 'income' && transaction.transfer_to === null ? transaction.amount : 0;
 }
 
 function txExpense(transaction: Transaction): number {
-  return transaction.type === 'expense' ? transaction.amount : 0;
+  return transaction.type === 'expense' && transaction.transfer_to === null ? transaction.amount : 0;
 }
 
 function CalendarView({
