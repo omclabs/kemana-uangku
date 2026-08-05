@@ -87,7 +87,7 @@ function txIncome(transaction: Transaction): number {
 }
 
 function txExpense(transaction: Transaction): number {
-  return transaction.type === 'income' ? 0 : transaction.amount;
+  return transaction.type === 'expense' ? transaction.amount : 0;
 }
 
 function CalendarView({

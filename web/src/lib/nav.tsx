@@ -1,9 +1,10 @@
+import type { ReactElement } from 'react';
 import type { Role } from './types';
 
 type NavItem = {
   to: string;
   label: string;
-  icon: JSX.Element;
+  icon: ReactElement;
   roles?: Role[];
   desktopOnly?: boolean;
 };
