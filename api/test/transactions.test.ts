@@ -23,6 +23,7 @@ type TxRow = {
   account_id: string;
   category_id: string | null;
   amount: number;
+  merchant?: string | null;
   type: string;
   transfer_to: string | null;
   fee: number | null;
@@ -938,5 +939,230 @@ describe('/transactions', () => {
 
     const after = await getAccountBalance(TEST_ACCOUNT_IDS.bankPrimary);
     expect(after - before).toBeCloseTo(-27000, 5);
+  });
+
+  it('POST expense with merchant trims whitespace and persists it', async () => {
+    const createRes = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 25000,
+      type: 'expense',
+      merchant: '  Starbucks  ',
+    });
+    expect(createRes.status).toBe(201);
+    const [row] = (await createRes.json()) as TxRow[];
+    expect(row.merchant).toBe('Starbucks');
+  });
+
+  it('POST expense without merchant stores null, empty string stores null', async () => {
+    const withoutRes = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 15000,
+      type: 'expense',
+    });
+    const [withoutRow] = (await withoutRes.json()) as TxRow[];
+    expect(withoutRow.merchant).toBeNull();
+
+    const emptyRes = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 16000,
+      type: 'expense',
+      merchant: '',
+    });
+    const [emptyRow] = (await emptyRes.json()) as TxRow[];
+    expect(emptyRow.merchant).toBeNull();
+  });
+
+  it('PUT merchant sets the field, PUT merchant "" clears it back to null', async () => {
+    const createRes = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 20000,
+      type: 'expense',
+    });
+    const [row] = (await createRes.json()) as TxRow[];
+    expect(row.merchant).toBeNull();
+
+    const setRes = await SELF.fetch(`https://example.com/transactions/${row.id}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ merchant: 'Indomaret' }),
+    });
+    expect(setRes.status).toBe(200);
+    expect(((await setRes.json()) as TxRow).merchant).toBe('Indomaret');
+
+    const clearRes = await SELF.fetch(`https://example.com/transactions/${row.id}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ merchant: '' }),
+    });
+    expect(clearRes.status).toBe(200);
+    expect(((await clearRes.json()) as TxRow).merchant).toBeNull();
+  });
+
+  it('PUT merchant null (the payload the web edit form sends when the field is blank) succeeds', async () => {
+    const createRes = await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 20000,
+      type: 'expense',
+      merchant: 'Indomaret',
+    });
+    const [row] = (await createRes.json()) as TxRow[];
+    expect(row.merchant).toBe('Indomaret');
+
+    const clearRes = await SELF.fetch(`https://example.com/transactions/${row.id}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ date: row.date, amount: row.amount, note: '', merchant: null }),
+    });
+    expect(clearRes.status).toBe(200);
+    expect(((await clearRes.json()) as TxRow).merchant).toBeNull();
+  });
+
+  it('GET /transactions/merchants returns distinct merchant names', async () => {
+    await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 10000,
+      type: 'expense',
+      merchant: 'Starbucks',
+    });
+    await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 12000,
+      type: 'expense',
+      merchant: 'Starbucks',
+    });
+    await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 8000,
+      type: 'expense',
+      merchant: 'Indomaret',
+    });
+    await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 5000,
+      type: 'expense',
+    });
+
+    const res = await SELF.fetch('https://example.com/transactions/merchants', { headers: AUTH });
+    expect(res.status).toBe(200);
+    const merchants = (await res.json()) as string[];
+    expect(merchants.sort()).toEqual(['Indomaret', 'Starbucks']);
+  });
+
+  it('GET /transactions/merchants is scoped to a reimbursement user\'s assigned accounts', async () => {
+    await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.creditCard,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 90000,
+      type: 'expense',
+      merchant: 'Credit Card Merchant',
+    });
+    await postTransaction({
+      date: BASE_DATE,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      category_id: CATEGORY_IDS.expenseLeaf,
+      amount: 45000,
+      type: 'expense',
+      merchant: 'Bank Merchant',
+    });
+
+    await SELF.fetch('https://example.com/users', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        username: 'reimburse-merchants',
+        email: 'reimburse-merchants@example.com',
+        password: 'password1',
+        role: 'reimbursement',
+        assigned_account_ids: [TEST_ACCOUNT_IDS.creditCard],
+      }),
+    });
+
+    const token = await login('reimburse-merchants', 'password1');
+    const userHeaders = { Authorization: `Bearer ${token}` };
+
+    const res = await SELF.fetch('https://example.com/transactions/merchants', { headers: userHeaders });
+    expect(res.status).toBe(200);
+    const merchants = (await res.json()) as string[];
+    expect(merchants).toEqual(['Credit Card Merchant']);
+  });
+
+  it('POST /import-csv/parse always returns null merchant (no CSV merchant column)', async () => {
+    const form = new FormData();
+    form.set('account_id', TEST_ACCOUNT_IDS.bankPrimary);
+    form.set('date', String(BASE_DATE));
+    form.set(
+      'file',
+      new File([['amount,description', '45000,Lunch', '12000,Coffee'].join('\n')], 'statement.csv', { type: 'text/csv' })
+    );
+
+    const res = await SELF.fetch('https://example.com/transactions/import-csv/parse', {
+      method: 'POST',
+      headers: AUTH,
+      body: form,
+    });
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as { draft_items: Array<{ merchant: string | null }> };
+    expect(body.draft_items.every((row) => row.merchant === null)).toBe(true);
+  });
+
+  it('POST /import-csv/commit persists a merchant applied to every row', async () => {
+    const form = new FormData();
+    form.set('account_id', TEST_ACCOUNT_IDS.bankPrimary);
+    form.set('date', String(BASE_DATE));
+    form.set(
+      'file',
+      new File([['amount,description', '20000,Snack'].join('\n')], 'statement2.csv', { type: 'text/csv' })
+    );
+
+    const parseRes = await SELF.fetch('https://example.com/transactions/import-csv/parse', {
+      method: 'POST',
+      headers: AUTH,
+      body: form,
+    });
+    const draft = (await parseRes.json()) as {
+      file_hash: string;
+      file_name: string | null;
+      draft_items: Array<Record<string, unknown>>;
+    };
+
+    const commitRes = await SELF.fetch('https://example.com/transactions/import-csv/commit', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        account_id: TEST_ACCOUNT_IDS.bankPrimary,
+        date: BASE_DATE,
+        file_hash: draft.file_hash,
+        file_name: draft.file_name,
+        draft_items: draft.draft_items.map((row) => ({
+          ...row,
+          category_id: CATEGORY_IDS.expenseLeaf,
+          merchant: 'Indomaret',
+        })),
+      }),
+    });
+    expect(commitRes.status).toBe(201);
+    const created = (await commitRes.json()) as TxRow[];
+    expect(created).toHaveLength(1);
+    expect(created[0].merchant).toBe('Indomaret');
   });
 });

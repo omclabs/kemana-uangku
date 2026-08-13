@@ -15,6 +15,10 @@ function CalendarIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>;
 }
 
+function StoreIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5M4 9v11h16V9M4 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/></svg>;
+}
+
 function rowIsValid(row: CsvImportDraftItem): boolean {
   if (!row.included) return true;
   return Boolean(row.description.trim()) && Number.isFinite(row.amount) && row.amount !== 0 && Boolean(row.category_id);
@@ -26,6 +30,7 @@ export default function TransactionCsvImport() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [accountId, setAccountId] = useState('');
   const [defaultCategoryId, setDefaultCategoryId] = useState('');
+  const [defaultMerchant, setDefaultMerchant] = useState('');
   const [datetimeInput, setDatetimeInput] = useState(() => toDatetimeLocal(Math.floor(Date.now() / 1000)));
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [draft, setDraft] = useState<CsvImportDraft | null>(null);
@@ -109,9 +114,14 @@ export default function TransactionCsvImport() {
         method: 'POST',
         body: form,
       });
+      const trimmedDefaultMerchant = defaultMerchant.trim();
       setDraft({
         ...result,
-        draft_items: result.draft_items.map((item) => ({ ...item, category_id: defaultCategoryId })),
+        draft_items: result.draft_items.map((item) => ({
+          ...item,
+          category_id: defaultCategoryId,
+          merchant: trimmedDefaultMerchant ? trimmedDefaultMerchant : item.merchant,
+        })),
       });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to parse CSV');
@@ -203,6 +213,20 @@ export default function TransactionCsvImport() {
               {defaultCategoryId ? expenseCategories.find(c => c.id === defaultCategoryId)?.name : 'Select category'}
             </span>
           </button>
+        </FieldRow>
+
+        <FieldRow icon={<StoreIcon />} label="Merchant">
+          <input
+            value={defaultMerchant}
+            onChange={(event) => setDefaultMerchant(event.target.value)}
+            placeholder="Optional, applies to every row"
+            maxLength={200}
+            style={{
+              width: '100%', background: 'none', border: 'none', padding: 0,
+              fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
+              outline: 'none',
+            }}
+          />
         </FieldRow>
 
         <div>

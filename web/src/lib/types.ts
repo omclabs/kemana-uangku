@@ -150,6 +150,7 @@ export interface Transaction {
   category_id: string | null;
   amount: number;
   note: string | null;
+  merchant: string | null;
   type: TransactionType;
   transfer_to: string | null;
   fee: number | null;
@@ -175,6 +176,7 @@ export interface TransactionInput {
   category_id?: string | null;
   amount: number;
   note?: string;
+  merchant?: string;
   type: TransactionType;
   transfer_to?: string | null;
   fee?: number | null;
@@ -283,6 +285,7 @@ export interface CsvImportDraftItem {
   id: string;
   amount: number;
   description: string;
+  merchant: string | null;
   category_id: string | null;
   included: boolean;
   warnings: CsvImportWarning[];

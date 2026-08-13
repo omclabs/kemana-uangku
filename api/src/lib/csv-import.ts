@@ -12,6 +12,7 @@ export type CsvImportDraftItem = {
   id: string;
   amount: number;
   description: string;
+  merchant: string | null;
   category_id: string | null;
   included: boolean;
   warnings: CsvImportWarning[];
@@ -81,6 +82,7 @@ export function buildCsvImportDraft(accountId: string, date: number, csvText: st
       id: crypto.randomUUID(),
       amount: amount ?? 0,
       description,
+      merchant: null,
       category_id: null,
       included: true,
       warnings: itemWarnings,

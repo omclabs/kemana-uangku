@@ -6,6 +6,7 @@ import { ApiError, apiFetch, getUser } from '../../lib/api';
 import { statFmt, signedFmt, cellFmt } from '../../lib/format';
 import type { Account, Category, Transaction } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
+import StyledSelect from '../../components/StyledSelect';
 import {
   DAY_MS, WEEKDAYS, startOfDay, sameDay, weekStart,
   fmtMD, toDatetimePreset, dateKey,
@@ -294,6 +295,7 @@ export default function TransactionList() {
   });
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
+  const [merchantFilter, setMerchantFilter] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -325,6 +327,7 @@ export default function TransactionList() {
 
   function setTabAndReset(nextTab: Tab) {
     clearSelection();
+    setMerchantFilter('');
     setTab(nextTab);
   }
 
@@ -354,10 +357,16 @@ export default function TransactionList() {
   }
 
   // ── Derived ──────────────────────────────────────────────────────
+  const merchantOptions = useMemo(() => {
+    const set = new Set(transactions.map((t) => t.merchant).filter((m): m is string => Boolean(m)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [transactions]);
   const visible = useMemo(() => transactions.filter((t) => {
     const d = new Date(t.date * 1000);
-    return d.getMonth() === selectedMonth.getMonth() && d.getFullYear() === selectedMonth.getFullYear();
-  }), [transactions, selectedMonth]);
+    const inMonth = d.getMonth() === selectedMonth.getMonth() && d.getFullYear() === selectedMonth.getFullYear();
+    const matchesMerchant = merchantFilter === '' || t.merchant === merchantFilter;
+    return inMonth && matchesMerchant;
+  }), [transactions, selectedMonth, merchantFilter]);
   const groups = useMemo(() => groupByDate(visible), [visible]);
   const normalizedSelection = useMemo(() => {
     if (tab !== 'daily' || selection.groupKey === null || selection.ids.length === 0) {
@@ -618,6 +627,20 @@ export default function TransactionList() {
         ))}
       </div>
 
+      {tab === 'daily' && merchantOptions.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <StyledSelect
+            value={merchantFilter}
+            onChange={setMerchantFilter}
+            placeholder="All merchants"
+            options={[
+              { value: '', label: 'All merchants' },
+              ...merchantOptions.map((m) => ({ value: m, label: m })),
+            ]}
+          />
+        </div>
+      )}
+
       {loading && <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>Loading…</p>}
       {error   && <p style={{ textAlign: 'center', color: 'var(--expense)', padding: '32px 0' }}>{error}</p>}
 
@@ -745,7 +768,8 @@ function TransactionRow({
   const categoryLabel = categoryName(t.category_id);
   const visual = categoryVisual(isTransfer ? 'transfer' : categoryLabel);
   const noteLines = (t.note ?? '').split('\n');
-  const label = noteLines.length > 1 ? `${noteLines[0]}…` : noteLines[0];
+  const noteLabel = noteLines.length > 1 ? `${noteLines[0]}…` : noteLines[0];
+  const label = t.merchant || noteLabel;
   const sublabel = isTransfer
     ? `Transfer - ${accountName(t.account_id)}`
     : `${categoryLabel} - ${accountName(t.account_id)}`;

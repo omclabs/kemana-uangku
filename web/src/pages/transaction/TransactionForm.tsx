@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ApiError, apiFetch, getUser } from '../../lib/api';
 import {
@@ -19,6 +19,7 @@ import { toDatetimePreset as toDatetimeLocal } from '../../lib/dateUtils';
 function CalcIcon()       { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4M8 18h2"/></svg>; }
 function CalendarIcon()   { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>; }
 function NoteIcon()       { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>; }
+function StoreIcon()      { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5M4 9v11h16V9M4 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/></svg>; }
 
 // ── Formatter ─────────────────────────────────────────────────────
 const fmt = new Intl.NumberFormat('id-ID', {
@@ -64,6 +65,10 @@ export default function TransactionForm() {
   const [categoryId, setCategoryId] = useState('');
   const [amount,     setAmount]     = useState(0);
   const [note,       setNote]       = useState('');
+  const [merchant,   setMerchant]   = useState('');
+  const [merchantSuggestions, setMerchantSuggestions] = useState<string[]>([]);
+  const [merchantOpen, setMerchantOpen] = useState(false);
+  const merchantRootRef = useRef<HTMLDivElement | null>(null);
   const [fee,        setFee]        = useState<number | null>(null);
   const [parentTxId, setParentTxId] = useState<string | null>(null);
   const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
@@ -92,20 +97,22 @@ export default function TransactionForm() {
     let cancelled = false;
     async function load() {
       try {
-        const [accts, cats, items] = await Promise.all([
+        const [accts, cats, items, merchants] = await Promise.all([
           apiFetch<Account[]>('/accounts?include_inactive=true'),
           apiFetch<Category[]>('/categories?include_inactive=true'),
           apiFetch<TrackedItem[]>('/tracked-items?include_inactive=true'),
+          apiFetch<string[]>('/transactions/merchants'),
         ]);
         if (cancelled) return;
         setAccounts(accts); setCategories(cats); setTrackedItems(items);
+        setMerchantSuggestions(merchants);
         if (id) {
           const tx = await apiFetch<Transaction>(`/transactions/${id}`);
           if (cancelled) return;
           setType(tx.type); setDate(toDatetimeLocal(tx.date));
           setAccountId(tx.account_id); setTransferTo(tx.transfer_to ?? '');
           setCategoryId(tx.category_id ?? ''); setAmount(tx.amount);
-          setNote(tx.note ?? ''); setFee(tx.fee);
+          setNote(tx.note ?? ''); setMerchant(tx.merchant ?? ''); setFee(tx.fee);
           setParentTxId(tx.parent_transaction_id);
           setPaymentTransactionId(tx.payment_transaction_id);
           setTrackedItemId(tx.tracked_item_id ?? '');
@@ -143,6 +150,37 @@ export default function TransactionForm() {
     load();
     return () => { cancelled = true; };
   }, [id, lockedAssignedAccountId, presetAccountId, presetCategoryId, presetDate, presetTrackedItemId]);
+
+  useEffect(() => {
+    if (!merchantOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!merchantRootRef.current?.contains(event.target as Node)) {
+        setMerchantOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setMerchantOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [merchantOpen]);
+
+  const filteredMerchantSuggestions = useMemo(() => {
+    const query = merchant.trim().toLowerCase();
+    const base = query
+      ? merchantSuggestions.filter((m) => m.toLowerCase().includes(query))
+      : merchantSuggestions;
+    return base.filter((m) => m !== merchant).slice(0, 8);
+  }, [merchant, merchantSuggestions]);
 
   function handleTypeChange(t: TransactionType) {
     setType(t); setCategoryId('');
@@ -208,6 +246,7 @@ export default function TransactionForm() {
   function resetForContinue() {
     setAmount(0);
     setNote('');
+    setMerchant('');
     setCategoryId('');
     setTrackedItemId('');
     setRefillQuantity('');
@@ -244,7 +283,7 @@ export default function TransactionForm() {
     setSaving(true);
     try {
       if (isEdit) {
-        const body: Record<string, unknown> = { date: fromDatetimeLocal(date), amount, note };
+        const body: Record<string, unknown> = { date: fromDatetimeLocal(date), amount, note, merchant: merchant || null };
         if (!categoryLocked) body.category_id = categoryId;
         if (displayType !== 'transfer' && type === 'expense') {
           body.tracked_item_id = trackedItemId || null;
@@ -257,7 +296,7 @@ export default function TransactionForm() {
       } else {
         const body: TransactionInput = {
           date: fromDatetimeLocal(date), account_id: accountId,
-          amount, note: note || undefined, type,
+          amount, note: note || undefined, merchant: merchant || undefined, type,
         };
         if (type === 'transfer') {
           body.transfer_to = transferTo;
@@ -529,6 +568,72 @@ export default function TransactionForm() {
                 outline: 'none', resize: 'vertical', lineHeight: 1.4,
               }}
             />
+          </FieldRow>
+
+          {/* ── Merchant ─────────────────────────────────────────── */}
+          <FieldRow icon={<StoreIcon />} label="Merchant">
+            <div ref={merchantRootRef} style={{ position: 'relative' }}>
+              <input
+                value={merchant}
+                onChange={(e) => { setMerchant(e.target.value); setMerchantOpen(true); }}
+                onFocus={() => setMerchantOpen(true)}
+                placeholder="Optional"
+                maxLength={200}
+                autoComplete="off"
+                role="combobox"
+                aria-expanded={merchantOpen && filteredMerchantSuggestions.length > 0}
+                style={{
+                  width: '100%', background: 'none', border: 'none', padding: 0,
+                  fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'inherit',
+                  outline: 'none',
+                }}
+              />
+              {merchantOpen && filteredMerchantSuggestions.length > 0 && (
+                <div
+                  role="listbox"
+                  style={{
+                    position: 'absolute',
+                    left: -14,
+                    right: -14,
+                    top: 'calc(100% + 12px)',
+                    zIndex: 30,
+                    borderRadius: 22,
+                    border: '1px solid var(--line)',
+                    background: 'color-mix(in srgb, var(--surface) 92%, white)',
+                    boxShadow: '0 24px 44px -24px rgba(16,18,32,.28)',
+                    padding: 8,
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
+                    {filteredMerchantSuggestions.map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        role="option"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { setMerchant(m); setMerchantOpen(false); }}
+                        style={{
+                          width: '100%',
+                          border: '1px solid transparent',
+                          borderRadius: 16,
+                          padding: '11px 12px',
+                          background: 'transparent',
+                          color: 'var(--ink)',
+                          textAlign: 'left',
+                          fontFamily: 'inherit',
+                          cursor: 'pointer',
+                          transition: 'background .15s, border-color .15s, color .15s',
+                        }}
+                      >
+                        <span style={{ display: 'block', fontSize: 14.5, fontWeight: 700 }}>{m}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </FieldRow>
 
           {displayType === 'expense' && (

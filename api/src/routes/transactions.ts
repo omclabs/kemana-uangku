@@ -36,6 +36,7 @@ type TransactionRow = {
   category_id: string | null;
   amount: number;
   note: string | null;
+  merchant: string | null;
   type: TransactionType;
   transfer_to: string | null;
   fee: number | null;
@@ -203,7 +204,7 @@ async function createImportedExpenseRows(
   db: D1Database,
   actorId: string | null,
   accountId: string,
-  rows: Array<{ date: number; category_id: string; amount: number; note: string; paid_status: 'paid' | 'settle' }>,
+  rows: Array<{ date: number; category_id: string; amount: number; note: string; merchant?: string | null; paid_status: 'paid' | 'settle' }>,
   extraStatements: D1PreparedStatement[] = []
 ): Promise<TransactionRow[]> {
   const insertedIds: string[] = [];
@@ -216,9 +217,9 @@ async function createImportedExpenseRows(
     statements.push(
       db.prepare(
         `INSERT INTO transactions
-          (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, 'expense', NULL, NULL, 'bulk', ?, NULL, NULL, NULL, NULL, NULL, ?, ?)`
-      ).bind(id, row.date, accountId, row.category_id, row.amount, row.note, row.paid_status, actorId, actorId)
+          (id, date, account_id, category_id, amount, note, merchant, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'expense', NULL, NULL, 'bulk', ?, NULL, NULL, NULL, NULL, NULL, ?, ?)`
+      ).bind(id, row.date, accountId, row.category_id, row.amount, row.note, row.merchant ?? null, row.paid_status, actorId, actorId)
     );
 
     balanceOps.push(
@@ -323,6 +324,32 @@ app.get('/', async (c) => {
     .all<TransactionRow>();
 
   return c.json(results, 200);
+});
+
+app.get('/merchants', async (c) => {
+  const user = getCurrentUser(c);
+  const conditions = [`merchant IS NOT NULL`, `merchant != ''`, 'is_active = 1'];
+  const values: unknown[] = [];
+
+  const accessibleAccountIds = await listAccessibleAccountIds(c.env.DB, user);
+  if (accessibleAccountIds !== null) {
+    if (accessibleAccountIds.length === 0) {
+      return c.json([], 200);
+    }
+    conditions.push(`account_id IN (${inPlaceholders(accessibleAccountIds)})`);
+    values.push(...accessibleAccountIds);
+  }
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT merchant, COUNT(*) as uses, MAX(date) as last_used
+     FROM transactions
+     WHERE ${conditions.join(' AND ')}
+     GROUP BY merchant
+     ORDER BY uses DESC, last_used DESC
+     LIMIT 200`
+  ).bind(...values).all<{ merchant: string }>();
+
+  return c.json(results.map((r) => r.merchant), 200);
 });
 
 app.get('/:id', async (c) => {
@@ -530,6 +557,7 @@ app.post('/import-csv/commit', async (c) => {
         category_id: row.category_id as string,
         amount: row.amount,
         note: row.description.trim(),
+        merchant: row.merchant?.trim() || null,
         paid_status: paidStatus,
       })),
       [guardStatement]
@@ -657,8 +685,8 @@ app.post('/', async (c) => {
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO transactions
-          (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'single', ?, ?, ?, ?, ?, NULL, ?, ?)`
+          (id, date, account_id, category_id, amount, note, merchant, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'single', ?, ?, ?, ?, ?, NULL, ?, ?)`
       ).bind(
         rowId,
         occurrenceDate,
@@ -666,6 +694,7 @@ app.post('/', async (c) => {
         categoryId,
         rowAmounts[i],
         body.note ?? null,
+        body.merchant || null,
         effectiveType,
         body.transfer_to ?? null,
         body.type === 'transfer' ? body.fee ?? null : null,
@@ -721,8 +750,8 @@ app.post('/', async (c) => {
       statements.push(
         c.env.DB.prepare(
           `INSERT INTO transactions
-            (id, date, account_id, category_id, amount, note, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?, 'expense', NULL, NULL, 'single', ?, ?, ?, ?, ?, ?, ?, ?)`
+            (id, date, account_id, category_id, amount, note, merchant, type, transfer_to, fee, source, paid_status, recurring_group_id, recurring_mode, installment_index, installment_total, parent_transaction_id, created_by, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'expense', NULL, NULL, 'single', ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           feeRowId,
           occurrenceDate,
@@ -730,6 +759,7 @@ app.post('/', async (c) => {
           FEE_CATEGORY_ID,
           body.fee,
           body.note ?? null,
+          body.merchant || null,
           paidStatus,
           recurringGroupId,
           recurringMode,
@@ -889,6 +919,10 @@ app.put('/:id', async (c) => {
   if (body.note !== undefined) {
     fields.push('note = ?');
     values.push(body.note);
+  }
+  if (body.merchant !== undefined) {
+    fields.push('merchant = ?');
+    values.push(body.merchant || null);
   }
   if (body.paid_status !== undefined) {
     fields.push('paid_status = ?');
