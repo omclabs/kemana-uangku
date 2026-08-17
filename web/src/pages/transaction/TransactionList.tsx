@@ -769,7 +769,7 @@ function TransactionRow({
   const visual = categoryVisual(isTransfer ? 'transfer' : categoryLabel);
   const noteLines = (t.note ?? '').split('\n');
   const noteLabel = noteLines.length > 1 ? `${noteLines[0]}…` : noteLines[0];
-  const label = t.merchant || noteLabel;
+  const label = noteLabel;
   const sublabel = isTransfer
     ? `Transfer - ${accountName(t.account_id)}`
     : `${categoryLabel} - ${accountName(t.account_id)}`;
