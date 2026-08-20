@@ -5,10 +5,10 @@ Personal finance tracker — Cloudflare Worker API on D1 (SQLite), built with Ho
 ## Feature set (current)
 
 - **Accounts** — 8 types (bank/cash/autodebet/credit_card/prepaid/savings/investment/loan), one level of parent/child grouping, signed balances (liabilities negative), computed rollup balances, Total Assets/Liabilities header.
-- **Categories** — income/expense, one level of parent/child grouping, collapsible tree UI.
+- **Categories** — income/expense, one level of parent/child grouping, collapsible tree UI, per-category transaction drilldown with month navigation and spend chart.
 - **Transactions** — income/expense/transfer ledger, recurring & installment generation, transfer fees, credit-card transfer reclassification, CSV receipt/statement import, CSV bulk-import (amount + description, single account/date per batch, file-hash idempotency).
 - **Credit card payments** — batch-settle charges from a funding account, statement-window guarded.
-- **Budgets** — per-category, per-month targets with a template fallback.
+- **Budgets** — per-category, per-month targets with a template fallback, rollover to previous month's actual spend when unsaved, and a per-category year view for bulk editing/seeding all 12 months at once.
 - **Monthly balances** — cached income/expense/running-balance summary per month.
 - **Tracked items** — consumable refill tracking with run-out forecasting and alerts.
 - **Users, roles & sessions** — `admin` (full control), `user` (full app access), `reimbursement` (scoped to specific assigned credit cards only). Session-based auth with bcrypt passwords.
