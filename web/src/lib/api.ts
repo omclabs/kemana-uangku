@@ -64,6 +64,12 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
+    if (res.status === 401 && path !== '/auth/login') {
+      clearSession();
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
     throw new ApiError(res.status, (body as { error?: string }).error ?? res.statusText);
   }
 

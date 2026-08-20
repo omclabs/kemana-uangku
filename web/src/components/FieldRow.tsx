@@ -7,7 +7,7 @@ export default function FieldRow({
   children,
 }: {
   icon: ReactNode;
-  label: string;
+  label: ReactNode;
   labelWidth?: number;
   children: ReactNode;
 }) {

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import StyledSelect from '../../components/StyledSelect';
 import PageHeader from '../../components/PageHeader';
 import ToggleSwitch from '../../components/ToggleSwitch';
@@ -12,10 +12,13 @@ export default function CategoryForm() {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const prefillParentId = !isEdit ? searchParams.get('parent_id') ?? '' : '';
+  const prefillType = !isEdit && searchParams.get('type') === 'income' ? 'income' : 'expense';
 
   const [name, setName] = useState('');
-  const [type, setType] = useState<CategoryType>('expense');
-  const [parentId, setParentId] = useState('');
+  const [type, setType] = useState<CategoryType>(prefillType);
+  const [parentId, setParentId] = useState(prefillParentId);
   const [budgetMonthly, setBudgetMonthly] = useState('0');
   const [isActive, setIsActive] = useState(true);
 

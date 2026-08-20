@@ -219,54 +219,54 @@ export default function AccountList() {
                     return (
                       <div key={account.id} style={{
                         background: 'var(--surface)', border: '1px solid var(--line)',
-                        borderRadius: 20, overflow: 'hidden',
+                        borderRadius: 16, overflow: 'hidden',
                         boxShadow: '0 2px 12px rgba(0,0,0,.04)',
                       }}>
                         <Link
                           to={`/account/${account.id}/transaction`}
                           style={{
-                            display: 'flex', alignItems: 'center', gap: 12,
-                            padding: '14px 16px', textDecoration: 'none',
+                            display: 'flex', alignItems: 'center', gap: 9,
+                            padding: '10px 12px', textDecoration: 'none',
                           }}
                         >
                           <span style={{
-                            width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                            width: 34, height: 34, borderRadius: 10, flexShrink: 0,
                             background: visual.soft, color: visual.color,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 15, fontWeight: 800,
+                            fontSize: 12.5, fontWeight: 800,
                           }}>
                             {initial(account.name)}
                           </span>
 
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               <span style={{
-                                fontSize: 15, fontWeight: 700, color: 'var(--ink)',
+                                fontSize: 13, fontWeight: 700, color: 'var(--ink)',
                                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                               }}>
                                 {account.name}
                               </span>
                               {hasKids && (
                                 <span style={{
-                                  fontSize: 10, fontWeight: 700,
+                                  fontSize: 9, fontWeight: 700,
                                   color: 'var(--accent)',
                                   background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
-                                  padding: '2px 7px', borderRadius: 999, flexShrink: 0,
+                                  padding: '1px 6px', borderRadius: 999, flexShrink: 0,
                                 }}>
                                   {children.length} sub
                                 </span>
                               )}
                               {!account.include_in_total && (
                                 <span style={{
-                                  fontSize: 10, fontWeight: 600, color: 'var(--muted)',
-                                  background: 'var(--line)', padding: '2px 7px', borderRadius: 999, flexShrink: 0,
+                                  fontSize: 9, fontWeight: 600, color: 'var(--muted)',
+                                  background: 'var(--line)', padding: '1px 6px', borderRadius: 999, flexShrink: 0,
                                 }}>
                                   excluded
                                 </span>
                               )}
                             </div>
                             {(account.type === 'credit_card' || hasKids) && (
-                              <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>
+                              <p style={{ margin: '2px 0 0', fontSize: 10.5, color: 'var(--muted)', fontWeight: 500 }}>
                                 {account.type === 'credit_card' && account.credit_limit != null
                                   ? `avail. ${shortFmt(account.credit_limit + account.computed_balance)}`
                                   : `own ${shortFmt(account.balance)}`}
@@ -275,14 +275,14 @@ export default function AccountList() {
                           </div>
 
                           <span style={{
-                            fontSize: 15, fontWeight: 800, flexShrink: 0,
+                            fontSize: 12.5, fontWeight: 800, flexShrink: 0,
                             color: (hasKids ? isNeg : account.computed_balance < 0) ? 'var(--expense)' : 'var(--ink)',
                           }}>
                             {shortFmt(hasKids ? totalBal : account.computed_balance)}
                           </span>
 
                           <span style={{ color: 'var(--muted)', flexShrink: 0 }}>
-                            <Chevron />
+                            <Chevron size={14} />
                           </span>
                         </Link>
 
@@ -293,8 +293,8 @@ export default function AccountList() {
                               key={child.id}
                               to={`/account/${child.id}/transaction`}
                               style={{
-                                display: 'flex', alignItems: 'center', gap: 10,
-                                padding: '11px 16px 11px 20px',
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '8px 12px 8px 16px',
                                 borderTop: '1px solid var(--line)',
                                 textDecoration: 'none',
                                 background: 'var(--surface-2)',
@@ -302,34 +302,34 @@ export default function AccountList() {
                             >
                               <div style={{
                                 display: 'flex', flexDirection: 'column',
-                                alignItems: 'center', width: 20, flexShrink: 0, alignSelf: 'stretch',
+                                alignItems: 'center', width: 16, flexShrink: 0, alignSelf: 'stretch',
                               }}>
                                 <div style={{
                                   width: 1.5, flex: 1,
                                   background: isLast ? 'transparent' : 'var(--line)',
                                 }} />
-                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
                                   <path d="M2 0 L2 7 L12 7" stroke="var(--line)" strokeWidth="1.5" strokeLinecap="round"/>
                                 </svg>
                                 {!isLast && <div style={{ width: 1.5, flex: 1, background: 'var(--line)' }} />}
                               </div>
 
                               <span style={{
-                                flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--ink)',
+                                flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--ink)',
                                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                               }}>
                                 {child.name}
                               </span>
 
                               <span style={{
-                                fontSize: 13.5, fontWeight: 700, flexShrink: 0,
+                                fontSize: 12, fontWeight: 700, flexShrink: 0,
                                 color: child.computed_balance < 0 ? 'var(--expense)' : 'var(--ink)',
                               }}>
                                 {fmt.format(child.computed_balance)}
                               </span>
 
                               <span style={{ color: 'var(--muted)', flexShrink: 0 }}>
-                                <Chevron size={14} />
+                                <Chevron size={12} />
                               </span>
                             </Link>
                           );

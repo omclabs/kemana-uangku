@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { categoryVisual } from '../../lib/categories';
 import { ApiError, apiFetch } from '../../lib/api';
-import { statFmt, signedFmt, cellFmt } from '../../lib/format';
+import { statFmt, signedFmt, cellFmt, truncateNote } from '../../lib/format';
 import { ChevronLeftIcon, ChevronRightIcon } from '../../components/compactIcons';
 import type { Account, Category, Transaction } from '../../lib/types';
 import {
@@ -1052,8 +1052,7 @@ export default function AccountTransactions() {
                         const category = catMap.get(transaction.category_id ?? '');
                         const isDeposit = id ? classifyTx(transaction, id) === 'deposit' : false;
                         const visual = categoryVisual(transaction.type === 'transfer' ? 'transfer' : category?.name);
-                        const noteLines = (transaction.note ?? '').split('\n');
-                        const label = noteLines.length > 1 ? `${noteLines[0]}…` : noteLines[0];
+                        const label = truncateNote(transaction.note);
                         const sublabel = transaction.type === 'transfer'
                           ? 'Transfer'
                           : category?.name ?? '';

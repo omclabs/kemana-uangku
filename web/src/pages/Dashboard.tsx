@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import PageContainer from '../components/PageContainer';
 import { ApiError, apiFetch, getUser } from '../lib/api';
 import { categoryVisual, initial } from '../lib/categories';
+import { ChevronLeftIcon, ChevronRightIcon } from '../components/compactIcons';
 import { trimCompactDecimals } from '../lib/format';
 import { useTheme } from '../lib/theme';
-import type { Account, BudgetMonth, Category, MonthlyBalance, TrackedItem, Transaction } from '../lib/types';
+import type { BudgetMonth, Category, MonthlyBalance, TrackedItem, Transaction } from '../lib/types';
 
 const idr = new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -25,14 +26,9 @@ function monthLabel(year: number, monthNumber: number): string {
   return new Date(year, monthNumber - 1, 1).toLocaleString('id-ID', { month: 'long', year: 'numeric' });
 }
 
-function pctLabel(value: number): string {
-  return `${Math.round(Math.abs(value))}%`;
-}
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
-  const [accounts,     setAccounts]     = useState<Account[]>([]);
   const [budgetMonth, setBudgetMonth] = useState<BudgetMonth | null>(null);
   const [monthlyBalances, setMonthlyBalances] = useState<MonthlyBalance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -40,24 +36,20 @@ export default function Dashboard() {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
   const [selectedMonthKey, setSelectedMonthKey] = useState('');
-  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [categoryTab, setCategoryTab] = useState<'income' | 'expense'>('expense');
   const [alertCount, setAlertCount] = useState(0);
 
   const user = getUser();
-  const canViewAllDashboardAccounts = user?.role === 'admin' || user?.role === 'reimbursement';
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      apiFetch<Account[]>('/accounts'),
       apiFetch<MonthlyBalance[]>('/balances?limit=24'),
       apiFetch<Transaction[]>('/transactions'),
       apiFetch<Category[]>('/categories?include_inactive=true'),
     ])
-      .then(([accountList, monthlyBalanceList, transactionList, categoryList]) => {
+      .then(([monthlyBalanceList, transactionList, categoryList]) => {
         if (cancelled) return;
-        setAccounts(accountList);
         setMonthlyBalances(monthlyBalanceList);
         setTransactions(transactionList);
         setCategories(categoryList);
@@ -88,14 +80,6 @@ export default function Dashboard() {
     };
   }, [user?.role]);
 
-  const topLevelAccounts = accounts.filter(
-    (a) => a.parent_id === null && a.include_in_total === 1,
-  );
-
-  const totalBalance = topLevelAccounts
-    .filter((a) => canViewAllDashboardAccounts || (a.type !== 'credit_card' && a.type !== 'loan'))
-    .reduce((sum, a) => sum + a.computed_balance, 0);
-
   const now = new Date();
   const fallbackMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const availableMonthKeys = monthlyBalances.map((row) => row.month_key);
@@ -103,6 +87,9 @@ export default function Dashboard() {
   const effectiveMonthKey = selectedMonthKeyValue || availableMonthKeys[0] || fallbackMonthKey;
   const [selectedYear, selectedMonthNumber] = effectiveMonthKey.split('-').map(Number);
   const selectedMonth = selectedMonthNumber - 1;
+  const effectiveMonthIndex = availableMonthKeys.indexOf(effectiveMonthKey);
+  const canGoOlderMonth = effectiveMonthIndex >= 0 && effectiveMonthIndex < availableMonthKeys.length - 1;
+  const canGoNewerMonth = effectiveMonthIndex > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -125,39 +112,10 @@ export default function Dashboard() {
     return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
   });
   const selectedMonthlyBalance = monthlyBalances.find((row) => row.month_key === effectiveMonthKey) ?? null;
-  const selectedIndex = monthlyBalances.findIndex((row) => row.month_key === effectiveMonthKey);
-  const previousMonthlyBalance = selectedIndex >= 0 ? monthlyBalances[selectedIndex + 1] ?? null : null;
   const income = selectedMonthlyBalance?.income
     ?? monthTx.filter((t) => t.type === 'income' && t.transfer_to === null).reduce((s, t) => s + t.amount, 0);
   const expense = selectedMonthlyBalance?.expense
     ?? monthTx.filter((t) => t.type === 'expense' && t.transfer_to === null).reduce((s, t) => s + t.amount, 0);
-  const balanceSummary = selectedMonthlyBalance?.balance ?? totalBalance;
-  const previousMonthNetWorth = previousMonthlyBalance?.balance ?? (balanceSummary - income + expense);
-  const hasPreviousMonthBaseline = previousMonthNetWorth !== 0;
-  const monthOverMonthPct = hasPreviousMonthBaseline
-    ? ((balanceSummary - previousMonthNetWorth) / Math.abs(previousMonthNetWorth)) * 100
-    : 0;
-  const monthOverMonthPrefix = !hasPreviousMonthBaseline
-    ? '-'
-    : monthOverMonthPct > 0
-      ? '+'
-      : monthOverMonthPct < 0
-        ? '-'
-        : '=';
-  const trendBadgeBackground = !hasPreviousMonthBaseline
-    ? 'rgba(255,255,255,.2)'
-    : monthOverMonthPct > 0
-      ? 'rgba(187,247,208,.22)'
-      : monthOverMonthPct < 0
-        ? 'rgba(254,202,202,.22)'
-        : 'rgba(255,255,255,.2)';
-  const trendBadgeColor = !hasPreviousMonthBaseline
-    ? '#fff'
-    : monthOverMonthPct > 0
-      ? '#dcfce7'
-      : monthOverMonthPct < 0
-        ? '#fee2e2'
-        : '#fff';
 
   const categoryName = (id: string | null) =>
     categories.find((c) => c.id === id)?.name ?? 'Other';
@@ -177,32 +135,46 @@ export default function Dashboard() {
   const donutSource = categoryTab === 'income' ? incomeByCategory : expenseByCategory;
   const donutTotal = categoryTab === 'income' ? income : expense;
   const donutTitle = categoryTab === 'income' ? 'Incoming' : 'Spending';
-  const donutCategories = [...donutSource.entries()]
-    .sort(([, left], [, right]) => right - left)
-    .map(([name, amount], index) => ({
+  const DONUT_TOP_N = DONUT_COLORS.length - 1;
+  const sortedDonutEntries = [...donutSource.entries()].sort(([, left], [, right]) => right - left);
+  const topDonutEntries = sortedDonutEntries.slice(0, DONUT_TOP_N);
+  const otherDonutTotal = sortedDonutEntries.slice(DONUT_TOP_N).reduce((sum, [, amount]) => sum + amount, 0);
+  const donutCategories = [
+    ...topDonutEntries.map(([name, amount], index) => ({
       name,
       amount,
       pct: donutTotal > 0 ? (amount / donutTotal) * 100 : 0,
-      color: DONUT_COLORS[index % DONUT_COLORS.length],
-    }));
+      color: DONUT_COLORS[index],
+    })),
+    ...(otherDonutTotal > 0 ? [{
+      name: 'Others',
+      amount: otherDonutTotal,
+      pct: donutTotal > 0 ? (otherDonutTotal / donutTotal) * 100 : 0,
+      color: DONUT_COLORS[DONUT_COLORS.length - 1],
+    }] : []),
+  ];
   const totalBudget = budgetMonth?.total_budget ?? categories
     .filter((category) => category.type === 'expense' && category.is_active === 1)
     .reduce((sum, category) => sum + category.budget_monthly, 0);
   const budgetUsagePct = totalBudget > 0 ? Math.min((expense / totalBudget) * 100, 100) : 0;
   const budgetDelta = totalBudget - expense;
   const categorySummaries = categoryTransactions
-    .reduce<Array<{ key: string; name: string; total: number; type: 'income' | 'expense' }>>((groups, transaction) => {
+    .reduce<Array<{ key: string; id: string | null; name: string; total: number; type: 'income' | 'expense' }>>((groups, transaction) => {
+      const groupKey = transaction.category_id ?? 'uncategorized';
       const groupName = categoryName(transaction.category_id);
-      const existing = groups.find((group) => group.key === groupName);
+      const existing = groups.find((group) => group.key === groupKey);
       const delta = transaction.amount;
       if (existing) {
         existing.total += delta;
         return groups;
       }
-      return [...groups, { key: groupName, name: groupName, total: delta, type: transaction.type }];
+      return [...groups, { key: groupKey, id: transaction.category_id, name: groupName, total: delta, type: transaction.type }];
     }, [])
     .sort((left, right) => right.total - left.total);
   const visibleCategorySummaries = categorySummaries.filter((group) => group.type === categoryTab);
+  const categoryBudgetMap = new Map(
+    (budgetMonth?.items ?? []).map((item) => [item.category_id, item.effective_amount])
+  );
 
   const segments = donutCategories.reduce<{
     offset: number;
@@ -236,9 +208,9 @@ export default function Dashboard() {
             <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>
               Good day,
             </p>
-            <p style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
               {user?.username ?? 'there'}
-            </p>
+            </h1>
           </div>
         </div>
 
@@ -307,6 +279,34 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, marginBottom: 14 }}>
+        <button
+          type="button"
+          onClick={() => canGoOlderMonth && setSelectedMonthKey(availableMonthKeys[effectiveMonthIndex + 1])}
+          disabled={!canGoOlderMonth}
+          style={{
+            width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', cursor: canGoOlderMonth ? 'pointer' : 'not-allowed', opacity: canGoOlderMonth ? 1 : 0.35, borderRadius: 8,
+          }}
+        >
+          <ChevronLeftIcon />
+        </button>
+        <span style={{ minWidth: 130, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+          {monthLabel(selectedYear, selectedMonthNumber)}
+        </span>
+        <button
+          type="button"
+          onClick={() => canGoNewerMonth && setSelectedMonthKey(availableMonthKeys[effectiveMonthIndex - 1])}
+          disabled={!canGoNewerMonth}
+          style={{
+            width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', cursor: canGoNewerMonth ? 'pointer' : 'not-allowed', opacity: canGoNewerMonth ? 1 : 0.35, borderRadius: 8,
+          }}
+        >
+          <ChevronRightIcon />
+        </button>
+      </div>
+
       {loading && (
         <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>Loading…</p>
       )}
@@ -316,62 +316,6 @@ export default function Dashboard() {
 
       {!loading && !error && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{
-            position: 'relative', overflow: 'hidden', borderRadius: 26,
-            padding: '22px 22px 18px',
-            background: 'linear-gradient(140deg, var(--accent), var(--accent-2))',
-            boxShadow: '0 16px 30px -14px var(--accent)',
-            color: '#fff',
-          }}>
-            <div style={{
-              position: 'absolute', width: 180, height: 180, borderRadius: '50%',
-              background: 'rgba(255,255,255,.12)', top: -70, right: -40,
-            }} />
-            <div style={{
-              position: 'absolute', width: 90, height: 90, borderRadius: '50%',
-              background: 'rgba(255,255,255,.08)', bottom: -28, right: 60,
-            }} />
-
-            <div style={{ position: 'relative' }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, opacity: .85 }}>
-                Balance
-              </p>
-              <p style={{ margin: '5px 0 0', fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                {idr.format(balanceSummary)}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 9 }}>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 3,
-                  background: trendBadgeBackground,
-                  color: trendBadgeColor,
-                  padding: '3px 9px',
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    {monthOverMonthPct < 0 && hasPreviousMonthBaseline ? (
-                      <path d="M7 7 17 17M9 17h8V9" />
-                    ) : (
-                      <path d="M7 17 17 7M9 7h8v8" />
-                    )}
-                  </svg>
-                  {monthOverMonthPrefix} {pctLabel(monthOverMonthPct)}
-                </span>
-                <span style={{ fontSize: 12, opacity: .82 }}>vs last month</span>
-              </div>
-              <svg viewBox="0 0 260 50" preserveAspectRatio="none" style={{ width: '100%', height: 40, marginTop: 14, overflow: 'visible' }}>
-                <polyline
-                  points="0,40 26,34 52,38 78,27 104,30 130,19 156,24 182,13 208,18 234,7 260,11"
-                  fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="2.5"
-                  strokeLinecap="round" strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
-
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{
               flex: 1, background: 'var(--surface)', border: '1px solid var(--line)',
@@ -423,25 +367,14 @@ export default function Dashboard() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>{donutTitle}</span>
-                <button
-                  type="button"
-                  onClick={() => setMonthPickerOpen(true)}
-                  style={{
+                <span style={{
                   fontSize: 11.5, fontWeight: 700, color: 'var(--accent)',
                   background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
                   padding: '4px 10px',
                   borderRadius: 999,
-                  border: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-                >
-                  <span>{monthLabel(selectedYear, selectedMonthNumber)}</span>
-                  <span style={{ fontSize: 10 }}>▾</span>
-                </button>
+                }}>
+                  {monthLabel(selectedYear, selectedMonthNumber)}
+                </span>
               </div>
 
               {donutCategories.length > 0 && (
@@ -538,8 +471,9 @@ export default function Dashboard() {
                           background: active ? 'var(--accent)' : 'transparent',
                           color: active ? '#fff' : 'var(--muted)',
                           borderRadius: 999,
-                          padding: '6px 12px',
-                          fontSize: 11.5,
+                          padding: '0 16px',
+                          minHeight: 40,
+                          fontSize: 12,
                           fontWeight: 700,
                           fontFamily: 'inherit',
                           textTransform: 'capitalize',
@@ -553,38 +487,63 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ display: 'grid', gap: 8 }}>
                 {visibleCategorySummaries.map((group) => {
                   const visual = categoryVisual(group.name);
+                  const clickable = group.id !== null;
+                  const categoryBudget = group.id ? categoryBudgetMap.get(group.id) ?? 0 : 0;
+                  const hasBudget = group.type === 'expense' && categoryBudget > 0;
+                  const overBudget = hasBudget && group.total > categoryBudget;
+                  const barColor = hasBudget
+                    ? (overBudget ? 'var(--expense)' : 'var(--income)')
+                    : group.type === 'income' ? 'var(--income)' : 'var(--expense)';
+                  const barPct = hasBudget ? Math.min((group.total / categoryBudget) * 100, 100) : 0;
                   return (
                     <div
                       key={group.key}
+                      onClick={clickable ? () => navigate(`/categories/${group.id}/transactions`) : undefined}
                       style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
+                        flexDirection: 'column',
+                        gap: 6,
                         border: '1px solid var(--line)',
-                        borderRadius: 18,
+                        borderRadius: 15,
                         background: 'var(--surface-2)',
-                        padding: '12px 14px',
+                        padding: '9px 11px',
+                        cursor: clickable ? 'pointer' : 'default',
                       }}
                     >
-                      <span style={{
-                        width: 38, height: 38, borderRadius: 12, flexShrink: 0,
-                        background: visual.soft, color: visual.color,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 14, fontWeight: 800,
-                      }}>
-                        {group.name.trim()[0]?.toUpperCase() ?? 'T'}
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {group.name}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{
+                          width: 28, height: 28, borderRadius: 9, flexShrink: 0,
+                          background: visual.soft, color: visual.color,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11.5, fontWeight: 800,
+                        }}>
+                          {group.name.trim()[0]?.toUpperCase() ?? 'T'}
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {group.name}
+                          </div>
+                          {hasBudget && (
+                            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)' }}>
+                              of {shortCurrency(categoryBudget)} budget
+                            </div>
+                          )}
                         </div>
+                        <span style={{ fontSize: 12.5, fontWeight: 800, color: barColor, whiteSpace: 'nowrap' }}>
+                          {group.type === 'income' ? '+' : '−'}{idr.format(group.total)}
+                        </span>
+                        {clickable && (
+                          <span style={{ color: 'var(--muted)', display: 'flex', flexShrink: 0 }}>
+                            <ChevronRightIcon size={14} />
+                          </span>
+                        )}
                       </div>
-                      <span style={{ fontSize: 13.5, fontWeight: 800, color: group.type === 'income' ? 'var(--income)' : 'var(--expense)', whiteSpace: 'nowrap' }}>
-                        {group.type === 'income' ? '+' : '−'}{idr.format(group.total)}
-                      </span>
+                      <div style={{ marginLeft: 38, height: 4, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
+                        <div style={{ width: `${barPct}%`, height: '100%', borderRadius: 999, background: barColor, opacity: 0.75 }} />
+                      </div>
                     </div>
                   );
                 })}
@@ -599,70 +558,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {monthPickerOpen && (
-        <div
-          onClick={() => setMonthPickerOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 40,
-            background: 'rgba(17,24,39,.28)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-        >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              width: 'min(320px, 100%)',
-              borderRadius: 24,
-              background: 'var(--surface)',
-              border: '1px solid var(--line)',
-              boxShadow: '0 24px 64px rgba(15,23,42,.18)',
-              padding: 18,
-            }}
-          >
-            <div style={{ marginBottom: 12 }}>
-              <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>Select month</p>
-              <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>Year to date</p>
-            </div>
-            <div style={{ display: 'grid', gap: 8 }}>
-              {(availableMonthKeys.length ? availableMonthKeys : [effectiveMonthKey]).map((monthKey) => {
-                const [yearValue, monthValue] = monthKey.split('-').map(Number);
-                const active = monthKey === effectiveMonthKey;
-                return (
-                  <button
-                    key={monthKey}
-                    type="button"
-                    onClick={() => {
-                      setSelectedMonthKey(monthKey);
-                      setMonthPickerOpen(false);
-                    }}
-                    style={{
-                      border: active ? '1px solid color-mix(in srgb, var(--accent) 35%, transparent)' : '1px solid var(--line)',
-                      background: active ? 'color-mix(in srgb, var(--accent) 10%, var(--surface))' : 'var(--surface)',
-                      color: active ? 'var(--accent)' : 'var(--ink)',
-                      borderRadius: 16,
-                      padding: '12px 14px',
-                      textAlign: 'left',
-                      fontSize: 14,
-                      fontWeight: active ? 700 : 600,
-                      fontFamily: 'inherit',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {monthLabel(yearValue, monthValue)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </PageContainer>
   );
 }

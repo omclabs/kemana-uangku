@@ -19,3 +19,8 @@ export function trimCompactDecimals(value: number, digits: number): string {
     .replace(/\.?0+$/, '')
     .replace('.', ',');
 }
+
+export function truncateNote(note: string | null | undefined, limit = 60): string {
+  const firstLine = (note ?? '').split('\n')[0] ?? '';
+  return firstLine.length > limit ? `${firstLine.slice(0, limit).trimEnd()}…` : firstLine;
+}

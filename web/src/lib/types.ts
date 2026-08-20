@@ -99,6 +99,7 @@ export interface BudgetItem {
   own_amount: number;
   total_amount: number;
   is_saved: boolean;
+  effective_amount: number;
 }
 
 export interface BudgetMonth {
@@ -106,6 +107,18 @@ export interface BudgetMonth {
   month_start: number;
   total_budget: number;
   items: BudgetItem[];
+}
+
+export interface CategoryBudgetYearMonth {
+  month_key: string;
+  amount: number;
+  is_saved: boolean;
+}
+
+export interface CategoryBudgetYear {
+  category_id: string;
+  year: string;
+  months: CategoryBudgetYearMonth[];
 }
 
 export interface User {

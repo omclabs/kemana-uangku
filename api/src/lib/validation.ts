@@ -12,6 +12,7 @@ export const categoryUpdate = categoryCreate.partial().extend({
 });
 
 export const monthKey = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+export const yearKey = z.string().regex(/^\d{4}$/);
 
 export const budgetUpsert = z.object({
   items: z.array(
@@ -20,6 +21,10 @@ export const budgetUpsert = z.object({
       amount: z.number().nonnegative().finite().max(999_999_999),
     })
   ),
+});
+
+export const budgetYearSeed = z.object({
+  amount: z.number().nonnegative().finite().max(999_999_999),
 });
 
 export const accountCreate = z.object({
@@ -189,6 +194,7 @@ export const csvImportCommitInput = z.object({
 export type CategoryCreate = z.infer<typeof categoryCreate>;
 export type CategoryUpdate = z.infer<typeof categoryUpdate>;
 export type BudgetUpsert = z.infer<typeof budgetUpsert>;
+export type BudgetYearSeed = z.infer<typeof budgetYearSeed>;
 export type AccountCreate = z.infer<typeof accountCreate>;
 export type AccountUpdate = z.infer<typeof accountUpdate>;
 export type ConfigUpdate = z.infer<typeof configUpdate>;

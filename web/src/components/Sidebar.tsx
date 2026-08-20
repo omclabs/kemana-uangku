@@ -8,7 +8,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
 
   return (
-    <aside className="hidden w-56 shrink-0 flex-col border-r border-line bg-surface md:flex">
+    <aside className="hidden w-56 shrink-0 flex-col border-r border-line bg-surface md:flex md:h-screen md:overflow-y-auto">
       <div className="flex items-center px-4 py-3">
         <span className="font-semibold text-ink">kemana uangku</span>
       </div>

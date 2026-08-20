@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import PageContainer from '../../components/PageContainer';
 import PageHeader from '../../components/PageHeader';
 import { PlusIcon } from '../../components/icons';
 import SummaryStrip from '../../components/SummaryStrip';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
+import { statFmt } from '../../lib/format';
 import { CATEGORY_TYPES, type Category, type CategoryType } from '../../lib/types';
 
 const TYPE_META: Record<CategoryType, { label: string; icon: ReactNode }> = {
@@ -38,6 +39,7 @@ function Chevron({ size = 16 }: { size?: number }) {
 }
 
 export default function CategoryList() {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -144,54 +146,79 @@ export default function CategoryList() {
                           key={category.id}
                           style={{
                             background: 'var(--surface)', border: '1px solid var(--line)',
-                            borderRadius: 20, overflow: 'hidden',
+                            borderRadius: 16, overflow: 'hidden',
                             boxShadow: '0 2px 12px rgba(0,0,0,.04)',
                           }}
                         >
-                          <Link
-                            to={`/config/categories/${category.id}/edit`}
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => navigate(`/config/categories/${category.id}/edit`)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                navigate(`/config/categories/${category.id}/edit`);
+                              }
+                            }}
                             style={{
-                              display: 'flex', alignItems: 'center', gap: 12,
-                              padding: '14px 16px', textDecoration: 'none',
+                              display: 'flex', alignItems: 'center', gap: 9,
+                              padding: '10px 12px', cursor: 'pointer',
                             }}
                           >
                             <span style={{
-                              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                              width: 34, height: 34, borderRadius: 10, flexShrink: 0,
                               background: visual.soft, color: visual.color,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 15, fontWeight: 800,
+                              fontSize: 12.5, fontWeight: 800,
                             }}>
                               {initial(category.name)}
                             </span>
 
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                 <span style={{
-                                  fontSize: 15, fontWeight: 700, color: 'var(--ink)',
+                                  fontSize: 13, fontWeight: 700, color: 'var(--ink)',
                                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                 }}>
                                   {category.name}
                                 </span>
                                 {hasKids && (
                                   <span style={{
-                                    fontSize: 10, fontWeight: 700,
+                                    fontSize: 9, fontWeight: 700,
                                     color: 'var(--accent)',
                                     background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
-                                    padding: '2px 7px', borderRadius: 999, flexShrink: 0,
+                                    padding: '1px 6px', borderRadius: 999, flexShrink: 0,
                                   }}>
                                     {children.length} sub
                                   </span>
                                 )}
                               </div>
-                              <p style={{ margin: '3px 0 0', fontSize: 11.5, color: 'var(--muted)', fontWeight: 500 }}>
-                                {hasKids ? 'Parent category' : 'Leaf category'}
-                              </p>
+                              {category.type === 'expense' && (
+                                <p style={{ margin: '2px 0 0', fontSize: 10.5, color: 'var(--muted)', fontWeight: 500 }}>
+                                  {category.budget_monthly > 0 ? `Budget: Rp ${statFmt(category.budget_monthly)}/mo` : 'No budget set'}
+                                </p>
+                              )}
                             </div>
 
+                            <Link
+                              to={`/config/categories/new?parent_id=${category.id}&type=${category.type}`}
+                              aria-label={`Add sub-category under ${category.name}`}
+                              onClick={(event) => event.stopPropagation()}
+                              style={{
+                                width: 24, height: 24, borderRadius: 8, flexShrink: 0,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'var(--accent)',
+                                background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              <PlusIcon className="h-3 w-3" />
+                            </Link>
+
                             <span style={{ color: 'var(--muted)', flexShrink: 0 }}>
-                              <Chevron />
+                              <Chevron size={14} />
                             </span>
-                          </Link>
+                          </div>
 
                           {hasKids && children.map((child, idx) => {
                             const isLast = idx === children.length - 1;
@@ -200,8 +227,8 @@ export default function CategoryList() {
                                 key={child.id}
                                 to={`/config/categories/${child.id}/edit`}
                                 style={{
-                                  display: 'flex', alignItems: 'center', gap: 10,
-                                  padding: '11px 16px 11px 20px',
+                                  display: 'flex', alignItems: 'center', gap: 8,
+                                  padding: '8px 12px 8px 16px',
                                   borderTop: '1px solid var(--line)',
                                   textDecoration: 'none',
                                   background: 'var(--surface-2)',
@@ -209,34 +236,34 @@ export default function CategoryList() {
                               >
                                 <div style={{
                                   display: 'flex', flexDirection: 'column',
-                                  alignItems: 'center', width: 20, flexShrink: 0, alignSelf: 'stretch',
+                                  alignItems: 'center', width: 16, flexShrink: 0, alignSelf: 'stretch',
                                 }}>
                                   <div style={{
                                     width: 1.5, flex: 1,
                                     background: isLast ? 'transparent' : 'var(--line)',
                                   }} />
-                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                  <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
                                     <path d="M2 0 L2 7 L12 7" stroke="var(--line)" strokeWidth="1.5" strokeLinecap="round" />
                                   </svg>
                                   {!isLast && <div style={{ width: 1.5, flex: 1, background: 'var(--line)' }} />}
                                 </div>
 
                                 <span style={{
-                                  flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--ink)',
+                                  flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--ink)',
                                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                 }}>
                                   {child.name}
                                 </span>
 
                                 <span style={{
-                                  fontSize: 10, fontWeight: 700, color: 'var(--muted)',
-                                  background: 'var(--line)', padding: '2px 7px', borderRadius: 999, flexShrink: 0,
+                                  fontSize: 9, fontWeight: 700, color: 'var(--muted)',
+                                  background: 'var(--line)', padding: '1px 6px', borderRadius: 999, flexShrink: 0,
                                 }}>
                                   Child
                                 </span>
 
                                 <span style={{ color: 'var(--muted)', flexShrink: 0 }}>
-                                  <Chevron size={14} />
+                                  <Chevron size={12} />
                                 </span>
                               </Link>
                             );

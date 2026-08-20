@@ -38,6 +38,15 @@ const cardStyle: React.CSSProperties = {
   background: 'var(--surface)', padding: '14px 16px',
   boxShadow: '0 2px 12px rgba(0,0,0,.04)', textDecoration: 'none',
 };
+const dangerCardStyle: React.CSSProperties = {
+  ...cardStyle,
+  border: '1px solid color-mix(in srgb, var(--expense) 35%, var(--line))',
+  background: 'color-mix(in srgb, var(--expense) 6%, var(--surface))',
+};
+const sectionLabelStyle: React.CSSProperties = {
+  margin: '0 2px 8px', fontSize: 10.5, fontWeight: 700, color: 'var(--muted)',
+  textTransform: 'uppercase', letterSpacing: '.06em',
+};
 
 export default function Config() {
   const navigate = useNavigate();
@@ -131,225 +140,247 @@ export default function Config() {
       {loading ? (
         <p style={{ padding: '32px 0', textAlign: 'center', color: 'var(--muted)' }}>Loading…</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {!isReimbursement && (
-            <Link to="/config/preferences" style={cardStyle}>
-              <span style={{
-                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                background: 'var(--income-soft)', color: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <WalletIcon size={20} />
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>General Settings</span>
-                <span style={{
-                  display: 'block', fontSize: 12.5, color: 'var(--muted)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {currency} · {timezone}
-                </span>
-              </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
-            </Link>
+            <div>
+              <p style={sectionLabelStyle}>Preferences</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Link to="/config/preferences" style={cardStyle}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                    background: 'var(--income-soft)', color: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <WalletIcon size={20} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>General Settings</span>
+                    <span style={{
+                      display: 'block', fontSize: 12.5, color: 'var(--muted)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {currency} · {timezone}
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+                </Link>
+
+                <Link to="/config/change-password" style={cardStyle}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <LockIcon size={20} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Change Password</span>
+                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                      Update your login credentials
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+                </Link>
+              </div>
+            </div>
           )}
 
           {!isReimbursement && (
-            <Link to="/config/categories" style={cardStyle}>
-              <span style={{
-                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <TagIcon size={20} />
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Categories</span>
-                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                  Manage income and expense categories
-                </span>
-              </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
-            </Link>
+            <div>
+              <p style={sectionLabelStyle}>Data &amp; Planning</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Link to="/config/categories" style={cardStyle}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <TagIcon size={20} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Categories</span>
+                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                      Manage income and expense categories
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+                </Link>
+
+                <Link to="/config/budgets" style={cardStyle}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--accent-2) 10%, transparent)', color: 'var(--accent-2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <BudgetIcon />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Budgets</span>
+                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                      Manage month-specific budget targets
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+                </Link>
+
+                <Link to="/config/tracked-items" style={cardStyle}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--accent) 8%, transparent)', color: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <BellIcon />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Tracked Items</span>
+                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                      Manage stock forecasts and alerts
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+                </Link>
+              </div>
+            </div>
           )}
 
           {!isReimbursement && (
-            <Link to="/config/budgets" style={cardStyle}>
-              <span style={{
-                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                background: 'color-mix(in srgb, var(--accent-2) 10%, transparent)', color: 'var(--accent-2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <BudgetIcon />
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Budgets</span>
-                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                  Manage month-specific budget targets
-                </span>
-              </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
-            </Link>
+            <div>
+              <p style={sectionLabelStyle}>Import</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Link to="/transactions/import-csv" style={cardStyle}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <UploadIcon />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Import Transactions (CSV)</span>
+                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                      Bulk-import expenses from a CSV file
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={downloadCsvTemplate}
+                  style={{
+                    ...cardStyle,
+                    width: '100%',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--accent-2) 10%, transparent)', color: 'var(--accent-2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <DownloadIcon />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Download CSV Template</span>
+                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                      Get a blank template for bulk imports
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+                </button>
+              </div>
+            </div>
           )}
 
-          {!isReimbursement && (
-            <Link to="/config/tracked-items" style={cardStyle}>
-              <span style={{
-                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                background: 'color-mix(in srgb, var(--accent) 8%, transparent)', color: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <BellIcon />
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Tracked Items</span>
-                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                  Manage stock forecasts and alerts
-                </span>
-              </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
-            </Link>
+          {user?.role === 'admin' && (
+            <div>
+              <p style={sectionLabelStyle}>Admin</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Link to="/config/users" style={cardStyle}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--accent-2) 14%, transparent)', color: 'var(--accent-2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <UserIcon />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Users</span>
+                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                      Manage user access and roles
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+                </Link>
+              </div>
+            </div>
           )}
 
-          {!isReimbursement && (
-            <Link to="/transactions/import-csv" style={cardStyle}>
-              <span style={{
-                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <UploadIcon />
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Import Transactions (CSV)</span>
-                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                  Bulk-import expenses from a CSV file
-                </span>
-              </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
-            </Link>
+          {user?.role === 'admin' && (
+            <div>
+              <p style={{ ...sectionLabelStyle, color: 'var(--expense)' }}>Danger Zone</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClearMessage(null);
+                    setClearError(null);
+                    setClearValue('');
+                    setClearPassword('');
+                    setClearOpen(true);
+                  }}
+                  style={{
+                    ...dangerCardStyle,
+                    width: '100%',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                    background: 'var(--expense-soft)', color: 'var(--expense)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <TrashIcon />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Clear Data</span>
+                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
+                      Delete transactions, budgets, monthly summaries, and accounts
+                    </span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
+                </button>
+              </div>
+            </div>
           )}
 
-          {!isReimbursement && (
+          <div>
+            <p style={sectionLabelStyle}>Session</p>
             <button
               type="button"
-              onClick={downloadCsvTemplate}
-              style={{
-                ...cardStyle,
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
+              onClick={() => logout(navigate)}
+              style={{ ...cardStyle, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
             >
               <span style={{
                 width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                background: 'color-mix(in srgb, var(--accent-2) 10%, transparent)', color: 'var(--accent-2)',
+                background: 'var(--surface-2)', color: 'var(--muted)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <DownloadIcon />
+                <LogoutIcon />
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Download CSV Template</span>
+                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Log Out</span>
                 <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                  Get a blank template for bulk imports
+                  End this session on the device
                 </span>
               </span>
               <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
             </button>
-          )}
-
-          <Link to="/config/change-password" style={cardStyle}>
-            <span style={{
-              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-              background: 'var(--expense-soft)', color: 'var(--expense)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <LockIcon size={20} />
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Change Password</span>
-              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                Update your login credentials
-              </span>
-            </span>
-            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
-          </Link>
-
-          {user?.role === 'admin' && (
-            <Link to="/config/users" style={cardStyle}>
-              <span style={{
-                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                background: 'color-mix(in srgb, var(--accent-2) 14%, transparent)', color: 'var(--accent-2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <UserIcon />
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Users</span>
-                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                  Manage user access and roles
-                </span>
-              </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
-            </Link>
-          )}
-
-          {user?.role === 'admin' && (
-            <button
-              type="button"
-              onClick={() => {
-                setClearMessage(null);
-                setClearError(null);
-                setClearValue('');
-                setClearPassword('');
-                setClearOpen(true);
-              }}
-              style={{
-                ...cardStyle,
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              <span style={{
-                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                background: 'var(--expense-soft)', color: 'var(--expense)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <TrashIcon />
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Clear Data</span>
-                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                  Delete transactions, budgets, monthly summaries, and accounts
-                </span>
-              </span>
-              <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => logout(navigate)}
-            style={{ ...cardStyle, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            <span style={{
-              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-              background: 'var(--expense-soft)', color: 'var(--expense)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <LogoutIcon />
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontWeight: 600, color: 'var(--ink)' }}>Log Out</span>
-              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)' }}>
-                End this session on the device
-              </span>
-            </span>
-            <span style={{ color: 'var(--muted)', flexShrink: 0 }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
-          </button>
+          </div>
         </div>
       )}
 

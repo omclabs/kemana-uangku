@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import PageContainer from '../../components/PageContainer';
 import PageHeader from '../../components/PageHeader';
+import CategoryBudgetYear from './CategoryBudgetYear';
 import { PlusIcon } from '../../components/icons';
 import { ApiError, apiFetch } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
 import type { BudgetItem, BudgetMonth } from '../../lib/types';
+
+function CalcIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+      <path d="M8 6h8M8 10h8M8 14h4M8 18h2" />
+    </svg>
+  );
+}
 
 const idr = new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -45,8 +55,9 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeBudgetCategoryId, setActiveBudgetCategoryId] = useState<string | null>(null);
 
-  useEffect(() => {
+  function reloadItems() {
     let cancelled = false;
 
     apiFetch<BudgetMonth>(`/budgets?month=${selectedMonth}`)
@@ -66,7 +77,9 @@ export default function BudgetPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedMonth]);
+  }
+
+  useEffect(reloadItems, [selectedMonth]);
 
   const totalsById = useMemo(() => buildTotalAmounts(items), [items]);
   const topLevelItems = useMemo(
@@ -88,17 +101,6 @@ export default function BudgetPage() {
     (sum, item) => sum + (totalsById.get(item.category_id) ?? item.own_amount),
     0
   );
-
-  function handleAmountChange(categoryId: string, nextValue: string) {
-    const safeValue = nextValue === '' ? 0 : Math.max(0, Number(nextValue));
-    setItems((currentItems) =>
-      currentItems.map((item) =>
-        item.category_id === categoryId
-          ? { ...item, own_amount: Number.isFinite(safeValue) ? safeValue : 0 }
-          : item
-      )
-    );
-  }
 
   async function handleSave() {
     setSaving(true);
@@ -165,10 +167,10 @@ export default function BudgetPage() {
           display: 'flex',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 12,
-          marginBottom: 18,
-          padding: '16px',
-          borderRadius: 20,
+          gap: 10,
+          marginBottom: 16,
+          padding: '13px 14px',
+          borderRadius: 16,
           border: '1px solid var(--line)',
           background: 'var(--surface)',
           boxShadow: '0 2px 12px rgba(0,0,0,.04)',
@@ -177,7 +179,7 @@ export default function BudgetPage() {
         <div style={{ flex: 1 }}>
           <label
             htmlFor="budget-month"
-            style={{ display: 'block', marginBottom: 6, fontSize: 11.5, fontWeight: 700, color: 'var(--muted)', letterSpacing: '.05em', textTransform: 'uppercase' }}
+            style={{ display: 'block', marginBottom: 5, fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', letterSpacing: '.05em', textTransform: 'uppercase' }}
           >
             Month
           </label>
@@ -189,20 +191,20 @@ export default function BudgetPage() {
             style={{
               width: '100%',
               boxSizing: 'border-box',
-              borderRadius: 14,
+              borderRadius: 12,
               border: '1px solid var(--line)',
               background: 'var(--surface-2)',
-              padding: '12px 14px',
+              padding: '10px 12px',
               color: 'var(--ink)',
               fontFamily: 'inherit',
-              fontSize: 14.5,
+              fontSize: 13,
             }}
           />
         </div>
 
-        <div style={{ minWidth: 120, marginLeft: 'auto', textAlign: 'right' }}>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)' }}>Overall budget</div>
-          <div style={{ marginTop: 6, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>
+        <div style={{ minWidth: 108, marginLeft: 'auto', textAlign: 'right' }}>
+          <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>Overall budget</div>
+          <div style={{ marginTop: 5, fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
             {idr.format(totalBudget)}
           </div>
         </div>
@@ -222,26 +224,26 @@ export default function BudgetPage() {
               <div
                 key={item.category_id}
                 style={{
-                  borderRadius: 22,
+                  borderRadius: 16,
                   border: '1px solid var(--line)',
                   background: 'var(--surface)',
                   boxShadow: '0 2px 12px rgba(0,0,0,.04)',
                   overflow: 'hidden',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 9, padding: '10px 12px' }}>
                   <span
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 13,
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
                       flexShrink: 0,
                       background: visual.soft,
                       color: visual.color,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 15,
+                      fontSize: 12.5,
                       fontWeight: 800,
                     }}
                   >
@@ -249,35 +251,41 @@ export default function BudgetPage() {
                   </span>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{item.name}</div>
-                    <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--muted)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{item.name}</div>
+                    <div style={{ marginTop: 2, fontSize: 10.5, color: 'var(--muted)' }}>
                       Total {idr.format(totalAmount)}
                     </div>
                   </div>
 
-                  <div style={{ width: '100%', maxWidth: 132, marginLeft: 'auto' }}>
-                    <label style={{ display: 'block', marginBottom: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                  <div style={{ width: '100%', maxWidth: 116, marginLeft: 'auto' }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 9.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
                       Own budget
                     </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={item.own_amount}
-                      onChange={(event) => handleAmountChange(item.category_id, event.target.value)}
+                    <button
+                      type="button"
+                      onClick={() => setActiveBudgetCategoryId(item.category_id)}
                       style={{
                         width: '100%',
                         boxSizing: 'border-box',
-                        borderRadius: 14,
+                        borderRadius: 12,
                         border: '1px solid var(--line)',
                         background: 'var(--surface-2)',
-                        padding: '10px 12px',
+                        padding: '8px 10px',
                         color: 'var(--ink)',
                         fontFamily: 'inherit',
-                        fontSize: 14,
+                        fontSize: 13,
+                        fontWeight: 600,
                         textAlign: 'right',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                        gap: 6,
                       }}
-                    />
+                    >
+                      <span style={{ color: 'var(--muted)', flexShrink: 0 }}><CalcIcon /></span>
+                      {new Intl.NumberFormat('id-ID').format(item.own_amount)}
+                    </button>
                   </div>
                 </div>
 
@@ -288,39 +296,45 @@ export default function BudgetPage() {
                       display: 'flex',
                       alignItems: 'center',
                       flexWrap: 'wrap',
-                      gap: 12,
-                      padding: '12px 16px 12px 28px',
+                      gap: 9,
+                      padding: '8px 12px 8px 20px',
                       borderTop: '1px solid var(--line)',
                       background: 'var(--surface-2)',
                     }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{child.name}</div>
-                      <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--muted)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{child.name}</div>
+                      <div style={{ marginTop: 2, fontSize: 10.5, color: 'var(--muted)' }}>
                         Template {idr.format(child.template_amount)}
                       </div>
                     </div>
 
-                    <div style={{ width: '100%', maxWidth: 132, marginLeft: 'auto' }}>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={child.own_amount}
-                        onChange={(event) => handleAmountChange(child.category_id, event.target.value)}
+                    <div style={{ width: '100%', maxWidth: 116, marginLeft: 'auto' }}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveBudgetCategoryId(child.category_id)}
                         style={{
                           width: '100%',
                           boxSizing: 'border-box',
-                          borderRadius: 14,
+                          borderRadius: 12,
                           border: '1px solid var(--line)',
                           background: '#fff',
-                          padding: '10px 12px',
+                          padding: '8px 10px',
                           color: 'var(--ink)',
                           fontFamily: 'inherit',
-                          fontSize: 14,
+                          fontSize: 13,
+                          fontWeight: 600,
                           textAlign: 'right',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-end',
+                          gap: 6,
                         }}
-                      />
+                      >
+                        <span style={{ color: 'var(--muted)', flexShrink: 0 }}><CalcIcon /></span>
+                        {new Intl.NumberFormat('id-ID').format(child.own_amount)}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -328,6 +342,18 @@ export default function BudgetPage() {
             );
           })}
         </div>
+      )}
+
+      {activeBudgetCategoryId !== null && (
+        <CategoryBudgetYear
+          categoryId={activeBudgetCategoryId}
+          categoryName={items.find((item) => item.category_id === activeBudgetCategoryId)?.name ?? ''}
+          year={selectedMonth.slice(0, 4)}
+          onClose={() => {
+            setActiveBudgetCategoryId(null);
+            reloadItems();
+          }}
+        />
       )}
     </PageContainer>
   );

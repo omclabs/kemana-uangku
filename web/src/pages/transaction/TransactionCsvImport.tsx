@@ -325,8 +325,8 @@ export default function TransactionCsvImport() {
                         className="mt-2 h-4 w-4"
                       />
                     </td>
-                    <td className="px-3 py-3">
-                      <p className={`text-sm ${row.included && !row.description.trim() ? 'text-expense' : 'text-ink'}`}>
+                    <td className="px-3 py-3 max-w-[220px]">
+                      <p className={`truncate text-sm ${row.included && !row.description.trim() ? 'text-expense' : 'text-ink'}`}>
                         {row.description}
                       </p>
                       {row.warnings.length > 0 && (

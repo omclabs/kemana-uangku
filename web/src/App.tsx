@@ -17,6 +17,7 @@ import AccountPayment from './pages/account/AccountPayment';
 import AccountTransactions from './pages/account/AccountTransactions';
 import CategoryList from './pages/category/CategoryList';
 import CategoryForm from './pages/category/CategoryForm';
+import CategoryTransactions from './pages/category/CategoryTransactions';
 import TransactionList from './pages/transaction/TransactionList';
 import TransactionForm from './pages/transaction/TransactionForm';
 import TransactionReceiptImport from './pages/transaction/TransactionReceiptImport';
@@ -29,10 +30,10 @@ import TrackedItemAlerts from './pages/tracked-item/TrackedItemAlerts';
 
 function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-canvas">
+    <div className="flex min-h-screen bg-canvas md:h-screen md:overflow-hidden">
       <Sidebar />
-      <div className="flex min-h-screen flex-1 flex-col bg-bg">
-        <main className="flex-1 pb-16 md:pb-0">{children}</main>
+      <div className="flex min-h-screen flex-1 flex-col bg-bg md:h-screen md:overflow-hidden">
+        <main className="flex-1 pb-16 md:overflow-y-auto md:pb-0">{children}</main>
         <BottomNav />
       </div>
     </div>
@@ -166,6 +167,16 @@ export default function App() {
             <RoleGuard allowedRoles={['admin', 'user']}>
               <AuthLayout>
                 <AccountTransactions />
+              </AuthLayout>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/categories/:id/transactions"
+          element={
+            <RoleGuard allowedRoles={['admin', 'user']}>
+              <AuthLayout>
+                <CategoryTransactions />
               </AuthLayout>
             </RoleGuard>
           }

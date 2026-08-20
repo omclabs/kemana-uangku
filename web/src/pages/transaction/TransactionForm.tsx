@@ -16,10 +16,19 @@ import { ChevronRightIcon, TagIcon, WalletIcon } from '../../components/compactI
 import { toDatetimePreset as toDatetimeLocal } from '../../lib/dateUtils';
 
 // ── Inlined icons ──────────────────────────────────────────────────
-function CalcIcon()       { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4M8 18h2"/></svg>; }
-function CalendarIcon()   { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>; }
-function NoteIcon()       { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>; }
-function StoreIcon()      { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5M4 9v11h16V9M4 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/></svg>; }
+function CalcIcon()       { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4M8 18h2"/></svg>; }
+function CalendarIcon()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>; }
+function NoteIcon()       { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>; }
+function StoreIcon()      { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5M4 9v11h16V9M4 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/></svg>; }
+
+function RequiredLabel({ text }: { text: string }) {
+  return (
+    <span>
+      {text}
+      <span style={{ color: 'var(--expense)' }}> *</span>
+    </span>
+  );
+}
 
 // ── Formatter ─────────────────────────────────────────────────────
 const fmt = new Intl.NumberFormat('id-ID', {
@@ -355,8 +364,8 @@ export default function TransactionForm() {
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        marginBottom: 22,
+        gap: 10,
+        marginBottom: 18,
         position: 'sticky',
         top: 0,
         zIndex: 15,
@@ -367,22 +376,33 @@ export default function TransactionForm() {
         borderBottom: '1px solid color-mix(in srgb, var(--line) 75%, transparent)',
       }}>
         <button type="button" onClick={() => navigate('/transactions')} style={{
-          width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+          width: 34, height: 34, borderRadius: 11, flexShrink: 0,
           border: '1px solid var(--line)', background: 'var(--surface)',
           color: 'var(--muted)', display: 'flex', alignItems: 'center',
           justifyContent: 'center', cursor: 'pointer',
         }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6"/>
           </svg>
         </button>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
           {isEdit ? 'Edit Transaction' : 'Add Transaction'}
         </h1>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+          {/* ── Error ────────────────────────────────────────────── */}
+          {error && (
+            <div style={{
+              padding: '10px 14px', background: 'var(--expense-soft)',
+              border: '1px solid color-mix(in srgb, var(--expense) 25%, transparent)',
+              borderRadius: 12, fontSize: 13, color: 'var(--expense)', fontWeight: 500,
+            }}>
+              {error}
+            </div>
+          )}
 
           {/* ── Type segmented ───────────────────────────────────── */}
           {!isEdit ? (
@@ -392,8 +412,8 @@ export default function TransactionForm() {
             }}>
               {transferTypeOptions.map((t) => (
                 <button key={t} type="button" onClick={() => handleTypeChange(t)} style={{
-                  flex: 1, border: 'none', borderRadius: 12, padding: '10px 0',
-                  fontSize: 13.5, fontWeight: 700, fontFamily: 'inherit',
+                  flex: 1, border: 'none', borderRadius: 12, padding: '9px 0',
+                  fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit',
                   textTransform: 'capitalize' as const, cursor: 'pointer',
                   background: type === t ? 'linear-gradient(135deg, var(--accent), var(--accent-2))' : 'transparent',
                   color: type === t ? '#fff' : 'var(--muted)',
@@ -423,23 +443,23 @@ export default function TransactionForm() {
               required
               style={{
                 width: '100%', background: 'none', border: 'none', padding: 0,
-                fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
+                fontSize: 13, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
                 outline: 'none',
               }}
             />
           </FieldRow>
 
           {/* ── Account ──────────────────────────────────────────── */}
-          <FieldRow icon={<WalletIcon />} label={displayType === 'transfer' ? 'From' : 'Account'}>
+          <FieldRow icon={<WalletIcon />} label={<RequiredLabel text={displayType === 'transfer' ? 'From' : 'Account'} />}>
             {isEdit || lockedAssignedAccountId ? (
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{accountName(accountId)}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{accountName(accountId)}</span>
             ) : (
               <button type="button" onClick={() => setActiveLookup('account')} style={{
                 width: '100%', background: 'none', border: 'none', padding: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 cursor: 'pointer', fontFamily: 'inherit',
               }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: accountId ? 'var(--ink)' : 'var(--muted)' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: accountId ? 'var(--ink)' : 'var(--muted)' }}>
                   {accountId ? accountName(accountId) : 'Select account'}
                 </span>
                 <span style={{ color: 'var(--muted)' }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
@@ -449,16 +469,16 @@ export default function TransactionForm() {
 
           {/* ── Transfer To ──────────────────────────────────────── */}
           {showTransferTo && (
-            <FieldRow icon={<WalletIcon />} label="To">
+            <FieldRow icon={<WalletIcon />} label={<RequiredLabel text="To" />}>
               {isEdit ? (
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{accountName(transferTo)}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{accountName(transferTo)}</span>
               ) : (
                 <button type="button" onClick={() => setActiveLookup('transferTo')} style={{
                   width: '100%', background: 'none', border: 'none', padding: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   cursor: 'pointer', fontFamily: 'inherit',
                 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: transferTo ? 'var(--ink)' : 'var(--muted)' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: transferTo ? 'var(--ink)' : 'var(--muted)' }}>
                     {transferTo ? accountName(transferTo) : 'Select account'}
                   </span>
                   <span style={{ color: 'var(--muted)' }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
@@ -469,16 +489,16 @@ export default function TransactionForm() {
 
           {/* ── Category ─────────────────────────────────────────── */}
           {displayType !== 'transfer' && (
-            <FieldRow icon={<TagIcon />} label="Category">
+            <FieldRow icon={<TagIcon />} label={<RequiredLabel text="Category" />}>
               {categoryLocked ? (
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{categoryName(categoryId)}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{categoryName(categoryId)}</span>
               ) : (
                 <button type="button" onClick={() => setActiveLookup('category')} style={{
                   width: '100%', background: 'none', border: 'none', padding: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   cursor: 'pointer', fontFamily: 'inherit',
                 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: categoryId ? 'var(--ink)' : 'var(--muted)' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: categoryId ? 'var(--ink)' : 'var(--muted)' }}>
                     {categoryId ? categoryName(categoryId) : 'Select category'}
                   </span>
                   <span style={{ color: 'var(--muted)' }}><ChevronRightIcon size={16} strokeWidth={2} /></span>
@@ -497,7 +517,7 @@ export default function TransactionForm() {
                   border: 'none',
                   background: 'none',
                   color: 'var(--accent)',
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 700,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
@@ -511,15 +531,15 @@ export default function TransactionForm() {
           {/* ── Amount hero ──────────────────────────────────────── */}
           <button type="button" onClick={() => setActiveCalculator('amount')} style={{
             background: 'var(--surface)', border: `1.5px solid ${hasAmount ? 'var(--accent)' : 'var(--line)'}`,
-            borderRadius: 18, padding: '18px 20px', cursor: 'pointer',
+            borderRadius: 16, padding: '15px 17px', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             boxShadow: hasAmount ? '0 4px 16px -6px var(--accent)' : 'none',
             transition: 'all .15s',
           }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--muted)' }}>Rp</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Rp</span>
               <span style={{
-                fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em',
+                fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em',
                 color: hasAmount ? 'var(--ink)' : 'var(--muted)',
               }}>
                 {hasAmount ? new Intl.NumberFormat('id-ID').format(amount) : '0'}
@@ -532,13 +552,13 @@ export default function TransactionForm() {
           {showFee && (
             <FieldRow icon={<CalcIcon />} label="Fee">
               {isEdit ? (
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{fmt.format(fee ?? 0)}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{fmt.format(fee ?? 0)}</span>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <button type="button" onClick={() => setActiveCalculator('fee')} style={{
                     background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit',
                   }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: fee !== null ? 'var(--ink)' : 'var(--muted)' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: fee !== null ? 'var(--ink)' : 'var(--muted)' }}>
                       {fee !== null ? fmt.format(fee) : 'No fee'}
                     </span>
                   </button>
@@ -564,7 +584,7 @@ export default function TransactionForm() {
               rows={2}
               style={{
                 width: '100%', background: 'none', border: 'none', padding: 0,
-                fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'inherit',
+                fontSize: 13, fontWeight: 500, color: 'var(--ink)', fontFamily: 'inherit',
                 outline: 'none', resize: 'vertical', lineHeight: 1.4,
               }}
             />
@@ -584,7 +604,7 @@ export default function TransactionForm() {
                 aria-expanded={merchantOpen && filteredMerchantSuggestions.length > 0}
                 style={{
                   width: '100%', background: 'none', border: 'none', padding: 0,
-                  fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'inherit',
+                  fontSize: 13, fontWeight: 500, color: 'var(--ink)', fontFamily: 'inherit',
                   outline: 'none',
                 }}
               />
@@ -627,7 +647,7 @@ export default function TransactionForm() {
                           transition: 'background .15s, border-color .15s, color .15s',
                         }}
                       >
-                        <span style={{ display: 'block', fontSize: 14.5, fontWeight: 700 }}>{m}</span>
+                        <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700 }}>{m}</span>
                       </button>
                     ))}
                   </div>
@@ -667,7 +687,7 @@ export default function TransactionForm() {
                       required
                       style={{
                         width: '100%', background: 'none', border: 'none', padding: 0,
-                        fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
+                        fontSize: 13, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
                         outline: 'none',
                       }}
                     />
@@ -683,7 +703,7 @@ export default function TransactionForm() {
                       placeholder="Optional for better forecast"
                       style={{
                         width: '100%', background: 'none', border: 'none', padding: 0,
-                        fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
+                        fontSize: 13, fontWeight: 600, color: 'var(--ink)', fontFamily: 'inherit',
                         outline: 'none',
                       }}
                     />
@@ -706,7 +726,7 @@ export default function TransactionForm() {
                 borderBottom: recurringEnabled ? '1px solid var(--line)' : 'none',
               }}>
                 <div>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
                     Recurring / Installment
                   </p>
                   <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted)' }}>
@@ -779,23 +799,12 @@ export default function TransactionForm() {
             </div>
           )}
 
-          {/* ── Error ────────────────────────────────────────────── */}
-          {error && (
-            <div style={{
-              padding: '10px 14px', background: 'var(--expense-soft)',
-              border: '1px solid color-mix(in srgb, var(--expense) 25%, transparent)',
-              borderRadius: 12, fontSize: 13, color: 'var(--expense)', fontWeight: 500,
-            }}>
-              {error}
-            </div>
-          )}
-
           {/* ── Save / Cancel ─────────────────────────────────────── */}
           <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
             <button type="button" disabled={saving || deleting} onClick={() => navigate('/transactions')} style={{
-              flex: 1, borderRadius: 16, padding: '14px 0',
+              flex: 1, borderRadius: 16, padding: '13px 0',
               border: '1.5px solid var(--line)', background: 'var(--surface)',
-              color: 'var(--muted)', fontSize: 15, fontWeight: 700,
+              color: 'var(--muted)', fontSize: 14, fontWeight: 700,
               fontFamily: 'inherit', cursor: saving || deleting ? 'wait' : 'pointer',
               opacity: saving || deleting ? 0.7 : 1,
             }}>
@@ -808,9 +817,9 @@ export default function TransactionForm() {
                 filter: 'blur(12px)', opacity: saving || deleting ? 0.3 : 0.5, transition: 'opacity .2s',
               }} />
               <button type="submit" disabled={saving || deleting} style={{
-                position: 'relative', width: '100%', border: 'none', borderRadius: 16, padding: '14px 0',
+                position: 'relative', width: '100%', border: 'none', borderRadius: 16, padding: '13px 0',
                 background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-                color: '#fff', fontSize: 15, fontWeight: 800, fontFamily: 'inherit',
+                color: '#fff', fontSize: 14, fontWeight: 800, fontFamily: 'inherit',
                 cursor: saving || deleting ? 'wait' : 'pointer', opacity: saving || deleting ? 0.7 : 1,
                 boxShadow: '0 8px 20px -6px var(--accent)', transition: 'opacity .2s',
               }}>
@@ -827,7 +836,7 @@ export default function TransactionForm() {
               border: '1px solid color-mix(in srgb, var(--expense) 28%, transparent)',
               background: 'var(--expense-soft)',
               color: 'var(--expense)',
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: 800,
               fontFamily: 'inherit',
               cursor: saving || deleting ? 'wait' : 'pointer',

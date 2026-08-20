@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { categoryVisual } from '../../lib/categories';
 import { ApiError, apiFetch, getUser } from '../../lib/api';
-import { statFmt, signedFmt, cellFmt } from '../../lib/format';
+import { statFmt, signedFmt, cellFmt, truncateNote } from '../../lib/format';
 import type { Account, Category, Transaction } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
 import StyledSelect from '../../components/StyledSelect';
@@ -13,10 +13,12 @@ import {
 } from '../../lib/dateUtils';
 
 // ── Inlined icons ──────────────────────────────────────────────────
-function PlusIcon()  { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>; }
+function PlusIcon({ size = 20 }: { size?: number } = {})  { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>; }
 function CheckIcon() { return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.75l6 6 9-13.5"/></svg>; }
 function ChevronLeft()  { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>; }
 function ChevronRight() { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>; }
+function SearchIcon()  { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>; }
+function XIcon()        { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>; }
 
 // ── Formatters ─────────────────────────────────────────────────────
 const monthFmt = new Intl.DateTimeFormat('id-ID', {
@@ -37,6 +39,34 @@ function groupByDate(txs: Transaction[]) {
     else groups.push({ key, date: t.date, items: [t] });
   }
   return groups;
+}
+
+function DayLabel({ date }: { date: Date }) {
+  return (
+    <>
+      <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)', lineHeight: 1, minWidth: 30 }}>
+        {String(date.getDate()).padStart(2, '0')}
+      </span>
+      <span style={{ fontSize: 9.5, fontWeight: 700, background: 'var(--accent)', color: '#fff', padding: '2px 6px', borderRadius: 5, flexShrink: 0 }}>
+        {date.toLocaleString('en', { weekday: 'short' })}
+      </span>
+      <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, flex: 1 }}>
+        {`${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`}
+      </span>
+    </>
+  );
+}
+
+function excerptAroundMatch(note: string | null | undefined, query: string, radius = 28): string {
+  const text = (note ?? '').split('\n')[0] ?? '';
+  if (text.length <= radius * 2 + query.length) return truncateNote(text, radius * 2 + query.length);
+  const matchIndex = text.toLowerCase().indexOf(query.toLowerCase());
+  if (matchIndex === -1) return truncateNote(text, radius * 2);
+  const start = Math.max(0, matchIndex - radius);
+  const end = Math.min(text.length, matchIndex + query.length + radius);
+  const prefix = start > 0 ? '…' : '';
+  const suffix = end < text.length ? '…' : '';
+  return `${prefix}${text.slice(start, end).trim()}${suffix}`;
 }
 
 function summarizeTransactions(transactions: Transaction[]) {
@@ -158,17 +188,17 @@ function CalendarView({
                   </div>
                 )}
                 {cell.income > 0 && (
-                  <div style={{ fontSize: 6, fontWeight: 700, color: 'var(--income)', textAlign: 'right', marginTop: 2, lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 7.5, fontWeight: 700, color: 'var(--income)', textAlign: 'right', marginTop: 2, lineHeight: 1.4 }}>
                     {cellFmt(cell.income)}
                   </div>
                 )}
                 {cell.expense > 0 && (
-                  <div style={{ fontSize: 6, fontWeight: 700, color: 'var(--expense)', textAlign: 'right', lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 7.5, fontWeight: 700, color: 'var(--expense)', textAlign: 'right', lineHeight: 1.4 }}>
                     {cellFmt(cell.expense)}
                   </div>
                 )}
                 {cell.income > 0 && cell.expense > 0 && (
-                  <div style={{ fontSize: 5.5, color: 'var(--muted)', textAlign: 'right', lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 7, color: 'var(--muted)', textAlign: 'right', lineHeight: 1.4 }}>
                     {signedFmt(net).replace('Rp ', '')}
                   </div>
                 )}
@@ -296,6 +326,7 @@ export default function TransactionList() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
   const [merchantFilter, setMerchantFilter] = useState('');
+  const [noteQuery, setNoteQuery] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -368,6 +399,16 @@ export default function TransactionList() {
     return inMonth && matchesMerchant;
   }), [transactions, selectedMonth, merchantFilter]);
   const groups = useMemo(() => groupByDate(visible), [visible]);
+  const isSearching = noteQuery.trim() !== '';
+  const searchResults = useMemo(() => {
+    const query = noteQuery.trim().toLowerCase();
+    if (query === '') return [];
+    return transactions
+      .filter((t) => (t.note ?? '').toLowerCase().includes(query))
+      .sort((a, b) => b.date - a.date);
+  }, [transactions, noteQuery]);
+  const searchGroups = useMemo(() => groupByDate(searchResults), [searchResults]);
+  const searchSummary = useMemo(() => summarizeTransactions(searchResults), [searchResults]);
   const normalizedSelection = useMemo(() => {
     if (tab !== 'daily' || selection.groupKey === null || selection.ids.length === 0) {
       return { groupKey: null, ids: [] as string[] };
@@ -395,7 +436,7 @@ export default function TransactionList() {
       .filter((transaction): transaction is Transaction => Boolean(transaction));
   }, [selectionMode, selectedIds, visible]);
   const visibleSummary = useMemo(() => summarizeTransactions(visible), [visible]);
-  const summary = selectionMode ? summarizeTransactions(selectedRows) : visibleSummary;
+  const summary = isSearching ? searchSummary : selectionMode ? summarizeTransactions(selectedRows) : visibleSummary;
   const now          = new Date();
   const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const canGoNext = tab === 'monthly'
@@ -543,65 +584,131 @@ export default function TransactionList() {
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
           Transactions
         </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-          <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() - 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))} style={{
-            width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8,
-          }}>
-            <ChevronLeft />
-          </button>
-          <span style={{ minWidth: 76, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
-            {periodTitle}
+        {selectionMode ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+              {selectedIds.length} selected
+            </span>
+            <button
+              type="button"
+              onClick={clearSelection}
+              style={{
+                border: 'none', background: 'var(--surface-2)', color: 'var(--ink)',
+                fontSize: 12, fontWeight: 700, borderRadius: 999, padding: '5px 11px',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        ) : isSearching ? (
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+            {searchResults.length} result{searchResults.length === 1 ? '' : 's'}
           </span>
-          <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() + 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))} disabled={!canGoNext}
-            style={{
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() - 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))} style={{
               width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', cursor: canGoNext ? 'pointer' : 'not-allowed', opacity: canGoNext ? 1 : 0.35, borderRadius: 8,
+              alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8,
             }}>
-            <ChevronRight />
+              <ChevronLeft />
+            </button>
+            <span style={{ minWidth: 76, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+              {periodTitle}
+            </span>
+            <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() + 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))} disabled={!canGoNext}
+              style={{
+                width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', cursor: canGoNext ? 'pointer' : 'not-allowed', opacity: canGoNext ? 1 : 0.35, borderRadius: 8,
+              }}>
+              <ChevronRight />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ position: 'relative', marginBottom: 14 }}>
+        <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', display: 'flex', pointerEvents: 'none' }}>
+          <SearchIcon />
+        </span>
+        <input
+          type="text"
+          value={noteQuery}
+          onChange={(e) => setNoteQuery(e.target.value)}
+          placeholder="Search notes"
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            border: '1px solid var(--line)',
+            background: 'var(--surface)',
+            borderRadius: 13,
+            padding: '10px 38px',
+            fontSize: 13.5,
+            color: 'var(--ink)',
+            fontFamily: 'inherit',
+            outline: 'none',
+          }}
+        />
+        {noteQuery !== '' && (
+          <button
+            type="button"
+            onClick={() => setNoteQuery('')}
+            aria-label="Clear search"
+            style={{
+              position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+              width: 22, height: 22, borderRadius: 999, border: 'none',
+              background: 'var(--surface-2)', color: 'var(--muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}
+          >
+            <XIcon />
           </button>
-        </div>
+        )}
       </div>
 
-      <div style={{ display: 'flex', padding: '0 6px', borderBottom: '1px solid var(--line)', background: 'transparent', flexShrink: 0, marginBottom: 14 }}>
-        <button style={tabStyle(tab === 'daily')} onClick={() => setTabAndReset('daily')}>Daily</button>
-        <button style={tabStyle(tab === 'calendar')} onClick={() => setTabAndReset('calendar')}>Calendar</button>
-        <button style={tabStyle(tab === 'monthly')} onClick={() => setTabAndReset('monthly')}>Monthly</button>
-      </div>
+      {!isSearching && (
+        <>
+          <div style={{ display: 'flex', padding: '0 6px', borderBottom: '1px solid var(--line)', background: 'transparent', flexShrink: 0, marginBottom: 14 }}>
+            <button style={tabStyle(tab === 'daily')} onClick={() => setTabAndReset('daily')}>Daily</button>
+            <button style={tabStyle(tab === 'calendar')} onClick={() => setTabAndReset('calendar')}>Calendar</button>
+            <button style={tabStyle(tab === 'monthly')} onClick={() => setTabAndReset('monthly')}>Monthly</button>
+          </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px', background: 'transparent', flexShrink: 0 }}>
-        <div>
-          <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Statement</div>
-          <div style={{ marginTop: 1, fontSize: 17, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.02em' }}>{statementLabel}</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {!isReimbursement && (
-            <Link to="/transactions/import" style={{
-              display: 'inline-flex', alignItems: 'center',
-              borderRadius: 13, border: '1px solid var(--line)', background: 'var(--surface)',
-              padding: '8px 12px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)',
-              textDecoration: 'none', whiteSpace: 'nowrap',
-            }}>
-              Import
-            </Link>
-          )}
-          <Link to="/transactions/new" aria-label="Add transaction" style={{
-            width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
-          }}>
-            <PlusIcon />
-          </Link>
-        </div>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px', background: 'transparent', flexShrink: 0 }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Statement</div>
+              <div style={{ marginTop: 1, fontSize: 17, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.02em' }}>{statementLabel}</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {!isReimbursement && (
+                <Link to="/transactions/import-csv" style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  borderRadius: 13, border: '1px solid var(--line)', background: 'var(--surface)',
+                  padding: '8px 12px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)',
+                  textDecoration: 'none', whiteSpace: 'nowrap',
+                }}>
+                  Import
+                </Link>
+              )}
+              <Link to="/transactions/new" aria-label="Add transaction" style={{
+                width: 40, height: 40, borderRadius: 13, flexShrink: 0,
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
+              }}>
+                <PlusIcon />
+              </Link>
+            </div>
+          </div>
+        </>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', marginBottom: 20 }}>
         {summaryItems.map((item, index) => (
           <div
             key={item.label}
             style={{
-              padding: '13px 10px',
+              padding: '14px 10px',
               paddingLeft: index === 0 ? 16 : 10,
               paddingRight: index === 2 ? 16 : 10,
               borderRight: index < 2 ? '1px solid var(--line)' : 'none',
@@ -612,7 +719,7 @@ export default function TransactionList() {
             <div
               style={{
                 marginTop: 4,
-                fontSize: 12,
+                fontSize: 14.5,
                 fontWeight: 800,
                 color: item.color,
                 letterSpacing: '-.03em',
@@ -627,7 +734,7 @@ export default function TransactionList() {
         ))}
       </div>
 
-      {tab === 'daily' && merchantOptions.length > 0 && (
+      {!isSearching && tab === 'daily' && merchantOptions.length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <StyledSelect
             value={merchantFilter}
@@ -644,7 +751,48 @@ export default function TransactionList() {
       {loading && <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>Loading…</p>}
       {error   && <p style={{ textAlign: 'center', color: 'var(--expense)', padding: '32px 0' }}>{error}</p>}
 
-      {!loading && !error && tab === 'daily' && (
+      {!loading && !error && isSearching && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {searchGroups.map((group) => {
+            const groupDate = new Date(group.date * 1000);
+            return (
+              <section key={group.key}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '11px 16px 9px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)',
+                }}>
+                  <DayLabel date={groupDate} />
+                </div>
+                <div>
+                  {group.items.map((t) => (
+                    <TransactionRow
+                      key={t.id}
+                      transaction={t}
+                      accountName={accountName}
+                      categoryName={categoryName}
+                      selected={false}
+                      selectionMode={false}
+                      selectable={false}
+                      onOpen={() => navigate(`/transactions/${t.id}/edit`)}
+                      onLongPress={() => {}}
+                      onToggleSelect={() => {}}
+                      onMarkPaid={markPaid}
+                      showPaymentAction={!isReimbursement}
+                      noteOverride={excerptAroundMatch(t.note, noteQuery.trim())}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+          {searchResults.length === 0 && (
+            <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0', fontSize: 14 }}>
+              No transactions match "{noteQuery.trim()}".
+            </p>
+          )}
+        </div>
+      )}
+      {!loading && !error && !isSearching && tab === 'daily' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {groups.map((group) => {
             const groupDate = new Date(group.date * 1000);
@@ -687,15 +835,7 @@ export default function TransactionList() {
                     cursor: 'pointer',
                   }}
                 >
-                  <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)', lineHeight: 1, minWidth: 30 }}>
-                    {String(groupDate.getDate()).padStart(2, '0')}
-                  </span>
-                  <span style={{ fontSize: 9.5, fontWeight: 700, background: 'var(--accent)', color: '#fff', padding: '2px 6px', borderRadius: 5, flexShrink: 0 }}>
-                    {groupDate.toLocaleString('en', { weekday: 'short' })}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, flex: 1 }}>
-                    {`${String(groupDate.getMonth() + 1).padStart(2, '0')}.${groupDate.getFullYear()}`}
-                  </span>
+                  <DayLabel date={groupDate} />
                   {depositTotal > 0 && (
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--income)', whiteSpace: 'nowrap' }}>
                       Rp {new Intl.NumberFormat('id-ID').format(depositTotal)}
@@ -706,6 +846,17 @@ export default function TransactionList() {
                       Rp {new Intl.NumberFormat('id-ID').format(withdrawalTotal)}
                     </span>
                   )}
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 20, height: 20, borderRadius: 999, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--accent)',
+                      background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
+                    }}
+                  >
+                    <PlusIcon size={11} />
+                  </span>
                 </button>
                 <div>
                   {group.items.map((t) => (
@@ -735,8 +886,8 @@ export default function TransactionList() {
           )}
         </div>
       )}
-      {!loading && !error && tab === 'calendar' && <CalendarView cells={calendar.cells} summary={calendar.summary} />}
-      {!loading && !error && tab === 'monthly' && <MonthlyView months={yearMonths} expandedMonth={selectedMonth.getMonth()} />}
+      {!loading && !error && !isSearching && tab === 'calendar' && <CalendarView cells={calendar.cells} summary={calendar.summary} />}
+      {!loading && !error && !isSearching && tab === 'monthly' && <MonthlyView months={yearMonths} expandedMonth={selectedMonth.getMonth()} />}
     </PageContainer>
   );
 }
@@ -750,6 +901,7 @@ function TransactionRow({
   onLongPress,
   onToggleSelect,
   showPaymentAction,
+  noteOverride,
 }: {
   transaction: Transaction;
   accountName: (id: string | null) => string;
@@ -762,14 +914,13 @@ function TransactionRow({
   onToggleSelect: () => void;
   onMarkPaid: (transaction: Transaction) => void;
   showPaymentAction: boolean;
+  noteOverride?: string;
 }) {
   const isTransfer = t.transfer_to !== null;
   const isDeposit = t.type === 'income';
   const categoryLabel = categoryName(t.category_id);
   const visual = categoryVisual(isTransfer ? 'transfer' : categoryLabel);
-  const noteLines = (t.note ?? '').split('\n');
-  const noteLabel = noteLines.length > 1 ? `${noteLines[0]}…` : noteLines[0];
-  const label = noteLabel;
+  const label = noteOverride ?? truncateNote(t.note);
   const sublabel = isTransfer
     ? `Transfer - ${accountName(t.account_id)}`
     : `${categoryLabel} - ${accountName(t.account_id)}`;
