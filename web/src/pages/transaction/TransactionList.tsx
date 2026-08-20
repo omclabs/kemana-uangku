@@ -69,11 +69,11 @@ function excerptAroundMatch(note: string | null | undefined, query: string, radi
   return `${prefix}${text.slice(start, end).trim()}${suffix}`;
 }
 
-function summarizeTransactions(transactions: Transaction[]) {
+function summarizeTransactions(transactions: Transaction[], flaggedAccountIds: Set<string>) {
   return transactions.reduce(
     (acc, transaction) => {
       acc.income += txIncome(transaction);
-      acc.expense += txExpense(transaction);
+      acc.expense += txExpense(transaction, flaggedAccountIds);
       acc.total = acc.income - acc.expense;
       return acc;
     },
@@ -117,8 +117,8 @@ function txIncome(transaction: Transaction): number {
   return transaction.type === 'income' && transaction.transfer_to === null ? transaction.amount : 0;
 }
 
-function txExpense(transaction: Transaction): number {
-  return transaction.type === 'expense' && transaction.transfer_to === null ? transaction.amount : 0;
+function txExpense(transaction: Transaction, flaggedAccountIds: Set<string>): number {
+  return transaction.type === 'expense' && (transaction.transfer_to === null || flaggedAccountIds.has(transaction.transfer_to)) ? transaction.amount : 0;
 }
 
 function CalendarView({
@@ -388,6 +388,10 @@ export default function TransactionList() {
   }
 
   // ── Derived ──────────────────────────────────────────────────────
+  const flaggedAccountIds = useMemo(
+    () => new Set(accounts.filter((a) => a.count_transfer_as_expense === 1).map((a) => a.id)),
+    [accounts],
+  );
   const merchantOptions = useMemo(() => {
     const set = new Set(transactions.map((t) => t.merchant).filter((m): m is string => Boolean(m)));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
@@ -408,7 +412,7 @@ export default function TransactionList() {
       .sort((a, b) => b.date - a.date);
   }, [transactions, noteQuery]);
   const searchGroups = useMemo(() => groupByDate(searchResults), [searchResults]);
-  const searchSummary = useMemo(() => summarizeTransactions(searchResults), [searchResults]);
+  const searchSummary = useMemo(() => summarizeTransactions(searchResults, flaggedAccountIds), [searchResults, flaggedAccountIds]);
   const normalizedSelection = useMemo(() => {
     if (tab !== 'daily' || selection.groupKey === null || selection.ids.length === 0) {
       return { groupKey: null, ids: [] as string[] };
@@ -435,8 +439,8 @@ export default function TransactionList() {
       .map((transactionId) => rowMap.get(transactionId))
       .filter((transaction): transaction is Transaction => Boolean(transaction));
   }, [selectionMode, selectedIds, visible]);
-  const visibleSummary = useMemo(() => summarizeTransactions(visible), [visible]);
-  const summary = isSearching ? searchSummary : selectionMode ? summarizeTransactions(selectedRows) : visibleSummary;
+  const visibleSummary = useMemo(() => summarizeTransactions(visible, flaggedAccountIds), [visible, flaggedAccountIds]);
+  const summary = isSearching ? searchSummary : selectionMode ? summarizeTransactions(selectedRows, flaggedAccountIds) : visibleSummary;
   const now          = new Date();
   const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const canGoNext = tab === 'monthly'
@@ -455,9 +459,9 @@ export default function TransactionList() {
       const key = String(date.getDate());
       const entry = dayMap.get(key) ?? { income: 0, expense: 0 };
       entry.income += txIncome(transaction);
-      entry.expense += txExpense(transaction);
+      entry.expense += txExpense(transaction, flaggedAccountIds);
       income += txIncome(transaction);
-      expense += txExpense(transaction);
+      expense += txExpense(transaction, flaggedAccountIds);
       dayMap.set(key, entry);
     }
 
@@ -479,7 +483,7 @@ export default function TransactionList() {
 
     const trimmed = cells.length === 42 && cells.slice(35).every((cell) => !cell.inMonth) ? cells.slice(0, 35) : cells;
     return { cells: trimmed, summary: { income, expense } };
-  }, [visible, selectedMonth]);
+  }, [visible, selectedMonth, flaggedAccountIds]);
   const yearMonths = useMemo<YearMonth[]>(() => {
     const year = selectedMonth.getFullYear();
     const buckets: YearMonth[] = Array.from({ length: 12 }, (_, month) => ({
@@ -497,7 +501,7 @@ export default function TransactionList() {
       if (date.getFullYear() !== year) continue;
       const bucket = buckets[date.getMonth()];
       bucket.income += txIncome(transaction);
-      bucket.expense += txExpense(transaction);
+      bucket.expense += txExpense(transaction, flaggedAccountIds);
     }
 
     const month = selectedMonth.getMonth();
@@ -523,14 +527,14 @@ export default function TransactionList() {
       const week = weeks.find((entry) => date >= entry.start && date <= entry.end);
       if (!week || date.getFullYear() !== year) continue;
       week.income += txIncome(transaction);
-      week.expense += txExpense(transaction);
+      week.expense += txExpense(transaction, flaggedAccountIds);
     }
 
     buckets[month].weeks = weeks.reverse();
     return buckets
       .filter((bucket) => bucket.month <= month || bucket.income > 0 || bucket.expense > 0)
       .sort((left, right) => right.month - left.month);
-  }, [transactions, selectedMonth]);
+  }, [transactions, selectedMonth, flaggedAccountIds]);
   const statementLabel = useMemo(() => {
     const year = selectedMonth.getFullYear();
     const month = selectedMonth.getMonth();

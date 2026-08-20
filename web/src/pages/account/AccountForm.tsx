@@ -73,6 +73,7 @@ export default function AccountForm() {
   const [balance,        setBalance]        = useState('0');
   const [parentId,       setParentId]       = useState('');
   const [includeInTotal, setIncludeInTotal] = useState(true);
+  const [countTransferAsExpense, setCountTransferAsExpense] = useState(false);
   const [isActive,       setIsActive]       = useState(true);
   const [creditLimit,    setCreditLimit]    = useState('');
   const [billingDate,    setBillingDate]    = useState('');
@@ -96,6 +97,7 @@ export default function AccountForm() {
           setBalance(String(acct.balance));
           setParentId(acct.parent_id ?? '');
           setIncludeInTotal(acct.include_in_total === 1);
+          setCountTransferAsExpense(acct.count_transfer_as_expense === 1);
           setIsActive(acct.is_active === 1);
           setCreditLimit(acct.credit_limit !== null ? String(acct.credit_limit) : '');
           setBillingDate(acct.billing_date !== null ? String(acct.billing_date) : '');
@@ -119,6 +121,7 @@ export default function AccountForm() {
       balance: Number(balance),
       parent_id:       parentId || null,
       include_in_total: includeInTotal,
+      count_transfer_as_expense: countTransferAsExpense,
       is_active:        isActive,
       credit_limit:     type === 'credit_card' ? Number(creditLimit) : null,
       billing_date:     type === 'credit_card' ? Number(billingDate) : null,
@@ -353,6 +356,23 @@ export default function AccountForm() {
               </div>
               <ToggleSwitch checked={includeInTotal} onChange={setIncludeInTotal} />
             </div>
+
+            {(type === 'credit_card' || type === 'loan') && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--line)',
+              }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                    Count payments as expense
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                    Transfers into this account count as an expense in totals (e.g. loan installments)
+                  </p>
+                </div>
+                <ToggleSwitch checked={countTransferAsExpense} onChange={setCountTransferAsExpense} />
+              </div>
+            )}
 
             {isEdit && (
               <div style={{

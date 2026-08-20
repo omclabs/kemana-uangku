@@ -28,6 +28,7 @@ export interface Account {
   credit_limit: number | null;
   billing_date: number | null;
   include_in_total: number;
+  count_transfer_as_expense: number;
   is_active: number;
   computed_balance: number;
   created_at: number;
@@ -42,6 +43,7 @@ export interface AccountInput {
   credit_limit?: number | null;
   billing_date?: number | null;
   include_in_total?: boolean;
+  count_transfer_as_expense?: boolean;
   is_active?: boolean;
 }
 

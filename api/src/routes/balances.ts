@@ -37,7 +37,7 @@ app.get('/', async (c) => {
         CAST(strftime('%s', strftime('%Y-%m-01 00:00:00', date, 'unixepoch')) AS INTEGER) AS month_start,
         strftime('%Y-%m', date, 'unixepoch') AS month_key,
         COALESCE(SUM(CASE WHEN type = 'income' AND transfer_to IS NULL THEN amount ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN type = 'expense' AND transfer_to IS NULL THEN amount ELSE 0 END), 0) AS expense
+        COALESCE(SUM(CASE WHEN type = 'expense' AND (transfer_to IS NULL OR transfer_to IN (SELECT id FROM accounts WHERE count_transfer_as_expense = 1)) THEN amount ELSE 0 END), 0) AS expense
       FROM transactions
       WHERE ${conditions.join(' AND ')}
       GROUP BY month_start, month_key

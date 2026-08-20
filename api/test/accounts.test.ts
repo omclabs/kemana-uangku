@@ -101,6 +101,36 @@ describe('/accounts', () => {
     expect(res.status).toBe(400);
   });
 
+  it('POST /accounts count_transfer_as_expense=true on a non-liability account returns 400', async () => {
+    const res = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        name: 'Bank',
+        type: 'bank',
+        count_transfer_as_expense: true,
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('POST /accounts count_transfer_as_expense=true on a credit_card account is accepted', async () => {
+    const res = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        name: 'KPR',
+        type: 'credit_card',
+        credit_limit: 500000000,
+        billing_date: 5,
+        count_transfer_as_expense: true,
+      }),
+    });
+    expect(res.status).toBe(201);
+    const account = (await res.json()) as { count_transfer_as_expense: number };
+    expect(account.count_transfer_as_expense).toBe(1);
+  });
+
   it('full account hierarchy, computed_balance, and delete lifecycle', async () => {
     // Create a top-level bank account
     const parentRes = await SELF.fetch('https://example.com/accounts', {

@@ -31,6 +31,7 @@ type AccountRow = {
   credit_limit: number | null;
   billing_date: number | null;
   include_in_total: number;
+  count_transfer_as_expense: number;
   is_active: number;
   created_at: number;
   updated_at: number;
@@ -54,6 +55,8 @@ const SELECT_WITH_BALANCE = `
 
 const CREDIT_CARD_FIELDS_ERROR =
   'credit_limit and billing_date required for credit_card and must be null otherwise';
+const COUNT_TRANSFER_AS_EXPENSE_ERROR =
+  'count_transfer_as_expense can only be enabled for liability accounts (credit_card, loan)';
 
 const PARENT_TYPE_MISMATCH_ERROR = 'parent and child must have same type';
 const ACCOUNT_ADJUSTMENT_INCOME_CATEGORY_ID = 'cat-income-other';
@@ -307,12 +310,16 @@ app.post('/', async (c) => {
     return c.json({ error: CREDIT_CARD_FIELDS_ERROR }, 400);
   }
 
+  if (body.count_transfer_as_expense && !LIABILITY_ACCOUNT_TYPES.includes(body.type)) {
+    return c.json({ error: COUNT_TRANSFER_AS_EXPENSE_ERROR }, 400);
+  }
+
   const id = crypto.randomUUID();
 
   await c.env.DB.prepare(
     `INSERT INTO accounts
-      (id, name, type, balance, parent_id, credit_limit, billing_date, include_in_total, created_by, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, name, type, balance, parent_id, credit_limit, billing_date, include_in_total, count_transfer_as_expense, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       id,
@@ -323,6 +330,7 @@ app.post('/', async (c) => {
       creditLimit,
       billingDate,
       body.include_in_total === undefined ? 1 : body.include_in_total ? 1 : 0,
+      body.count_transfer_as_expense ? 1 : 0,
       actor?.id ?? null,
       actor?.id ?? null
     )
@@ -400,6 +408,10 @@ app.put('/:id', async (c) => {
     return c.json({ error: CREDIT_CARD_FIELDS_ERROR }, 400);
   }
 
+  if (body.count_transfer_as_expense && !LIABILITY_ACCOUNT_TYPES.includes(resultingType)) {
+    return c.json({ error: COUNT_TRANSFER_AS_EXPENSE_ERROR }, 400);
+  }
+
   const resultingParentId = body.parent_id !== undefined ? body.parent_id : existing.parent_id;
 
   if (resultingParentId !== null) {
@@ -443,6 +455,10 @@ app.put('/:id', async (c) => {
   if (body.include_in_total !== undefined) {
     fields.push('include_in_total = ?');
     values.push(body.include_in_total ? 1 : 0);
+  }
+  if (body.count_transfer_as_expense !== undefined) {
+    fields.push('count_transfer_as_expense = ?');
+    values.push(body.count_transfer_as_expense ? 1 : 0);
   }
   if (body.is_active !== undefined) {
     applyActiveToggleFields(fields, values, body.is_active, actor?.id ?? null);

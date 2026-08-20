@@ -44,6 +44,7 @@ export const accountCreate = z.object({
   credit_limit: z.number().nonnegative().finite().max(999_999_999).nullable().optional(),
   billing_date: z.number().int().min(1).max(28).nullable().optional(),
   include_in_total: z.boolean().optional(),
+  count_transfer_as_expense: z.boolean().optional(),
 });
 
 export const accountUpdate = accountCreate.partial().extend({

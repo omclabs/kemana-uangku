@@ -140,6 +140,63 @@ describe('/balances', () => {
     });
   });
 
+  it('excludes a transfer into an unflagged credit_card account from expense totals', async () => {
+    await postTransaction({
+      date: JAN_2026,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      transfer_to: TEST_ACCOUNT_IDS.creditCard,
+      amount: 300000,
+      type: 'transfer',
+    });
+
+    const res = await SELF.fetch('https://example.com/balances?limit=12', { headers: AUTH });
+    const rows = (await res.json()) as Array<{
+      month_key: string;
+      income: number;
+      expense: number;
+      balance: number;
+    }>;
+
+    expect(rows.find((row) => row.month_key === '2026-01')).toMatchObject({
+      month_key: '2026-01',
+      income: 0,
+      expense: 0,
+      balance: 0,
+    });
+  });
+
+  it('counts a transfer into a count_transfer_as_expense-flagged account as an expense', async () => {
+    const putRes = await SELF.fetch(`https://example.com/accounts/${TEST_ACCOUNT_IDS.creditCard}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ count_transfer_as_expense: true }),
+    });
+    expect(putRes.status).toBe(200);
+
+    await postTransaction({
+      date: JAN_2026,
+      account_id: TEST_ACCOUNT_IDS.bankPrimary,
+      transfer_to: TEST_ACCOUNT_IDS.creditCard,
+      amount: 300000,
+      type: 'transfer',
+    });
+
+    const res = await SELF.fetch('https://example.com/balances?limit=12', { headers: AUTH });
+    const rows = (await res.json()) as Array<{
+      month_key: string;
+      income: number;
+      expense: number;
+      balance: number;
+    }>;
+
+    expect(rows.find((row) => row.month_key === '2026-01')).toMatchObject({
+      month_key: '2026-01',
+      income: 0,
+      expense: 300000,
+      balance: -300000,
+    });
+  });
+
   it('reimbursement balances are scoped to assigned credit card accounts', async () => {
     await postTransaction({
       date: JAN_2026,

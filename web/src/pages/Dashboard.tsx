@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '../components/PageContainer';
 import { ApiError, apiFetch, getUser } from '../lib/api';
@@ -6,7 +6,7 @@ import { categoryVisual, initial } from '../lib/categories';
 import { ChevronLeftIcon, ChevronRightIcon } from '../components/compactIcons';
 import { trimCompactDecimals } from '../lib/format';
 import { useTheme } from '../lib/theme';
-import type { BudgetMonth, Category, MonthlyBalance, TrackedItem, Transaction } from '../lib/types';
+import type { Account, BudgetMonth, Category, MonthlyBalance, TrackedItem, Transaction } from '../lib/types';
 
 const idr = new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -33,6 +33,7 @@ export default function Dashboard() {
   const [monthlyBalances, setMonthlyBalances] = useState<MonthlyBalance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories,   setCategories]   = useState<Category[]>([]);
+  const [accounts,     setAccounts]     = useState<Account[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
   const [selectedMonthKey, setSelectedMonthKey] = useState('');
@@ -47,12 +48,14 @@ export default function Dashboard() {
       apiFetch<MonthlyBalance[]>('/balances?limit=24'),
       apiFetch<Transaction[]>('/transactions'),
       apiFetch<Category[]>('/categories?include_inactive=true'),
+      apiFetch<Account[]>('/accounts?include_inactive=true'),
     ])
-      .then(([monthlyBalanceList, transactionList, categoryList]) => {
+      .then(([monthlyBalanceList, transactionList, categoryList, accountList]) => {
         if (cancelled) return;
         setMonthlyBalances(monthlyBalanceList);
         setTransactions(transactionList);
         setCategories(categoryList);
+        setAccounts(accountList);
       })
       .catch((err) => {
         if (!cancelled)
@@ -107,6 +110,11 @@ export default function Dashboard() {
     };
   }, [effectiveMonthKey]);
 
+  const flaggedAccountIds = useMemo(
+    () => new Set(accounts.filter((a) => a.count_transfer_as_expense === 1).map((a) => a.id)),
+    [accounts],
+  );
+
   const monthTx = transactions.filter((t) => {
     const d = new Date(t.date * 1000);
     return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
@@ -115,14 +123,15 @@ export default function Dashboard() {
   const income = selectedMonthlyBalance?.income
     ?? monthTx.filter((t) => t.type === 'income' && t.transfer_to === null).reduce((s, t) => s + t.amount, 0);
   const expense = selectedMonthlyBalance?.expense
-    ?? monthTx.filter((t) => t.type === 'expense' && t.transfer_to === null).reduce((s, t) => s + t.amount, 0);
+    ?? monthTx.filter((t) => t.type === 'expense' && (t.transfer_to === null || flaggedAccountIds.has(t.transfer_to))).reduce((s, t) => s + t.amount, 0);
 
   const categoryName = (id: string | null) =>
     categories.find((c) => c.id === id)?.name ?? 'Other';
 
   const categoryTransactions = monthTx.filter(
     (transaction): transaction is Transaction & { type: 'income' | 'expense' } =>
-      (transaction.type === 'income' || transaction.type === 'expense') && transaction.transfer_to === null,
+      (transaction.type === 'income' || transaction.type === 'expense')
+      && (transaction.transfer_to === null || flaggedAccountIds.has(transaction.transfer_to)),
   );
   const incomeByCategory = new Map<string, number>();
   const expenseByCategory = new Map<string, number>();
