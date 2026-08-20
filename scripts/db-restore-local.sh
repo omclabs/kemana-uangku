@@ -5,7 +5,8 @@ DB_NAME="kemana-uangku-db"
 BACKUP_DIR="backups"
 API_DIR="api"
 
-cd "$(dirname "$0")/.."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
 
 if [ ! -d "$BACKUP_DIR" ] || [ -z "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
   echo "No backups found in $BACKUP_DIR/. Run 'make backup-db-prod' first."
@@ -103,7 +104,7 @@ fi
 # D1 requires the referenced table to exist at CREATE TABLE time, so reorder
 # before executing rather than replaying the file as-is.
 REORDERED="$(mktemp)"
-node "$(dirname "$0")/reorder-dump.js" "$FILE" "$REORDERED"
+node "$SCRIPT_DIR/reorder-dump.js" "$FILE" "$REORDERED"
 (cd "$API_DIR" && npx wrangler d1 execute "$DB_NAME" --local --file="$REORDERED" -y)
 rm -f "$REORDERED"
 
