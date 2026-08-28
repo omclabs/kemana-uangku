@@ -62,7 +62,7 @@ export default function TransactionForm() {
   const presetTrackedItemId = searchParams.get('tracked_item_id');
   const continueMode = !isEdit && (presetDate !== null || presetAccountId !== null);
   const user = getUser();
-  const assignedAccountIds = user?.assigned_account_ids ?? [];
+  const assignedAccountIds = useMemo(() => user?.assigned_account_ids ?? [], [user]);
   const lockedAssignedAccountId = user?.role === 'reimbursement' && assignedAccountIds.length === 1
     ? assignedAccountIds[0]
     : null;
@@ -113,7 +113,10 @@ export default function TransactionForm() {
           apiFetch<string[]>('/transactions/merchants'),
         ]);
         if (cancelled) return;
-        setAccounts(accts); setCategories(cats); setTrackedItems(items);
+        const visibleAccounts = user?.role === 'reimbursement'
+          ? accts.filter((a) => assignedAccountIds.includes(a.id))
+          : accts;
+        setAccounts(visibleAccounts); setCategories(cats); setTrackedItems(items);
         setMerchantSuggestions(merchants);
         if (id) {
           const tx = await apiFetch<Transaction>(`/transactions/${id}`);
@@ -158,7 +161,7 @@ export default function TransactionForm() {
     }
     load();
     return () => { cancelled = true; };
-  }, [id, lockedAssignedAccountId, presetAccountId, presetCategoryId, presetDate, presetTrackedItemId]);
+  }, [id, lockedAssignedAccountId, presetAccountId, presetCategoryId, presetDate, presetTrackedItemId, assignedAccountIds, user?.role]);
 
   useEffect(() => {
     if (!merchantOpen) return;

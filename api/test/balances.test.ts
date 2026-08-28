@@ -197,7 +197,7 @@ describe('/balances', () => {
     });
   });
 
-  it('reimbursement balances are scoped to assigned credit card accounts', async () => {
+  it('reimbursement balances show all accounts (read-only)', async () => {
     await postTransaction({
       date: JAN_2026,
       account_id: TEST_ACCOUNT_IDS.creditCard,
@@ -239,14 +239,13 @@ describe('/balances', () => {
       balance: number;
     }>;
 
-    expect(rows).toEqual([
-      {
-        month_key: '2026-01',
-        income: 0,
-        expense: 120000,
-        balance: -120000,
-        month_start: Math.floor(Date.UTC(2026, 0, 1) / 1000),
-      },
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      month_key: '2026-01',
+      income: 900000,
+      expense: 120000,
+      balance: 780000,
+      month_start: Math.floor(Date.UTC(2026, 0, 1) / 1000),
+    });
   });
 });

@@ -511,7 +511,7 @@ describe('/accounts', () => {
     });
   });
 
-  it('reimbursement users only see assigned credit card accounts and cannot manage accounts', async () => {
+  it('reimbursement users see all accounts (read-only) but cannot manage accounts', async () => {
     const assignedRes = await SELF.fetch('https://example.com/accounts', {
       method: 'POST',
       headers: JSON_HEADERS,
@@ -525,7 +525,7 @@ describe('/accounts', () => {
     });
     const assigned = (await assignedRes.json()) as { id: string };
 
-    await SELF.fetch('https://example.com/accounts', {
+    const otherRes = await SELF.fetch('https://example.com/accounts', {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify({
@@ -536,6 +536,7 @@ describe('/accounts', () => {
         billing_date: 21,
       }),
     });
+    const other = (await otherRes.json()) as { id: string };
 
     await SELF.fetch('https://example.com/users', {
       method: 'POST',
@@ -555,7 +556,10 @@ describe('/accounts', () => {
     const listRes = await SELF.fetch('https://example.com/accounts', { headers: userHeaders });
     expect(listRes.status).toBe(200);
     const rows = (await listRes.json()) as Array<{ id: string }>;
-    expect(rows.map((row) => row.id)).toEqual([assigned.id]);
+    expect(rows.map((row) => row.id).sort()).toEqual([assigned.id, other.id].sort());
+
+    const detailRes = await SELF.fetch(`https://example.com/accounts/${other.id}`, { headers: userHeaders });
+    expect(detailRes.status).toBe(200);
 
     const postRes = await SELF.fetch('https://example.com/accounts', {
       method: 'POST',

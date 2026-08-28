@@ -1,10 +1,6 @@
 import { Hono } from 'hono';
 import { getCurrentUser, type Bindings } from '../middleware/auth';
-import {
-  listAccessibleAccountIds,
-  requireAccountAccess,
-  requireNonReimbursement,
-} from '../lib/access';
+import { requireNonReimbursement } from '../lib/access';
 import { adjustBalanceStatement, transactionBalanceOps } from '../lib/balance';
 import { LIABILITY_ACCOUNT_TYPES } from '../lib/constants';
 import { applyActiveToggleFields, inPlaceholders, softDeleteStatement } from '../lib/db';
@@ -100,7 +96,6 @@ function creditCardFieldsValid(
 
 
 app.get('/', async (c) => {
-  const user = getCurrentUser(c);
   const type = c.req.query('type');
   const parentId = c.req.query('parent_id');
   const includeInactive = c.req.query('include_inactive') === 'true';
@@ -120,16 +115,6 @@ app.get('/', async (c) => {
     values.push(parentId);
   }
 
-  const accessibleAccountIds = await listAccessibleAccountIds(c.env.DB, user);
-  if (accessibleAccountIds !== null) {
-    if (accessibleAccountIds.length === 0) {
-      return c.json([], 200);
-    }
-    const placeholders = inPlaceholders(accessibleAccountIds);
-    conditions.push(`a.id IN (${placeholders})`);
-    values.push(...accessibleAccountIds);
-  }
-
   let query = SELECT_WITH_BALANCE;
   if (conditions.length > 0) {
     query += ` WHERE ${conditions.join(' AND ')}`;
@@ -145,8 +130,6 @@ app.get('/', async (c) => {
 
 app.get('/:id', async (c) => {
   const id = c.req.param('id');
-  const forbidden = await requireAccountAccess(c, id);
-  if (forbidden) return forbidden;
 
   const row = await c.env.DB.prepare(`${SELECT_WITH_BALANCE} WHERE a.id = ?`).bind(id).first();
 

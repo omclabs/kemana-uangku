@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { getToken, getUser } from '../lib/api';
+import ForbiddenNotice from './ForbiddenNotice';
 
 export default function AdminGuard({ children }: { children: ReactNode }) {
   const token = getToken();
@@ -11,7 +12,7 @@ export default function AdminGuard({ children }: { children: ReactNode }) {
   }
 
   if (!user || user.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+    return <ForbiddenNotice />;
   }
 
   return <>{children}</>;

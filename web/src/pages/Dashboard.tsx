@@ -26,6 +26,30 @@ function monthLabel(year: number, monthNumber: number): string {
   return new Date(year, monthNumber - 1, 1).toLocaleString('id-ID', { month: 'long', year: 'numeric' });
 }
 
+function ChartSeriesPoint({
+  x, y, xAnchor, anchorAbove, color, value, isSelected,
+}: {
+  x: number; y: number; xAnchor: number; anchorAbove: boolean;
+  color: string; value: number; isSelected: boolean;
+}) {
+  return (
+    <>
+      <span style={{
+        position: 'absolute', left: `${x}%`, top: `${y}%`,
+        transform: anchorAbove ? `translate(${xAnchor}%, calc(-100% - 5px))` : `translate(${xAnchor}%, 5px)`,
+        fontSize: 8.5, fontWeight: 700, color, whiteSpace: 'nowrap',
+      }}>
+        {shortCurrency(value)}
+      </span>
+      <span style={{
+        position: 'absolute', left: `${x}%`, top: `${y}%`,
+        transform: 'translate(-50%, -50%)', width: isSelected ? 8 : 6, height: isSelected ? 8 : 6,
+        borderRadius: '50%', background: color, border: '2px solid var(--surface)',
+      }} />
+    </>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
@@ -142,7 +166,10 @@ export default function Dashboard() {
   });
 
   const donutSource = categoryTab === 'income' ? incomeByCategory : expenseByCategory;
-  const donutTotal = categoryTab === 'income' ? income : expense;
+  const donutOwnTotal = [...donutSource.values()].reduce((sum, amount) => sum + amount, 0);
+  const donutTotal = user?.role === 'reimbursement'
+    ? donutOwnTotal
+    : (categoryTab === 'income' ? income : expense);
   const donutTitle = categoryTab === 'income' ? 'Incoming' : 'Spending';
   const DONUT_TOP_N = DONUT_COLORS.length - 1;
   const sortedDonutEntries = [...donutSource.entries()].sort(([, left], [, right]) => right - left);
@@ -184,6 +211,27 @@ export default function Dashboard() {
   const categoryBudgetMap = new Map(
     (budgetMonth?.items ?? []).map((item) => [item.category_id, item.effective_amount])
   );
+
+  const chartMonths = useMemo(
+    () => [...monthlyBalances].sort((a, b) => a.month_start - b.month_start).slice(-6),
+    [monthlyBalances],
+  );
+  const chartMax = Math.max(1, ...chartMonths.flatMap((m) => [m.income, m.expense]));
+  const chartMonthLabel = (key: string) => {
+    const [y, m] = key.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleString('id-ID', { month: 'short' });
+  };
+  const CHART_TOP_MARGIN = 18;
+  const CHART_BOTTOM_MARGIN = 40;
+  const chartValueY = (value: number) =>
+    100 - CHART_BOTTOM_MARGIN - (value / chartMax) * (100 - CHART_TOP_MARGIN - CHART_BOTTOM_MARGIN);
+  const chartLinePoints = (accessor: (m: MonthlyBalance) => number) =>
+    chartMonths
+      .map((m, i) => {
+        const x = chartMonths.length > 1 ? (i / (chartMonths.length - 1)) * 100 : 50;
+        return `${x},${chartValueY(accessor(m))}`;
+      })
+      .join(' ');
 
   const segments = donutCategories.reduce<{
     offset: number;
@@ -325,48 +373,116 @@ export default function Dashboard() {
 
       {!loading && !error && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{
-              flex: 1, background: 'var(--surface)', border: '1px solid var(--line)',
-              borderRadius: 18, padding: '13px 14px',
-            }}>
+          <div style={{
+            background: 'var(--surface)', border: '1px solid var(--line)',
+            borderRadius: 22, padding: 18,
+          }}>
+            <div style={{ display: 'flex', gap: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
-                  width: 30, height: 30, borderRadius: 10,
-                  background: 'var(--income-soft)', color: 'var(--income)',
+                  width: 26, height: 26, borderRadius: 8, background: 'var(--income-soft)', color: 'var(--income)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 19V5M12 5l-7 7M12 5l7 7"/>
                   </svg>
                 </span>
-                <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)' }}>Income</span>
+                <div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>Income</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{idr.format(income)}</div>
+                </div>
               </div>
-              <p style={{ margin: '9px 0 0', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
-                {idr.format(income)}
-              </p>
-            </div>
 
-            <div style={{
-              flex: 1, background: 'var(--surface)', border: '1px solid var(--line)',
-              borderRadius: 18, padding: '13px 14px',
-            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
-                  width: 30, height: 30, borderRadius: 10,
-                  background: 'var(--expense-soft)', color: 'var(--expense)',
+                  width: 26, height: 26, borderRadius: 8, background: 'var(--expense-soft)', color: 'var(--expense)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 5v14M12 19l-7-7M12 19l7-7"/>
                   </svg>
                 </span>
-                <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)' }}>Expenses</span>
+                <div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>Expenses</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{idr.format(expense)}</div>
+                </div>
               </div>
-              <p style={{ margin: '9px 0 0', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
-                {idr.format(expense)}
-              </p>
             </div>
+
+            {chartMonths.length > 0 && (
+              <>
+                <div style={{ position: 'relative', height: 132, marginTop: 20, padding: '0 10px' }}>
+                  {chartMonths.length > 1 && (
+                    <svg
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+                    >
+                      <polyline
+                        points={chartLinePoints((m) => m.income)}
+                        fill="none" stroke="var(--income)" strokeWidth="2"
+                        strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"
+                      />
+                      <polyline
+                        points={chartLinePoints((m) => m.expense)}
+                        fill="none" stroke="var(--expense)" strokeWidth="2"
+                        strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"
+                      />
+                    </svg>
+                  )}
+
+                  <div style={{ display: 'flex', height: '100%', position: 'relative' }}>
+                    {chartMonths.map((m, i) => {
+                      const isSelected = m.month_key === effectiveMonthKey;
+                      const x = chartMonths.length > 1 ? (i / (chartMonths.length - 1)) * 100 : 50;
+                      const incomeIsHigher = m.income >= m.expense;
+                      const xAnchor = i === 0 ? 0 : i === chartMonths.length - 1 ? -100 : -50;
+                      return (
+                        <button
+                          key={m.month_key}
+                          type="button"
+                          onClick={() => setSelectedMonthKey(m.month_key)}
+                          style={{
+                            flex: 1, height: '100%', position: 'relative',
+                            border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
+                            opacity: isSelected ? 1 : 0.55,
+                          }}
+                        >
+                          <ChartSeriesPoint
+                            x={x} y={chartValueY(m.income)} xAnchor={xAnchor}
+                            anchorAbove={incomeIsHigher} color="var(--income)"
+                            value={m.income} isSelected={isSelected}
+                          />
+                          <ChartSeriesPoint
+                            x={x} y={chartValueY(m.expense)} xAnchor={xAnchor}
+                            anchorAbove={!incomeIsHigher} color="var(--expense)"
+                            value={m.expense} isSelected={isSelected}
+                          />
+                          <span style={{
+                            position: 'absolute', left: `${x}%`, bottom: 0, transform: `translateX(${xAnchor}%)`,
+                            fontSize: 9.5, fontWeight: isSelected ? 800 : 600,
+                            color: isSelected ? 'var(--ink)' : 'var(--muted)', whiteSpace: 'nowrap',
+                          }}>
+                            {chartMonthLabel(m.month_key)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 3, background: 'var(--income)' }} />
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>Income</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 3, background: 'var(--expense)' }} />
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>Expenses</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {(donutCategories.length > 0 || (categoryTab === 'expense' && (totalBudget > 0 || expense > 0))) && (
@@ -541,7 +657,7 @@ export default function Dashboard() {
                             </div>
                           )}
                         </div>
-                        <span style={{ fontSize: 12.5, fontWeight: 800, color: barColor, whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 800, color: barColor, whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {group.type === 'income' ? '+' : '−'}{idr.format(group.total)}
                         </span>
                         {clickable && (

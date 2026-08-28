@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PlusIcon } from '../../components/icons';
 import SummaryStrip from '../../components/SummaryStrip';
-import { ApiError, apiFetch } from '../../lib/api';
+import { ApiError, apiFetch, getUser } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
 import { trimCompactDecimals } from '../../lib/format';
 import { ACCOUNT_TYPES, type Account, type AccountType } from '../../lib/types';
@@ -103,6 +103,8 @@ function Chevron({ size = 16 }: { size?: number }) {
 }
 
 export default function AccountList() {
+  const user = getUser();
+  const isReimbursement = user?.role === 'reimbursement';
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
@@ -154,18 +156,20 @@ export default function AccountList() {
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
           Accounts
         </h1>
-        <Link
-          to="/accounts/new"
-          aria-label="Add account"
-          style={{
-            width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
-          }}
-        >
-          <PlusIcon className="h-5 w-5" />
-        </Link>
+        {!isReimbursement && (
+          <Link
+            to="/accounts/new"
+            aria-label="Add account"
+            style={{
+              width: 40, height: 40, borderRadius: 13, flexShrink: 0,
+              background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
+            }}
+          >
+            <PlusIcon className="h-5 w-5" />
+          </Link>
+        )}
       </div>
 
       {!loading && !error && (

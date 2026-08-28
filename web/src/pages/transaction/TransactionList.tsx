@@ -227,9 +227,9 @@ function MonthlyView({
     const net = month.income - month.expense;
     return (
       <div style={{ display: 'flex', alignItems: 'flex-start', padding: '10px 14px', borderBottom: '1px solid var(--line)', background: expanded ? 'var(--surface-2)' : 'transparent' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: expanded ? 800 : 700, color: 'var(--ink)' }}>{month.label}</div>
-          {expanded && <div style={{ fontSize: 8.5, color: 'var(--muted)', marginTop: 1 }}>{month.range}</div>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: expanded ? 800 : 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{month.label}</div>
+          {expanded && <div style={{ fontSize: 8.5, color: 'var(--muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{month.range}</div>}
         </div>
         <div style={{ width: 105, textAlign: 'right', fontSize: 10, fontWeight: 700, color: month.income > 0 ? 'var(--income)' : 'var(--muted)' }}>
           Rp {statFmt(month.income)}
@@ -327,6 +327,7 @@ export default function TransactionList() {
   const [error,   setError]   = useState<string | null>(null);
   const [merchantFilter, setMerchantFilter] = useState('');
   const [noteQuery, setNoteQuery] = useState('');
+  const [fabOpen, setFabOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -547,11 +548,13 @@ export default function TransactionList() {
   const periodTitle = tab === 'monthly'
     ? String(selectedMonth.getFullYear())
     : monthFmt.format(selectedMonth);
-  const summaryItems = [
-    { label: 'Income', value: summary.income, color: 'var(--income)' },
-    { label: 'Expense', value: summary.expense, color: 'var(--expense)' },
-    { label: 'Total', value: summary.total, color: 'var(--ink)' },
-  ] as const;
+  const spentPct = summary.income > 0
+    ? (summary.expense / summary.income) * 100
+    : (summary.expense > 0 ? 100 : 0);
+  const spentPctClamped = Math.min(spentPct, 100);
+  const GAUGE_R = 100 / Math.PI;
+  const GAUGE_CX = 50;
+  const GAUGE_CY = 50;
   const tabStyle = (active: boolean): CSSProperties => ({
     flex: 1,
     textAlign: 'center',
@@ -566,6 +569,13 @@ export default function TransactionList() {
     fontFamily: 'inherit',
     cursor: 'pointer',
   });
+  const fabMenuItemStyle: CSSProperties = {
+    display: 'inline-flex', alignItems: 'center',
+    borderRadius: 999, border: '1px solid var(--line)', background: 'var(--surface)',
+    padding: '9px 14px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)',
+    textDecoration: 'none', whiteSpace: 'nowrap',
+    boxShadow: '0 8px 20px -8px rgba(0,0,0,.3)',
+  };
 
   return (
     <PageContainer>
@@ -585,7 +595,10 @@ export default function TransactionList() {
         WebkitBackdropFilter: 'blur(10px)',
         borderBottom: '1px solid color-mix(in srgb, var(--line) 75%, transparent)',
       }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+        <h1 style={{
+          margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)',
+          flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
           Transactions
         </h1>
         {selectionMode ? (
@@ -671,71 +684,64 @@ export default function TransactionList() {
       </div>
 
       {!isSearching && (
-        <>
-          <div style={{ display: 'flex', padding: '0 6px', borderBottom: '1px solid var(--line)', background: 'transparent', flexShrink: 0, marginBottom: 14 }}>
-            <button style={tabStyle(tab === 'daily')} onClick={() => setTabAndReset('daily')}>Daily</button>
-            <button style={tabStyle(tab === 'calendar')} onClick={() => setTabAndReset('calendar')}>Calendar</button>
-            <button style={tabStyle(tab === 'monthly')} onClick={() => setTabAndReset('monthly')}>Monthly</button>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px', background: 'transparent', flexShrink: 0 }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Statement</div>
-              <div style={{ marginTop: 1, fontSize: 17, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.02em' }}>{statementLabel}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {!isReimbursement && (
-                <Link to="/transactions/import-csv" style={{
-                  display: 'inline-flex', alignItems: 'center',
-                  borderRadius: 13, border: '1px solid var(--line)', background: 'var(--surface)',
-                  padding: '8px 12px', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)',
-                  textDecoration: 'none', whiteSpace: 'nowrap',
-                }}>
-                  Import
-                </Link>
-              )}
-              <Link to="/transactions/new" aria-label="Add transaction" style={{
-                width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
-              }}>
-                <PlusIcon />
-              </Link>
-            </div>
-          </div>
-        </>
+        <div style={{ display: 'flex', padding: '0 6px', background: 'transparent', flexShrink: 0 }}>
+          <button style={tabStyle(tab === 'daily')} onClick={() => setTabAndReset('daily')}>Daily</button>
+          <button style={tabStyle(tab === 'calendar')} onClick={() => setTabAndReset('calendar')}>Calendar</button>
+          <button style={tabStyle(tab === 'monthly')} onClick={() => setTabAndReset('monthly')}>Monthly</button>
+        </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)', marginBottom: 20 }}>
-        {summaryItems.map((item, index) => (
-          <div
-            key={item.label}
-            style={{
-              padding: '14px 10px',
-              paddingLeft: index === 0 ? 16 : 10,
-              paddingRight: index === 2 ? 16 : 10,
-              borderRight: index < 2 ? '1px solid var(--line)' : 'none',
-              minWidth: 0,
-            }}
-          >
-            <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.label}</div>
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: 14.5,
-                fontWeight: 800,
-                color: item.color,
-                letterSpacing: '-.03em',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              Rp {new Intl.NumberFormat('id-ID').format(Math.abs(item.value))}
+      <div style={{
+        padding: '10px 16px 8px',
+        borderBottom: '1px solid var(--line)', marginBottom: 20,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 0, gap: 8 }}>
+          <div style={{ textAlign: 'left', minWidth: 0, flexShrink: 1 }}>
+            <div style={{ fontSize: 9.5, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Statement</div>
+            <div style={{ marginTop: 1, fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{statementLabel}</div>
+          </div>
+
+          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flexShrink: 1 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--income)', letterSpacing: '-.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Income · Rp {statFmt(summary.income)}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--expense)', letterSpacing: '-.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Expense · Rp {statFmt(summary.expense)}
+            </div>
+            <div style={{
+              fontSize: 11.5, fontWeight: 700, letterSpacing: '-.02em', whiteSpace: 'nowrap',
+              overflow: 'hidden', textOverflow: 'ellipsis',
+              color: summary.total >= 0 ? 'var(--income)' : 'var(--expense)',
+            }}>
+              Total · {signedFmt(summary.total)}
             </div>
           </div>
-        ))}
+        </div>
+        <svg viewBox="0 15 100 43" style={{ width: '100%', maxWidth: 220, display: 'block', margin: '0 auto' }}>
+          <path
+            d={`M ${GAUGE_CX - GAUGE_R} ${GAUGE_CY} A ${GAUGE_R} ${GAUGE_R} 0 0 1 ${GAUGE_CX + GAUGE_R} ${GAUGE_CY}`}
+            fill="none" stroke="var(--line)" strokeWidth="8" strokeLinecap="round"
+          />
+          {spentPctClamped > 0 && (
+            <path
+              d={`M ${GAUGE_CX - GAUGE_R} ${GAUGE_CY} A ${GAUGE_R} ${GAUGE_R} 0 0 1 ${GAUGE_CX + GAUGE_R} ${GAUGE_CY}`}
+              fill="none" stroke="var(--expense)" strokeWidth="8" strokeLinecap="round"
+              strokeDasharray={`${spentPctClamped} ${100 - spentPctClamped}`}
+            />
+          )}
+          <text
+            x={GAUGE_CX} y={GAUGE_CY - 6} textAnchor="middle"
+            fontSize="13" fontWeight="800" fill="var(--ink)" fontFamily="inherit"
+          >
+            {Math.round(spentPct)}%
+          </text>
+          <text
+            x={GAUGE_CX} y={GAUGE_CY + 6} textAnchor="middle"
+            fontSize="6" fontWeight="600" fill="var(--muted)" fontFamily="inherit"
+          >
+            spent
+          </text>
+        </svg>
       </div>
 
       {!isSearching && tab === 'daily' && merchantOptions.length > 0 && (
@@ -892,6 +898,47 @@ export default function TransactionList() {
       )}
       {!loading && !error && !isSearching && tab === 'calendar' && <CalendarView cells={calendar.cells} summary={calendar.summary} />}
       {!loading && !error && !isSearching && tab === 'monthly' && <MonthlyView months={yearMonths} expandedMonth={selectedMonth.getMonth()} />}
+
+      {fabOpen && (
+        <div
+          onClick={() => setFabOpen(false)}
+          aria-hidden="true"
+          style={{ position: 'fixed', inset: 0, zIndex: 19, background: 'transparent' }}
+        />
+      )}
+
+      {fabOpen && (
+        <div style={{
+          position: 'fixed', right: 20, bottom: 140, zIndex: 20,
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10,
+        }}>
+          {!isReimbursement && (
+            <Link to="/transactions/import-csv" onClick={() => setFabOpen(false)} style={fabMenuItemStyle}>
+              Import
+            </Link>
+          )}
+          <Link to="/transactions/new" onClick={() => setFabOpen(false)} style={fabMenuItemStyle}>
+            Add transaction
+          </Link>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setFabOpen((open) => !open)}
+        aria-label={fabOpen ? 'Close menu' : 'Open menu'}
+        style={{
+          position: 'fixed', right: 20, bottom: 76,
+          width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer',
+          background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 20px -6px var(--accent)', zIndex: 20,
+        }}
+      >
+        <span style={{ display: 'flex', transition: 'transform .18s ease', transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)' }}>
+          <PlusIcon />
+        </span>
+      </button>
     </PageContainer>
   );
 }
