@@ -61,7 +61,7 @@ export default function TransactionForm() {
   const presetCategoryId = searchParams.get('category_id');
   const presetTrackedItemId = searchParams.get('tracked_item_id');
   const continueMode = !isEdit && (presetDate !== null || presetAccountId !== null);
-  const user = getUser();
+  const [user] = useState(() => getUser());
   const assignedAccountIds = useMemo(() => user?.assigned_account_ids ?? [], [user]);
   const lockedAssignedAccountId = user?.role === 'reimbursement' && assignedAccountIds.length === 1
     ? assignedAccountIds[0]
