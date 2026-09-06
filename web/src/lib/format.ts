@@ -24,3 +24,9 @@ export function truncateNote(note: string | null | undefined, limit = 60): strin
   const firstLine = (note ?? '').split('\n')[0] ?? '';
   return firstLine.length > limit ? `${firstLine.slice(0, limit).trimEnd()}…` : firstLine;
 }
+
+export const MASKED_AMOUNT = 'Rp ••••••';
+
+export function maskAmount(formatted: string, visible: boolean): string {
+  return visible ? formatted : MASKED_AMOUNT;
+}

@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '../components/PageContainer';
 import { ApiError, apiFetch, getUser } from '../lib/api';
 import { categoryVisual, initial } from '../lib/categories';
-import { ChevronLeftIcon, ChevronRightIcon } from '../components/compactIcons';
-import { trimCompactDecimals } from '../lib/format';
+import { ChevronLeftIcon, ChevronRightIcon, EyeIcon } from '../components/compactIcons';
+import { maskAmount, trimCompactDecimals } from '../lib/format';
 import { useTheme } from '../lib/theme';
+import { useAmountVisibility } from '../lib/amountVisibility';
 import type { Account, BudgetMonth, Category, MonthlyBalance, TrackedItem, Transaction } from '../lib/types';
 
 const idr = new Intl.NumberFormat('id-ID', {
@@ -15,6 +16,14 @@ const idr = new Intl.NumberFormat('id-ID', {
 });
 
 const DONUT_COLORS = ['#F59E0B', '#3B82F6', '#8B5CF6', '#F43F5E', '#10B981'];
+
+const headerIconButtonStyle: CSSProperties = {
+  width: 40, height: 40, borderRadius: 13, flexShrink: 0,
+  border: '1px solid var(--line)', background: 'var(--surface)',
+  color: 'var(--muted)', display: 'flex', alignItems: 'center',
+  justifyContent: 'center', cursor: 'pointer',
+  boxShadow: '0 2px 8px rgba(0,0,0,.04)',
+};
 
 function shortCurrency(value: number): string {
   if (value >= 1_000_000) return `Rp ${trimCompactDecimals(value / 1_000_000, 1)} jt`;
@@ -53,6 +62,7 @@ function ChartSeriesPoint({
 export default function Dashboard() {
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
+  const { visible, toggle: toggleAmounts } = useAmountVisibility();
   const [budgetMonth, setBudgetMonth] = useState<BudgetMonth | null>(null);
   const [monthlyBalances, setMonthlyBalances] = useState<MonthlyBalance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -276,13 +286,7 @@ export default function Dashboard() {
             type="button"
             onClick={toggle}
             aria-label="Toggle theme"
-            style={{
-              width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-              border: '1px solid var(--line)', background: 'var(--surface)',
-              color: 'var(--muted)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,.04)',
-            }}
+            style={headerIconButtonStyle}
           >
             {theme === 'dark' ? (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -298,15 +302,17 @@ export default function Dashboard() {
 
           <button
             type="button"
+            onClick={toggleAmounts}
+            aria-label={visible ? 'Hide amounts' : 'Show amounts'}
+            style={headerIconButtonStyle}
+          >
+            <EyeIcon open={visible} size={20} strokeWidth={1.8} />
+          </button>
+
+          <button
+            type="button"
             onClick={() => navigate('/tracked-items/alerts')}
-            style={{
-              width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-              border: '1px solid var(--line)', background: 'var(--surface)',
-              color: 'var(--muted)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,.04)',
-              position: 'relative',
-            }}
+            style={{ ...headerIconButtonStyle, position: 'relative' }}
           >
             {alertCount > 0 && user?.role !== 'reimbursement' && (
               <span style={{
@@ -389,7 +395,7 @@ export default function Dashboard() {
                 </span>
                 <div>
                   <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>Income</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{idr.format(income)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{maskAmount(idr.format(income), visible)}</div>
                 </div>
               </div>
 
@@ -404,7 +410,7 @@ export default function Dashboard() {
                 </span>
                 <div>
                   <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>Expenses</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{idr.format(expense)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{maskAmount(idr.format(expense), visible)}</div>
                 </div>
               </div>
             </div>
@@ -528,7 +534,7 @@ export default function Dashboard() {
                       {categoryTab === 'income' ? 'Received' : 'Spent'}
                     </span>
                     <span style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>
-                      {shortCurrency(donutTotal)}
+                      {maskAmount(shortCurrency(donutTotal), visible)}
                     </span>
                   </div>
                 </div>

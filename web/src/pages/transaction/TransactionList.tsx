@@ -3,10 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { categoryVisual } from '../../lib/categories';
 import { ApiError, apiFetch, getUser } from '../../lib/api';
-import { statFmt, signedFmt, cellFmt, truncateNote } from '../../lib/format';
+import { statFmt, signedFmt, cellFmt, truncateNote, maskAmount } from '../../lib/format';
 import type { Account, Category, Transaction } from '../../lib/types';
 import PageContainer from '../../components/PageContainer';
 import StyledSelect from '../../components/StyledSelect';
+import { EyeIcon } from '../../components/compactIcons';
+import { useAmountVisibility } from '../../lib/amountVisibility';
 import {
   DAY_MS, WEEKDAYS, startOfDay, sameDay, weekStart,
   fmtMD, toDatetimePreset, dateKey,
@@ -310,6 +312,7 @@ function MonthlyView({
 export default function TransactionList() {
   const navigate = useNavigate();
   const user = getUser();
+  const { visible: amountsVisible, toggle: toggleAmounts } = useAmountVisibility();
   const isReimbursement = user?.role === 'reimbursement';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts,     setAccounts]     = useState<Account[]>([]);
@@ -701,20 +704,34 @@ export default function TransactionList() {
             <div style={{ marginTop: 1, fontSize: 13.5, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{statementLabel}</div>
           </div>
 
-          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flexShrink: 1 }}>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--income)', letterSpacing: '-.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Income · Rp {statFmt(summary.income)}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, minWidth: 0 }}>
+            <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flexShrink: 1 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--income)', letterSpacing: '-.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Income · {maskAmount(`Rp ${statFmt(summary.income)}`, amountsVisible)}
+              </div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--expense)', letterSpacing: '-.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Expense · {maskAmount(`Rp ${statFmt(summary.expense)}`, amountsVisible)}
+              </div>
+              <div style={{
+                fontSize: 11.5, fontWeight: 700, letterSpacing: '-.02em', whiteSpace: 'nowrap',
+                overflow: 'hidden', textOverflow: 'ellipsis',
+                color: summary.total >= 0 ? 'var(--income)' : 'var(--expense)',
+              }}>
+                Total · {maskAmount(signedFmt(summary.total), amountsVisible)}
+              </div>
             </div>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--expense)', letterSpacing: '-.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Expense · Rp {statFmt(summary.expense)}
-            </div>
-            <div style={{
-              fontSize: 11.5, fontWeight: 700, letterSpacing: '-.02em', whiteSpace: 'nowrap',
-              overflow: 'hidden', textOverflow: 'ellipsis',
-              color: summary.total >= 0 ? 'var(--income)' : 'var(--expense)',
-            }}>
-              Total · {signedFmt(summary.total)}
-            </div>
+            <button
+              type="button"
+              onClick={toggleAmounts}
+              aria-label={amountsVisible ? 'Hide amounts' : 'Show amounts'}
+              style={{
+                width: 22, height: 22, borderRadius: 999, border: 'none', flexShrink: 0,
+                background: 'var(--surface-2)', color: 'var(--muted)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              }}
+            >
+              <EyeIcon open={amountsVisible} size={14} />
+            </button>
           </div>
         </div>
         <svg viewBox="0 15 100 43" style={{ width: '100%', maxWidth: 220, display: 'block', margin: '0 auto' }}>
