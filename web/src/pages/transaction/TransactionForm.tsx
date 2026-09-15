@@ -236,6 +236,10 @@ export default function TransactionForm() {
     }
   }
 
+  const pickableAccounts = accounts.filter((a) =>
+    a.visible === 1 || accounts.some((c) => c.parent_id === a.id && c.visible === 1)
+  );
+
   const sourceAccount = accounts.find((account) => account.id === accountId) ?? null;
   const transferLike = transferTo !== '';
   const displayType: TransactionType = transferLike ? 'transfer' : type;
@@ -551,6 +555,17 @@ export default function TransactionForm() {
             <span style={{ color: 'var(--muted)' }}><CalcIcon /></span>
           </button>
 
+          {/* ── Use full balance (transfer) ────────────────────────── */}
+          {!isEdit && displayType === 'transfer' && sourceAccount && sourceAccount.balance > 0 && (
+            <button type="button" onClick={() => setAmount(sourceAccount.balance)} style={{
+              alignSelf: 'flex-start', background: 'none', border: 'none', padding: 0,
+              fontSize: 12.5, fontWeight: 700, color: 'var(--accent)', cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}>
+              Use full balance · {fmt.format(sourceAccount.balance)}
+            </button>
+          )}
+
           {/* ── Transfer fee ─────────────────────────────────────── */}
           {showFee && (
             <FieldRow icon={<CalcIcon />} label="Fee">
@@ -854,13 +869,16 @@ export default function TransactionForm() {
 
       {/* ── Lookup overlays ──────────────────────────────────────── */}
       {activeLookup === 'account' && (
-        <TileLookup items={accounts} value={accountId} onSelect={handleAccountSelect}
+        <TileLookup items={pickableAccounts} value={accountId} onSelect={handleAccountSelect}
           onClose={() => setActiveLookup(null)} allowParentSelection
+          parentSelectable={(a) => a.visible === 1}
           title={type === 'transfer' ? 'From Account' : 'Account'} />
       )}
       {activeLookup === 'transferTo' && (
-        <TileLookup items={accounts} value={transferTo} onSelect={setTransferTo}
-          onClose={() => setActiveLookup(null)} allowParentSelection title="To Account" />
+        <TileLookup items={pickableAccounts} value={transferTo} onSelect={setTransferTo}
+          onClose={() => setActiveLookup(null)} allowParentSelection
+          parentSelectable={(a) => a.visible === 1}
+          title="To Account" />
       )}
       {activeLookup === 'category' && (
         <TileLookup items={categoryItems} value={categoryId} onSelect={handleCategorySelect}

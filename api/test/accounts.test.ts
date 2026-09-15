@@ -131,6 +131,46 @@ describe('/accounts', () => {
     expect(account.count_transfer_as_expense).toBe(1);
   });
 
+  it('POST /accounts defaults visible to true when omitted', async () => {
+    const res = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Bank', type: 'bank' }),
+    });
+    expect(res.status).toBe(201);
+    const account = (await res.json()) as { visible: number };
+    expect(account.visible).toBe(1);
+  });
+
+  it('POST /accounts visible=false is persisted', async () => {
+    const res = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Bank', type: 'bank', visible: false }),
+    });
+    expect(res.status).toBe(201);
+    const account = (await res.json()) as { visible: number };
+    expect(account.visible).toBe(0);
+  });
+
+  it('PUT /accounts/:id toggles visible', async () => {
+    const createRes = await SELF.fetch('https://example.com/accounts', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ name: 'Bank', type: 'bank' }),
+    });
+    const created = (await createRes.json()) as { id: string };
+
+    const putRes = await SELF.fetch(`https://example.com/accounts/${created.id}`, {
+      method: 'PUT',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ visible: false }),
+    });
+    expect(putRes.status).toBe(200);
+    const updated = (await putRes.json()) as { visible: number };
+    expect(updated.visible).toBe(0);
+  });
+
   it('full account hierarchy, computed_balance, and delete lifecycle', async () => {
     // Create a top-level bank account
     const parentRes = await SELF.fetch('https://example.com/accounts', {

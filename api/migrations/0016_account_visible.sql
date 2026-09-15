@@ -1,0 +1,1 @@
+ALTER TABLE accounts ADD COLUMN visible INTEGER NOT NULL DEFAULT 1 CHECK (visible IN (0,1));

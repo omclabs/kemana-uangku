@@ -75,6 +75,7 @@ export default function AccountForm() {
   const [includeInTotal, setIncludeInTotal] = useState(true);
   const [countTransferAsExpense, setCountTransferAsExpense] = useState(false);
   const [isActive,       setIsActive]       = useState(true);
+  const [visible,        setVisible]        = useState(true);
   const [creditLimit,    setCreditLimit]    = useState('');
   const [billingDate,    setBillingDate]    = useState('');
   const [accounts,       setAccounts]       = useState<Account[]>([]);
@@ -99,6 +100,7 @@ export default function AccountForm() {
           setIncludeInTotal(acct.include_in_total === 1);
           setCountTransferAsExpense(acct.count_transfer_as_expense === 1);
           setIsActive(acct.is_active === 1);
+          setVisible(acct.visible === 1);
           setCreditLimit(acct.credit_limit !== null ? String(acct.credit_limit) : '');
           setBillingDate(acct.billing_date !== null ? String(acct.billing_date) : '');
         }
@@ -123,6 +125,7 @@ export default function AccountForm() {
       include_in_total: includeInTotal,
       count_transfer_as_expense: countTransferAsExpense,
       is_active:        isActive,
+      visible,
       credit_limit:     type === 'credit_card' ? Number(creditLimit) : null,
       billing_date:     type === 'credit_card' ? Number(billingDate) : null,
     };
@@ -355,6 +358,21 @@ export default function AccountForm() {
                 </p>
               </div>
               <ToggleSwitch checked={includeInTotal} onChange={setIncludeInTotal} />
+            </div>
+
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--line)',
+            }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                  Visible
+                </p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                  Show this account when picking an account for a transaction
+                </p>
+              </div>
+              <ToggleSwitch checked={visible} onChange={setVisible} />
             </div>
 
             {(type === 'credit_card' || type === 'loan') && (

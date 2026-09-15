@@ -45,6 +45,7 @@ export const accountCreate = z.object({
   billing_date: z.number().int().min(1).max(28).nullable().optional(),
   include_in_total: z.boolean().optional(),
   count_transfer_as_expense: z.boolean().optional(),
+  visible: z.boolean().optional(),
 });
 
 export const accountUpdate = accountCreate.partial().extend({

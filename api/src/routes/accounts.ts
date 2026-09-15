@@ -29,6 +29,7 @@ type AccountRow = {
   include_in_total: number;
   count_transfer_as_expense: number;
   is_active: number;
+  visible: number;
   created_at: number;
   updated_at: number;
 };
@@ -301,8 +302,8 @@ app.post('/', async (c) => {
 
   await c.env.DB.prepare(
     `INSERT INTO accounts
-      (id, name, type, balance, parent_id, credit_limit, billing_date, include_in_total, count_transfer_as_expense, created_by, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, name, type, balance, parent_id, credit_limit, billing_date, include_in_total, count_transfer_as_expense, visible, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       id,
@@ -314,6 +315,7 @@ app.post('/', async (c) => {
       billingDate,
       body.include_in_total === undefined ? 1 : body.include_in_total ? 1 : 0,
       body.count_transfer_as_expense ? 1 : 0,
+      body.visible === undefined ? 1 : body.visible ? 1 : 0,
       actor?.id ?? null,
       actor?.id ?? null
     )
@@ -442,6 +444,10 @@ app.put('/:id', async (c) => {
   if (body.count_transfer_as_expense !== undefined) {
     fields.push('count_transfer_as_expense = ?');
     values.push(body.count_transfer_as_expense ? 1 : 0);
+  }
+  if (body.visible !== undefined) {
+    fields.push('visible = ?');
+    values.push(body.visible ? 1 : 0);
   }
   if (body.is_active !== undefined) {
     applyActiveToggleFields(fields, values, body.is_active, actor?.id ?? null);

@@ -19,6 +19,11 @@ interface TileLookupProps<T extends TileLookupItem> {
   // children cannot be selected directly -- a leaf must be chosen
   // (categories: "if has child then must use child").
   allowParentSelection: boolean;
+  // Optional guard on top of allowParentSelection: when provided, the "All
+  // <Parent>" tile only renders if this returns true for the drilled-into
+  // parent (e.g. accounts: don't let a hidden parent be selected directly,
+  // even though its visible children remain reachable by drilling in).
+  parentSelectable?: (item: T) => boolean;
   title: string;
 }
 
@@ -28,6 +33,7 @@ export default function TileLookup<T extends TileLookupItem>({
   onSelect,
   onClose,
   allowParentSelection,
+  parentSelectable,
   title,
 }: TileLookupProps<T>) {
   const [drilled, setDrilled] = useState<T | null>(null);
@@ -103,7 +109,7 @@ export default function TileLookup<T extends TileLookupItem>({
               );
             })}
 
-          {drilled && allowParentSelection && (
+          {drilled && allowParentSelection && (parentSelectable?.(drilled) ?? true) && (
             <Tile
               label={`All ${drilled.name}`}
               selected={drilled.id === value}

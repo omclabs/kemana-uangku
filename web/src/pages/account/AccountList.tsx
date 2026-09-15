@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PlusIcon } from '../../components/icons';
+import { EyeIcon } from '../../components/compactIcons';
 import SummaryStrip from '../../components/SummaryStrip';
 import { ApiError, apiFetch, getUser } from '../../lib/api';
 import { categoryVisual, initial } from '../../lib/categories';
@@ -12,6 +13,21 @@ import PageContainer from '../../components/PageContainer';
 const fmt = new Intl.NumberFormat('id-ID', {
   style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
 });
+
+const VISIBLE_ONLY_KEY = 'ku-account-list-visible-only';
+
+const headerIconButtonStyle: CSSProperties = {
+  width: 40, height: 40, borderRadius: 13, flexShrink: 0,
+  border: '1px solid var(--line)', background: 'var(--surface)',
+  color: 'var(--muted)', display: 'flex', alignItems: 'center',
+  justifyContent: 'center', cursor: 'pointer',
+  boxShadow: '0 2px 8px rgba(0,0,0,.04)',
+};
+
+const mutedBadgeStyle: CSSProperties = {
+  fontSize: 9, fontWeight: 600, color: 'var(--muted)',
+  background: 'var(--line)', padding: '1px 6px', borderRadius: 999, flexShrink: 0,
+};
 
 function shortFmt(value: number): string {
   const abs = Math.abs(value);
@@ -108,6 +124,17 @@ export default function AccountList() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
+  const [visibleOnly, setVisibleOnly] = useState<boolean>(
+    () => localStorage.getItem(VISIBLE_ONLY_KEY) === 'true'
+  );
+
+  function toggleVisibleOnly() {
+    setVisibleOnly((prev) => {
+      const next = !prev;
+      localStorage.setItem(VISIBLE_ONLY_KEY, String(next));
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -120,13 +147,17 @@ export default function AccountList() {
 
   const byName = (left: Account, right: Account) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
   const childrenOf = (parentId: string) => accounts.filter((a) => a.parent_id === parentId).sort(byName);
+  const visibleChildrenOf = (parentId: string) => childrenOf(parentId).filter((c) => c.visible === 1);
 
-  const topLevel = accounts.filter((a) => a.parent_id === null).sort(byName);
+  const topLevelAll = accounts.filter((a) => a.parent_id === null).sort(byName);
+  const topLevel = visibleOnly
+    ? topLevelAll.filter((a) => a.visible === 1 || visibleChildrenOf(a.id).length > 0)
+    : topLevelAll;
   const groups = ACCOUNT_TYPES
     .map((type) => ({ type, items: topLevel.filter((a) => a.type === type).sort(byName) }))
     .filter((g) => g.items.length > 0);
 
-  const included = topLevel.filter((a) => a.include_in_total === 1);
+  const included = topLevelAll.filter((a) => a.include_in_total === 1);
   const totalAssets = included
     .filter((a) => a.type !== 'credit_card' && a.type !== 'loan')
     .reduce((sum, a) => sum + a.computed_balance, 0);
@@ -156,31 +187,39 @@ export default function AccountList() {
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
           Accounts
         </h1>
-        {!isReimbursement && (
-          <Link
-            to="/accounts/new"
-            aria-label="Add account"
-            style={{
-              width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
-            }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={toggleVisibleOnly}
+            aria-label={visibleOnly ? 'Show all accounts' : 'Show visible accounts only'}
+            style={headerIconButtonStyle}
           >
-            <PlusIcon className="h-5 w-5" />
-          </Link>
-        )}
+            <EyeIcon open={!visibleOnly} size={20} strokeWidth={1.8} />
+          </button>
+          {!isReimbursement && (
+            <Link
+              to="/accounts/new"
+              aria-label="Add account"
+              style={{
+                width: 40, height: 40, borderRadius: 13, flexShrink: 0,
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 16px -6px var(--accent)', textDecoration: 'none',
+              }}
+            >
+              <PlusIcon className="h-5 w-5" />
+            </Link>
+          )}
+        </div>
       </div>
 
       {!loading && !error && (
-        <>
-          <SummaryStrip
-            items={[
-              { label: 'Assets', value: fmt.format(totalAssets) },
-              { label: 'Liabilities', value: fmt.format(totalLiabilities), color: 'var(--expense)' },
-            ]}
-          />
-        </>
+        <SummaryStrip
+          items={[
+            { label: 'Assets', value: fmt.format(totalAssets) },
+            { label: 'Liabilities', value: fmt.format(totalLiabilities), color: 'var(--expense)' },
+          ]}
+        />
       )}
 
       {loading && <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>Loading…</p>}
@@ -214,11 +253,13 @@ export default function AccountList() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {items.map((account) => {
                     const children  = childrenOf(account.id);
+                    const renderedChildren = visibleOnly ? visibleChildrenOf(account.id) : children;
                     const hasKids   = children.length > 0;
                     const totalBal  = account.balance +
                       children.reduce((s, c) => s + c.computed_balance, 0);
                     const visual    = categoryVisual(account.name);
                     const isNeg     = totalBal < 0;
+                    const hidden    = account.visible !== 1;
 
                     return (
                       <div key={account.id} style={{
@@ -261,12 +302,10 @@ export default function AccountList() {
                                 </span>
                               )}
                               {!account.include_in_total && (
-                                <span style={{
-                                  fontSize: 9, fontWeight: 600, color: 'var(--muted)',
-                                  background: 'var(--line)', padding: '1px 6px', borderRadius: 999, flexShrink: 0,
-                                }}>
-                                  excluded
-                                </span>
+                                <span style={mutedBadgeStyle}>excluded</span>
+                              )}
+                              {!visibleOnly && hidden && (
+                                <span style={mutedBadgeStyle}>hidden</span>
                               )}
                             </div>
                             {(account.type === 'credit_card' || hasKids) && (
@@ -290,8 +329,8 @@ export default function AccountList() {
                           </span>
                         </Link>
 
-                        {hasKids && children.map((child, idx) => {
-                          const isLast = idx === children.length - 1;
+                        {renderedChildren.map((child, idx) => {
+                          const isLast = idx === renderedChildren.length - 1;
                           return (
                             <Link
                               key={child.id}

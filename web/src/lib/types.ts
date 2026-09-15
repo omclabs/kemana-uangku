@@ -30,6 +30,7 @@ export interface Account {
   include_in_total: number;
   count_transfer_as_expense: number;
   is_active: number;
+  visible: number;
   computed_balance: number;
   created_at: number;
   updated_at: number;
@@ -44,6 +45,7 @@ export interface AccountInput {
   billing_date?: number | null;
   include_in_total?: boolean;
   count_transfer_as_expense?: boolean;
+  visible?: boolean;
   is_active?: boolean;
 }
 
