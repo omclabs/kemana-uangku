@@ -604,48 +604,91 @@ export default function TransactionList() {
         }}>
           Transactions
         </h1>
-        {selectionMode ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
-              {selectedIds.length} selected
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {selectionMode ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+                {selectedIds.length} selected
+              </span>
+              <button
+                type="button"
+                onClick={clearSelection}
+                style={{
+                  border: 'none', background: 'var(--surface-2)', color: 'var(--ink)',
+                  fontSize: 12, fontWeight: 700, borderRadius: 999, padding: '5px 11px',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          ) : isSearching ? (
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+              {searchResults.length} result{searchResults.length === 1 ? '' : 's'}
             </span>
-            <button
-              type="button"
-              onClick={clearSelection}
-              style={{
-                border: 'none', background: 'var(--surface-2)', color: 'var(--ink)',
-                fontSize: 12, fontWeight: 700, borderRadius: 999, padding: '5px 11px',
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        ) : isSearching ? (
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-            {searchResults.length} result{searchResults.length === 1 ? '' : 's'}
-          </span>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-            <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() - 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))} style={{
-              width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8,
-            }}>
-              <ChevronLeft />
-            </button>
-            <span style={{ minWidth: 76, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
-              {periodTitle}
-            </span>
-            <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() + 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))} disabled={!canGoNext}
-              style={{
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+              <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() - 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))} style={{
                 width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', cursor: canGoNext ? 'pointer' : 'not-allowed', opacity: canGoNext ? 1 : 0.35, borderRadius: 8,
+                alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 8,
               }}>
-              <ChevronRight />
-            </button>
-          </div>
-        )}
+                <ChevronLeft />
+              </button>
+              <span style={{ minWidth: 76, textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+                {periodTitle}
+              </span>
+              <button type="button" onClick={() => setSelectedMonthAndReset(tab === 'monthly' ? new Date(selectedMonth.getFullYear() + 1, selectedMonth.getMonth(), 1) : new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))} disabled={!canGoNext}
+                style={{
+                  width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--muted)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', cursor: canGoNext ? 'pointer' : 'not-allowed', opacity: canGoNext ? 1 : 0.35, borderRadius: 8,
+                }}>
+                <ChevronRight />
+              </button>
+            </div>
+          )}
+          {!selectionMode && (
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setFabOpen((open) => !open)}
+                aria-label={fabOpen ? 'Close menu' : 'Add transaction'}
+                style={{
+                  width: 36, height: 36, borderRadius: 12, flexShrink: 0, border: 'none', cursor: 'pointer',
+                  background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 8px 16px -6px var(--accent)',
+                }}
+              >
+                <span style={{ display: 'flex', transition: 'transform .18s ease', transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)' }}>
+                  <PlusIcon size={18} />
+                </span>
+              </button>
+              {fabOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 20,
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8,
+                }}>
+                  {!isReimbursement && (
+                    <Link to="/transactions/import-csv" onClick={() => setFabOpen(false)} style={fabMenuItemStyle}>
+                      Import
+                    </Link>
+                  )}
+                  <Link to="/transactions/new" onClick={() => setFabOpen(false)} style={fabMenuItemStyle}>
+                    Add transaction
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+      {fabOpen && (
+        <div
+          onClick={() => setFabOpen(false)}
+          aria-hidden="true"
+          style={{ position: 'fixed', inset: 0, zIndex: 19, background: 'transparent' }}
+        />
+      )}
 
       <div style={{ position: 'relative', marginBottom: 14 }}>
         <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', display: 'flex', pointerEvents: 'none' }}>
@@ -915,47 +958,6 @@ export default function TransactionList() {
       )}
       {!loading && !error && !isSearching && tab === 'calendar' && <CalendarView cells={calendar.cells} summary={calendar.summary} />}
       {!loading && !error && !isSearching && tab === 'monthly' && <MonthlyView months={yearMonths} expandedMonth={selectedMonth.getMonth()} />}
-
-      {fabOpen && (
-        <div
-          onClick={() => setFabOpen(false)}
-          aria-hidden="true"
-          style={{ position: 'fixed', inset: 0, zIndex: 19, background: 'transparent' }}
-        />
-      )}
-
-      {fabOpen && (
-        <div style={{
-          position: 'fixed', right: 20, bottom: 140, zIndex: 20,
-          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10,
-        }}>
-          {!isReimbursement && (
-            <Link to="/transactions/import-csv" onClick={() => setFabOpen(false)} style={fabMenuItemStyle}>
-              Import
-            </Link>
-          )}
-          <Link to="/transactions/new" onClick={() => setFabOpen(false)} style={fabMenuItemStyle}>
-            Add transaction
-          </Link>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={() => setFabOpen((open) => !open)}
-        aria-label={fabOpen ? 'Close menu' : 'Open menu'}
-        style={{
-          position: 'fixed', right: 20, bottom: 76,
-          width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer',
-          background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 8px 20px -6px var(--accent)', zIndex: 20,
-        }}
-      >
-        <span style={{ display: 'flex', transition: 'transform .18s ease', transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)' }}>
-          <PlusIcon />
-        </span>
-      </button>
     </PageContainer>
   );
 }
