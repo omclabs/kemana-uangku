@@ -555,9 +555,6 @@ export default function TransactionList() {
     ? (summary.expense / summary.income) * 100
     : (summary.expense > 0 ? 100 : 0);
   const spentPctClamped = Math.min(spentPct, 100);
-  const GAUGE_R = 100 / Math.PI;
-  const GAUGE_CX = 50;
-  const GAUGE_CY = 50;
   const tabStyle = (active: boolean): CSSProperties => ({
     flex: 1,
     textAlign: 'center',
@@ -777,31 +774,24 @@ export default function TransactionList() {
             </button>
           </div>
         </div>
-        <svg viewBox="0 15 100 43" style={{ width: '100%', maxWidth: 220, display: 'block', margin: '0 auto' }}>
-          <path
-            d={`M ${GAUGE_CX - GAUGE_R} ${GAUGE_CY} A ${GAUGE_R} ${GAUGE_R} 0 0 1 ${GAUGE_CX + GAUGE_R} ${GAUGE_CY}`}
-            fill="none" stroke="var(--line)" strokeWidth="8" strokeLinecap="round"
-          />
-          {spentPctClamped > 0 && (
-            <path
-              d={`M ${GAUGE_CX - GAUGE_R} ${GAUGE_CY} A ${GAUGE_R} ${GAUGE_R} 0 0 1 ${GAUGE_CX + GAUGE_R} ${GAUGE_CY}`}
-              fill="none" stroke="var(--expense)" strokeWidth="8" strokeLinecap="round"
-              strokeDasharray={`${spentPctClamped} ${100 - spentPctClamped}`}
-            />
-          )}
-          <text
-            x={GAUGE_CX} y={GAUGE_CY - 6} textAnchor="middle"
-            fontSize="13" fontWeight="800" fill="var(--ink)" fontFamily="inherit"
-          >
-            {Math.round(spentPct)}%
-          </text>
-          <text
-            x={GAUGE_CX} y={GAUGE_CY + 6} textAnchor="middle"
-            fontSize="6" fontWeight="600" fill="var(--muted)" fontFamily="inherit"
-          >
-            spent
-          </text>
-        </svg>
+        {(summary.income > 0 || summary.expense > 0) && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 6, gap: 12 }}>
+              <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Expense vs Income</span>
+              <span style={{ color: 'var(--ink)', fontWeight: 700 }}>{Math.round(spentPct)}% of income</span>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
+              <div style={{
+                width: `${spentPctClamped}%`,
+                height: '100%',
+                borderRadius: 999,
+                background: summary.total >= 0
+                  ? 'linear-gradient(90deg, var(--accent), var(--accent-2))'
+                  : 'linear-gradient(90deg, var(--expense), #f97316)',
+              }} />
+            </div>
+          </div>
+        )}
       </div>
 
       {!isSearching && tab === 'daily' && merchantOptions.length > 0 && (

@@ -32,8 +32,8 @@ function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-dvh overflow-hidden bg-canvas">
       <Sidebar />
-      <div className="flex h-dvh flex-1 flex-col overflow-hidden bg-bg">
-        <main className="flex-1 overflow-y-auto">{children}</main>
+      <div className="flex h-dvh min-h-0 flex-1 flex-col overflow-hidden bg-bg">
+        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
         <BottomNav />
       </div>
     </div>
