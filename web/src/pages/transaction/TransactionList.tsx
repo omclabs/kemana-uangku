@@ -1109,7 +1109,20 @@ function TransactionRow({
           >
             {label}
           </div>
-          {sublabel && <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>{sublabel}</div>}
+          {sublabel && (
+            <div
+              style={{
+                fontSize: 10.5,
+                fontWeight: 600,
+                color: 'var(--muted)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {sublabel}
+            </div>
+          )}
         </div>
 
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
