@@ -33,7 +33,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-canvas md:h-screen md:overflow-hidden">
       <Sidebar />
       <div className="flex min-h-screen flex-1 flex-col bg-bg md:h-screen md:overflow-hidden">
-        <main className="flex-1 pb-16 md:overflow-y-auto md:pb-0">{children}</main>
+        <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:overflow-y-auto md:pb-0">{children}</main>
         <BottomNav />
       </div>
     </div>
