@@ -9,9 +9,7 @@ export default function BottomNav() {
     <nav
       className="md:!hidden"
       style={{
-        position: 'fixed',
-        bottom: 0, left: 0, right: 0,
-        zIndex: 20,
+        flexShrink: 0,
         display: 'flex',
         alignItems: 'stretch',
         background: 'var(--surface)',

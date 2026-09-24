@@ -30,10 +30,10 @@ import TrackedItemAlerts from './pages/tracked-item/TrackedItemAlerts';
 
 function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-canvas md:h-screen md:overflow-hidden">
+    <div className="flex h-dvh overflow-hidden bg-canvas">
       <Sidebar />
-      <div className="flex min-h-screen flex-1 flex-col bg-bg md:h-screen md:overflow-hidden">
-        <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:overflow-y-auto md:pb-0">{children}</main>
+      <div className="flex h-dvh flex-1 flex-col overflow-hidden bg-bg">
+        <main className="flex-1 overflow-y-auto">{children}</main>
         <BottomNav />
       </div>
     </div>
