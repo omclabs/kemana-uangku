@@ -683,7 +683,7 @@ export default function TransactionList() {
         <div
           onClick={() => setFabOpen(false)}
           aria-hidden="true"
-          style={{ position: 'fixed', inset: 0, zIndex: 19, background: 'transparent' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 14, background: 'transparent' }}
         />
       )}
 
