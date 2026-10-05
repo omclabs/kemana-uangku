@@ -867,16 +867,8 @@ export default function TransactionList() {
             const totalsSource = selectionMode && selectedGroupKey === group.key
               ? selectedGroupItems
               : group.items;
-            const depositTotal = totalsSource.reduce((sum, transaction) => {
-              if (transaction.type === 'income') return sum + transaction.amount;
-              return sum;
-            }, 0);
-            const withdrawalTotal = totalsSource.reduce((sum, transaction) => {
-              if (transaction.type === 'expense' || transaction.type === 'transfer') {
-                return sum + transaction.amount;
-              }
-              return sum;
-            }, 0);
+            const depositTotal = totalsSource.reduce((sum, transaction) => sum + txIncome(transaction), 0);
+            const withdrawalTotal = totalsSource.reduce((sum, transaction) => sum + txExpense(transaction, flaggedAccountIds), 0);
             return (
               <section key={group.key}>
                 <button
